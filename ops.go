@@ -22,24 +22,24 @@ const (
 
 func (m *Module) ModelName() string { return "appointment_booking" }
 
-func (m *Module) MountOps(reg router.OpRegistry) {
-	reg.Op(OpCreateReservation, m.opCreateReservation).Requires("reservation", model.Create).Accepts(&CreateReservationArgs{})
-	reg.Op(OpGetReservation, m.opGetReservation).Requires("reservation", model.Read).Accepts(&GetReservationArgs{})
-	reg.Op(OpListReservationsByStaff, m.opListReservationsByStaff).Requires("reservation", model.Read).Accepts(&ListReservationsByStaffArgs{})
-	reg.Op(OpListReservationsByClient, m.opListReservationsByClient).Requires("reservation", model.Read).Accepts(&ListReservationsByClientArgs{})
-	reg.Op(OpChangeReservationStatus, m.opChangeReservationStatus).Requires("reservation", model.Update).Accepts(&ChangeReservationStatusArgs{})
-	reg.Op(OpExpirePendingReservations, m.opExpirePendingReservations).Requires("reservation", model.Update).Accepts(&ExpirePendingReservationsArgs{})
+func (m *Module) MountOperations(reg router.OperationRegistry) {
+	reg.Operation(OpCreateReservation, m.opCreateReservation).Requires("reservation", model.Create).Accepts(&CreateReservationArgs{})
+	reg.Operation(OpGetReservation, m.opGetReservation).Requires("reservation", model.Read).Accepts(&GetReservationArgs{})
+	reg.Operation(OpListReservationsByStaff, m.opListReservationsByStaff).Requires("reservation", model.Read).Accepts(&ListReservationsByStaffArgs{})
+	reg.Operation(OpListReservationsByClient, m.opListReservationsByClient).Requires("reservation", model.Read).Accepts(&ListReservationsByClientArgs{})
+	reg.Operation(OpChangeReservationStatus, m.opChangeReservationStatus).Requires("reservation", model.Update).Accepts(&ChangeReservationStatusArgs{})
+	reg.Operation(OpExpirePendingReservations, m.opExpirePendingReservations).Requires("reservation", model.Update).Accepts(&ExpirePendingReservationsArgs{})
 	// Upserts: crean en la rama not-found Y actualizan en la otra — el op exige TODAS las
 	// acciones que realmente puede ejecutar (model.Action es bitmask). Declarar solo Update
 	// dejaría a un principal update-only creando filas (violación de closed-by-default).
-	reg.Op(OpUpsertCalendarConfig, m.opUpsertCalendarConfig).Requires("calendar", model.Create|model.Update).Accepts(&UpsertCalendarConfigArgs{})
-	reg.Op(OpUpsertWeeklyCalendar, m.opUpsertWeeklyCalendar).Requires("calendar", model.Create|model.Update).Accepts(&UpsertWeeklyCalendarArgs{})
-	reg.Op(OpAddCalendarException, m.opAddCalendarException).Requires("calendar", model.Create).Accepts(&AddCalendarExceptionArgs{})
-	reg.Op(OpRemoveCalendarException, m.opRemoveCalendarException).Requires("calendar", model.Delete).Accepts(&RemoveCalendarExceptionArgs{})
-	reg.Op(OpListAvailability, m.opListAvailability).Requires("calendar", model.Read).Accepts(&ListAvailabilityArgs{})
+	reg.Operation(OpUpsertCalendarConfig, m.opUpsertCalendarConfig).Requires("calendar", model.Create|model.Update).Accepts(&UpsertCalendarConfigArgs{})
+	reg.Operation(OpUpsertWeeklyCalendar, m.opUpsertWeeklyCalendar).Requires("calendar", model.Create|model.Update).Accepts(&UpsertWeeklyCalendarArgs{})
+	reg.Operation(OpAddCalendarException, m.opAddCalendarException).Requires("calendar", model.Create).Accepts(&AddCalendarExceptionArgs{})
+	reg.Operation(OpRemoveCalendarException, m.opRemoveCalendarException).Requires("calendar", model.Delete).Accepts(&RemoveCalendarExceptionArgs{})
+	reg.Operation(OpListAvailability, m.opListAvailability).Requires("calendar", model.Read).Accepts(&ListAvailabilityArgs{})
 }
 
-var _ router.OpModule = (*Module)(nil)
+var _ router.OperationModule = (*Module)(nil)
 
 // writeError mapea los errores sentinela conocidos a un código de estado tipo HTTP y escribe
 // err.Error() como cuerpo, preservando (de forma laxa) los mensajes legibles que daba el viejo

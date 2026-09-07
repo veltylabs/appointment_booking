@@ -10,7 +10,7 @@ import (
 	ab "github.com/veltylabs/appointment_booking"
 )
 
-func TestMountOps_CreateReservation_SlotTaken(t *testing.T) {
+func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 	db := orm.New(mem.New())
 	m, err := ab.New(db, SetupDependencies())
 	if err != nil {
@@ -21,7 +21,7 @@ func TestMountOps_CreateReservation_SlotTaken(t *testing.T) {
 	reg.Configure(mock.Config{
 		Authorize: func(userID string, r model.Resource, a model.Action) bool { return true },
 	})
-	m.MountOps(reg)
+	m.MountOperations(reg)
 
 	// Seeding config & calendar config for staff
 	cfg := ab.EmployeeServiceConfig{
@@ -84,7 +84,7 @@ func TestMountOps_CreateReservation_SlotTaken(t *testing.T) {
 	}
 }
 
-func TestMountOps_RBAC_Deny(t *testing.T) {
+func TestMountOperations_RBAC_Deny(t *testing.T) {
 	db := orm.New(mem.New())
 	m, err := ab.New(db, SetupDependencies())
 	if err != nil {
@@ -95,7 +95,7 @@ func TestMountOps_RBAC_Deny(t *testing.T) {
 	reg.Configure(mock.Config{
 		Authorize: func(userID string, r model.Resource, a model.Action) bool { return false }, // denega todo
 	})
-	m.MountOps(reg)
+	m.MountOperations(reg)
 
 	body := []byte(`{"tenant_id":"t1","client_id":"c1"}`)
 	ctx := &mock.Context{InBody: body}
