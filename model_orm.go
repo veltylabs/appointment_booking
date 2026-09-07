@@ -1069,3 +1069,85 @@ func (m *ListAvailabilityArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
+type ListWeeklyCalendarArgs struct {
+	TenantId string
+	StaffId string
+}
+
+func (m *ListWeeklyCalendarArgs) ModelName() string { return "list_weekly_calendar_args" }
+
+func (m *ListWeeklyCalendarArgs) Schema() []model.Field { return ListWeeklyCalendarArgsModel.Fields }
+
+func (m *ListWeeklyCalendarArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId} }
+
+func (m *ListWeeklyCalendarArgs) IsNil() bool { return m == nil }
+
+func (m *ListWeeklyCalendarArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+}
+
+func (m *ListWeeklyCalendarArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+}
+
+type ListWeeklyCalendarArgsList []*ListWeeklyCalendarArgs
+
+func (s *ListWeeklyCalendarArgsList) Schema() []model.Field { return nil }
+func (s *ListWeeklyCalendarArgsList) Pointers() []any     { return nil }
+func (s *ListWeeklyCalendarArgsList) Len() int             { return len(*s) }
+func (s *ListWeeklyCalendarArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *ListWeeklyCalendarArgsList) Append() model.Fielder  { v := &ListWeeklyCalendarArgs{}; *s = append(*s, v); return v }
+func (s *ListWeeklyCalendarArgsList) IsNil() bool          { return s == nil }
+func (s *ListWeeklyCalendarArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *ListWeeklyCalendarArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *ListWeeklyCalendarArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type ListExceptionsArgs struct {
+	TenantId string
+	StaffId string
+	From int64
+	To int64
+}
+
+func (m *ListExceptionsArgs) ModelName() string { return "list_exceptions_args" }
+
+func (m *ListExceptionsArgs) Schema() []model.Field { return ListExceptionsArgsModel.Fields }
+
+func (m *ListExceptionsArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.From, &m.To} }
+
+func (m *ListExceptionsArgs) IsNil() bool { return m == nil }
+
+func (m *ListExceptionsArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+	w.Int("from", m.From)
+	w.Int("to", m.To)
+}
+
+func (m *ListExceptionsArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+	if v, ok := r.Int("from"); ok { m.From = v }
+	if v, ok := r.Int("to"); ok { m.To = v }
+}
+
+type ListExceptionsArgsList []*ListExceptionsArgs
+
+func (s *ListExceptionsArgsList) Schema() []model.Field { return nil }
+func (s *ListExceptionsArgsList) Pointers() []any     { return nil }
+func (s *ListExceptionsArgsList) Len() int             { return len(*s) }
+func (s *ListExceptionsArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *ListExceptionsArgsList) Append() model.Fielder  { v := &ListExceptionsArgs{}; *s = append(*s, v); return v }
+func (s *ListExceptionsArgsList) IsNil() bool          { return s == nil }
+func (s *ListExceptionsArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *ListExceptionsArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *ListExceptionsArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+

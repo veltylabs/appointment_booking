@@ -18,6 +18,8 @@ const (
 	OpAddCalendarException       = "add_calendar_exception"
 	OpRemoveCalendarException    = "remove_calendar_exception"
 	OpListAvailability           = "list_availability"
+	OpListWeeklyCalendar         = "list_weekly_calendar"
+	OpListExceptions             = "list_exceptions"
 )
 
 func (m *Module) ModelName() string { return "appointment_booking" }
@@ -37,6 +39,8 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpAddCalendarException, m.opAddCalendarException).Requires("calendar", model.Create).Accepts(&AddCalendarExceptionArgs{})
 	reg.Operation(OpRemoveCalendarException, m.opRemoveCalendarException).Requires("calendar", model.Delete).Accepts(&RemoveCalendarExceptionArgs{})
 	reg.Operation(OpListAvailability, m.opListAvailability).Requires("calendar", model.Read).Accepts(&ListAvailabilityArgs{})
+	reg.Operation(OpListWeeklyCalendar, m.opListWeeklyCalendar).Requires("calendar", model.Read).Accepts(&ListWeeklyCalendarArgs{})
+	reg.Operation(OpListExceptions, m.opListExceptions).Requires("calendar", model.Read).Accepts(&ListExceptionsArgs{})
 }
 
 var _ router.OperationModule = (*Module)(nil)
@@ -71,8 +75,9 @@ func (m *Module) opCreateReservation(ctx router.Context) {
 	}
 	// Doctrina fail-closed: decode → validate → servicio. Validate ejecuta las constraints
 	// declaradas en la Definition (método generado por ormc — nunca re-implementado a mano).
-	// Aplica este mismo patrón en los 11 handlers: todo op que decodifica args valida antes
-	// de llamar al método de negocio; error de validación ⇒ 400.
+	// Aplica este mismo patrón en los 13 handlers: todo op que decodifica args valida antes
+	// de llamar al método de negocio; error de validación ⇒ 400. (Las 2 list-ops de calendario
+	// NO validan — sin staff_id devuelven lista vacía, no es un 400.)
 	if err := args.Validate(model.ActionCreate); err != nil {
 		ctx.WriteStatus(400)
 		return
@@ -267,6 +272,46 @@ func (m *Module) opListAvailability(ctx router.Context) {
 	list := make(TimeSlotList, len(slots))
 	for i := range slots {
 		list[i] = &slots[i]
+	}
+	if err := ctx.Encode(&list); err != nil {
+		ctx.WriteStatus(500)
+	}
+}
+
+func (m *Module) opListWeeklyCalendar(ctx router.Context) {
+	var args ListWeeklyCalendarArgs
+	if err := ctx.Decode(&args); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	rows, err := m.ListWeeklyCalendar(args.TenantId, args.StaffId)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	list := make(WorkCalendarWeeklyList, len(rows))
+	for i := range rows {
+		list[i] = &rows[i]
+	}
+	if err := ctx.Encode(&list); err != nil {
+		ctx.WriteStatus(500)
+	}
+}
+
+func (m *Module) opListExceptions(ctx router.Context) {
+	var args ListExceptionsArgs
+	if err := ctx.Decode(&args); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	rows, err := m.ListExceptions(args.TenantId, args.StaffId, args.From, args.To)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	list := make(WorkCalendarExceptionList, len(rows))
+	for i := range rows {
+		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
 		ctx.WriteStatus(500)

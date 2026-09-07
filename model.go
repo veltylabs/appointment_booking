@@ -221,3 +221,21 @@ var ListAvailabilityArgsModel = model.Definition{
 		{Name: "to", Type: input.Number()},
 	},
 }
+
+var ListWeeklyCalendarArgsModel = model.Definition{
+	Name: "list_weekly_calendar_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+	},
+}
+
+var ListExceptionsArgsModel = model.Definition{
+	Name: "list_exceptions_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "from", Type: input.Number()},
+		{Name: "to", Type: input.Number()},
+	},
+}

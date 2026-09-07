@@ -14,6 +14,13 @@ var (
 	ErrSlotTaken              = fmt.Err("slot", "taken")
 )
 
+// Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).
+const (
+	ExcHoliday      = "HOLIDAY"
+	ExcSpecialHours = "SPECIAL_HOURS"
+	ExcBlocked      = "BLOCKED"
+)
+
 // iconAppointmentBooking es la referencia al ícono de marca del módulo — solo el nombre llega al
 // binario wasm; la geometría se declara en svg.go (registrado por IconSvg en svg.go).
 const iconAppointmentBooking = svg.Icon("appointment-booking-module")
@@ -27,7 +34,33 @@ const (
 	EventReservationNoShow      = "appointment.reservation.no_show"
 	EventReservationExpired     = "appointment.reservation.expired"
 	EventReservationRescheduled = "appointment.reservation.rescheduled"
+	// EventScheduleChanged se emite al mutar la agenda de un profesional
+	// (upsert semanal, alta/baja de excepción). Un consumidor lo usa para
+	// recalcular disponibilidad (p. ej. reservation recarga sus huecos libres).
+	EventScheduleChanged = "appointment.schedule.changed"
 )
+
+// ScheduleChangedPayload es el payload tipado del evento EventScheduleChanged.
+// Implementa model.Encodable (lo que events.Event.Payload exige) y también
+// model.Decodable, para que un broker que cruza un cable real (webtyp/sse en
+// mjosefa-cms) pueda serializarlo; el broker in-proc de la demo entrega el
+// puntero concreto sin codificar.
+type ScheduleChangedPayload struct {
+	TenantId string
+	StaffId  string
+}
+
+func (p *ScheduleChangedPayload) IsNil() bool { return p == nil }
+
+func (p *ScheduleChangedPayload) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", p.TenantId)
+	w.String("staff_id", p.StaffId)
+}
+
+func (p *ScheduleChangedPayload) DecodeFields(r model.FieldReader) {
+	p.TenantId, _ = r.String("tenant_id")
+	p.StaffId, _ = r.String("staff_id")
+}
 
 // StaffReader verifica que un miembro del staff existe y pertenece al tenant.
 type StaffReader interface {
@@ -50,6 +83,8 @@ type SchedulingService interface {
 	UpsertWeeklyCalendar(cal WorkCalendarWeekly) error
 	AddException(exc WorkCalendarException) error
 	RemoveException(tenantId, exceptionId string) error
+	ListWeeklyCalendar(tenantId, staffId string) ([]WorkCalendarWeekly, error)
+	ListExceptions(tenantId, staffId string, from, to int64) ([]WorkCalendarException, error)
 
 	// Disponibilidad
 	ListAvailability(tenantId, staffId, configId string, from, to int64) ([]TimeSlot, error)
@@ -136,15 +171,45 @@ func (m *Module) UpsertWeeklyCalendar(cal WorkCalendarWeekly) error {
 		return err
 	}
 
-	return m.repo.UpsertWeeklyCalendar(cal)
+	if err := m.repo.UpsertWeeklyCalendar(cal); err != nil {
+		return err
+	}
+	if m.pub != nil {
+		m.pub.Publish(events.Event{Topic: EventScheduleChanged, Payload: &ScheduleChangedPayload{TenantId: cal.TenantId, StaffId: cal.StaffId}})
+	}
+	return nil
 }
 
 func (m *Module) AddException(exc WorkCalendarException) error {
-	return m.repo.InsertException(exc)
+	if err := m.repo.InsertException(exc); err != nil {
+		return err
+	}
+	if m.pub != nil {
+		m.pub.Publish(events.Event{Topic: EventScheduleChanged, Payload: &ScheduleChangedPayload{TenantId: exc.TenantId, StaffId: exc.StaffId}})
+	}
+	return nil
 }
 
 func (m *Module) RemoveException(tenantId, exceptionId string) error {
-	return m.repo.DeleteException(tenantId, exceptionId)
+	exc, err := m.repo.GetException(tenantId, exceptionId)
+	if err != nil {
+		return err
+	}
+	if err := m.repo.DeleteException(tenantId, exceptionId); err != nil {
+		return err
+	}
+	if m.pub != nil {
+		m.pub.Publish(events.Event{Topic: EventScheduleChanged, Payload: &ScheduleChangedPayload{TenantId: tenantId, StaffId: exc.StaffId}})
+	}
+	return nil
+}
+
+func (m *Module) ListWeeklyCalendar(tenantId, staffId string) ([]WorkCalendarWeekly, error) {
+	return m.repo.ListWeeklyCalendar(tenantId, staffId)
+}
+
+func (m *Module) ListExceptions(tenantId, staffId string, from, to int64) ([]WorkCalendarException, error) {
+	return m.repo.ListExceptions(tenantId, staffId, from, to)
 }
 
 // LocalIntToUnixUTC interpreta localInt como minutos desde la medianoche en la fecha dada (medianoche UTC) en la zona horaria (tz) especificada.
@@ -258,13 +323,13 @@ func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to i
 
 		for _, e := range dayExceptions {
 			eCopy := e
-			if e.ExceptionType == "HOLIDAY" {
+			if e.ExceptionType == ExcHoliday {
 				isHoliday = true
-			} else if e.ExceptionType == "SPECIAL_HOURS" {
+			} else if e.ExceptionType == ExcSpecialHours {
 				if specialHours == nil {
 					specialHours = &eCopy
 				}
-			} else if e.ExceptionType == "BLOCKED" {
+			} else if e.ExceptionType == ExcBlocked {
 				blockedExcs = append(blockedExcs, e)
 			}
 		}

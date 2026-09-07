@@ -1,11 +1,9 @@
 # appointment-booking Architecture
 
-> **Status note (2026-07-17):** this document describes the target shape after `docs/PLAN.md` lands
-> (the reusable-module harness adoption: `router.OpModule`, `Deps.IDs model.IDGenerator`,
-> `events.Publisher`, `ddl.CreateTable`, `storage/mem` tests). Sections 1–5 and 8 describe the domain
-> and are already accurate today. Sections 6 and 7 describe the post-migration shape — see
-> `docs/PLAN.md` while it is in flight, and `AGENTS.md` (this repo's root) for the whitelist/blacklist
-> this module holds to once the plan lands.
+> **Status note:** this document describes the current shape of the module after the reusable-module
+> harness adoption (`router.OpModule`, `Deps.IDs model.IDGenerator`, `events.Publisher`,
+> `ddl.CreateTable`, `storage/mem` tests) and the schedule-editor addition.
+> `AGENTS.md` (this repo's root) is the authority on the whitelist/blacklist this module holds to.
 
 ## 1. Domain Scope
 
@@ -24,7 +22,7 @@ The `appointment-booking` module manages the complete lifecycle of a scheduled s
 - **`WorkCalendarException`:** One-off overrides for a specific date: `HOLIDAY` (no availability), `SPECIAL_HOURS` (different hours), or `BLOCKED` (interval subtracted from available window).
 
 This module owns and migrates the schema for all five entities above (unlike e.g. `work_schedule`,
-which only reads read-only tables owned elsewhere) — see §7 and `docs/PLAN.md` Stage 6.
+which only reads read-only tables owned elsewhere) — see §7.
 
 ## 3. Finite State Machine (FSM)
 
@@ -57,7 +55,7 @@ Key decisions:
 
 4. **Snapshotting:** Price, currency, duration, staff ID, and service ID are snapshotted at reservation creation. Downstream changes to catalog or staff data do not alter existing reservations.
 
-5. **Local Integer Time + IANA Timezone (Single Source of Truth):** Working hours in `WorkCalendarWeekly` are stored as local integers (e.g., `900 = 09:00`). The IANA timezone is stored exclusively in `WorkCalendarConfig` (one row per staff) — `WorkCalendarWeekly` and `WorkCalendarException` do not carry timezone fields. This prevents per-row timezone inconsistency by construction. The `ListAvailability` algorithm loads `WorkCalendarConfig` first to obtain the timezone, then converts local boundaries to Unix UTC using `github.com/webtyp/time` (imported directly — no local fork, see `docs/PLAN.md` Stage 0). This design ensures recurring schedules remain correct across DST transitions.
+5. **Local Integer Time + IANA Timezone (Single Source of Truth):** Working hours in `WorkCalendarWeekly` are stored as local integers (e.g., `900 = 09:00`). The IANA timezone is stored exclusively in `WorkCalendarConfig` (one row per staff) — `WorkCalendarWeekly` and `WorkCalendarException` do not carry timezone fields. This prevents per-row timezone inconsistency by construction. The `ListAvailability` algorithm loads `WorkCalendarConfig` first to obtain the timezone, then converts local boundaries to Unix UTC using `github.com/webtyp/time` (imported directly — no local fork). This design ensures recurring schedules remain correct across DST transitions.
 
 6. **Optimistic Concurrency:** `Reservation.revision` is incremented on each status update. `UpdateReservationStatus` enforces `WHERE revision = N` — a mismatch returns `ErrConflict`, preventing silent overwrites.
 
@@ -79,7 +77,7 @@ This module communicates outbound via the injected `github.com/webtyp/events` `e
 `EventPublisher interface { Publish(ctx *tinyctx.Context, event string, payload any) error }`, which
 duplicated the ecosystem's `events.Publisher` contract and additionally depended on
 `github.com/webtyp/context` (not on this module's import whitelist — see `AGENTS.md`). After the
-migration (`docs/PLAN.md` Stage 2), `Deps.Publisher` is `events.Publisher` directly:
+migration, `Deps.Publisher` is `events.Publisher` directly:
 
 ```go
 type Publisher interface { Publish(e Event) } // github.com/webtyp/events
@@ -97,6 +95,13 @@ After each successful state mutation, the module publishes a domain event with a
 | `ChangeStatus` NO_SHOW | `appointment.reservation.no_show` |
 | `ChangeStatus` EXPIRE | `appointment.reservation.expired` |
 | Reschedule (original) | `appointment.reservation.rescheduled` |
+| `UpsertWeeklyCalendar` / `AddException` / `RemoveException` | `appointment.schedule.changed` |
+
+The `appointment.schedule.changed` event carries a `ScheduleChangedPayload{TenantId, StaffId}` and is
+published whenever a staff member's schedule mutates. It implements both `model.Encodable` (required
+by `events.Event.Payload`) and `model.Decodable`, so a wire-crossing broker (`webtyp/sse`) can serialize
+it; an in-process broker delivers the concrete pointer without encoding. Consumers (e.g. a reservation
+screen that recomputes free slots) subscribe and act when the event's `StaffId` matches their scope.
 
 **Rules:**
 - Event publishing is **fire-and-forget** — `events.Publisher.Publish` has no error return; a
@@ -108,8 +113,8 @@ After each successful state mutation, the module publishes a domain event with a
 ## 7. Transport, Identity, View — Composition Root
 
 The module implements `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`)
-instead of `mcp.ToolProvider` — it never imports `tinywasm/mcp`. All 11 operations (6 reservation +
-5 calendar) are registered by a single `*Module`; the transport adapter that harvests them (`mcp`
+instead of `mcp.ToolProvider` — it never imports `tinywasm/mcp`. All 13 operations (6 reservation +
+7 calendar) are registered by a single `*Module`; the transport adapter that harvests them (`mcp`
 today, any future `router.OpRegistry`-satisfying transport tomorrow) is the composition root's
 choice, not this module's.
 
@@ -128,6 +133,8 @@ choice, not this module's.
 | `add_calendar_exception` | `c` | `calendar` | Adds a calendar exception for a specific date |
 | `remove_calendar_exception` | `d` | `calendar` | Removes a calendar exception |
 | `list_availability` | `r` | `calendar` | Lists available time slots for a staff member |
+| `list_weekly_calendar` | `r` | `calendar` | Lists the raw weekly rows (for the schedule editor) |
+| `list_exceptions` | `r` | `calendar` | Lists calendar exceptions in a date range (for the schedule editor) |
 
 ### View
 
@@ -141,14 +148,22 @@ through `ChangeReservationStatus`'s FSM-gated transitions) and are never hard-de
 `view.WithSaveOp`/`view.WithDeleteOp` are intentionally omitted — a bare `Presenter` (list + select)
 is the correct, complete shape here, not a gap.
 
-**No second view for calendar configuration.** `WorkCalendarConfig` (one row per staff),
-`WorkCalendarWeekly` (at most 7 rows per staff), and `WorkCalendarException` (a handful of one-off
-rows) are narrow configuration data, not a browsable list a user scrolls through the way they browse
-a catalog or a reservation list — there is no natural "list op" a calendar view would page over, and
-the existing `upsert_*`/`add_*`/`remove_*` ops already cover every calendar mutation a UI needs to
-drive directly. Building a second `view.Presenter` for them would be manufacturing a list UI for data
-that isn't list-shaped. If a future app screen needs one, it is a small, separate addition — not a
-gap left by this plan.
+**No second `view.Presenter` for calendar configuration, but an editor face exists.** `WorkCalendarConfig`
+(one row per staff), `WorkCalendarWeekly` (at most 7 rows per staff), and `WorkCalendarException` (a
+handful of one-off rows) are narrow configuration data, not a browsable list a user scrolls through
+the way they browse a catalog or a reservation list — there is no natural "list op" a calendar view
+would page over, and the `upsert_*`/`add_*`/`remove_*` ops cover every calendar mutation a UI needs
+to drive directly. A `view.Presenter` list UI would be manufacturing a list for data that isn't
+list-shaped; instead, this module exposes the schedule editor's face as a **caller-side typed client**:
+
+- `list_weekly_calendar` + `list_exceptions` — the raw reads a `scheduleeditor` needs (previously
+  internal to `Repository`).
+- `NewScheduleClient(caller, tenantId, staffId)` — a caller-side typed client (`Weekly`, `Exceptions`,
+  `SaveWeeklyRow`, `AddException`, `RemoveException`) over those ops plus the existing write ops. The
+  app (e.g. `app-demo`) adapts it to a UI component's callbacks; this module never imports a renderer.
+
+So a schedule editor screen is a **small, separate addition** — delivered here as `ScheduleClient`,
+consumed by whatever UI the composition root chooses.
 
 ### Composition Root Example
 

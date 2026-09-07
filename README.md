@@ -13,11 +13,7 @@ Manages schedulable service configuration, staff work calendars, and client rese
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
-- [Implementation Plan](docs/PLAN.md)
-  - [Stage 1 — Models + FSM](docs/PLAN_STAGE_1_MODELS.md)
-  - [Stage 2 — ORM + Migrations](docs/PLAN_STAGE_2_ORM.md)
-  - [Stage 3 — Service Layer](docs/PLAN_STAGE_3_SERVICE.md)
-  - [Stage 4 — MCP Integration](docs/PLAN_STAGE_4_MCP.md)
+- Most recently executed local plan: [docs/LAST_PLAN_EXECUTED.md](docs/LAST_PLAN_EXECUTED.md)
 - [Database Diagram](docs/diagrams/database.md)
 - [FSM Diagram](docs/diagrams/fsm.md)
 - [Sequence Diagrams](docs/diagrams/sequence.md)
@@ -100,11 +96,31 @@ providers := []mcp.ToolProvider{
 // mcp.NewServer(mcp.Config{...}, providers)
 ```
 
-### Available MCP Tools (11 total)
+### Available MCP Tools (13 total)
 
-`list_availability`, `create_reservation`, `get_reservation`, `list_reservations_by_staff`, `list_reservations_by_client`, `change_reservation_status`, `upsert_calendar_config`, `upsert_weekly_calendar`, `add_calendar_exception`, `remove_calendar_exception`, `expire_pending_reservations`
+`list_availability`, `create_reservation`, `get_reservation`, `list_reservations_by_staff`, `list_reservations_by_client`, `change_reservation_status`, `upsert_calendar_config`, `upsert_weekly_calendar`, `add_calendar_exception`, `remove_calendar_exception`, `expire_pending_reservations`, `list_weekly_calendar`, `list_exceptions`
 
 > `expire_pending_reservations` is the **only trigger for the EXPIRE FSM event**. It must be called by an external scheduler — the module has no internal background process.
+>
+> `list_weekly_calendar` and `list_exceptions` are the raw reads a schedule editor needs; the caller-side face is `NewScheduleClient` (see below).
+
+## ScheduleClient — the schedule-editor face
+
+`NewScheduleClient(caller router.Caller, tenantId, staffId string) *ScheduleClient` is a caller-side
+typed client over the calendar ops, intended to be adapted by an app to a `scheduleeditor` UI
+component. Importing only `router` + this module's types, it stays renderer-agnostic:
+
+```go
+cl := appointmentbooking.NewScheduleClient(caller, "t1", "s1")
+cl.Weekly(func(rows []appointmentbooking.WorkCalendarWeekly, err error) { /* … */ })
+cl.Exceptions(from, to, func(rows []appointmentbooking.WorkCalendarException, err error) { /* … */ })
+cl.SaveWeeklyRow(row, func(err error) { /* … */ })
+cl.AddException(exc, func(err error) { /* … */ })
+cl.RemoveException(exceptionID, func(err error) { /* … */ })
+```
+
+Every successful calendar mutation also publishes the `appointment.schedule.changed` event
+(`ScheduleChangedPayload{TenantId, StaffId}`) so consumers can recompute availability.
 
 ## Service interface
 

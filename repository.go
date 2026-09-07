@@ -170,6 +170,21 @@ func (r *Repository) DeleteException(tenantId, id string) error {
 	return r.db.Delete(&WorkCalendarException{}, orm.Eq(WorkCalendarException_.Id, id), orm.Eq(WorkCalendarException_.TenantId, tenantId))
 }
 
+func (r *Repository) GetException(tenantId, id string) (WorkCalendarException, error) {
+	m := &WorkCalendarException{}
+	qb := r.db.Query(m).
+		Where(WorkCalendarException_.Id).Eq(id).
+		Where(WorkCalendarException_.TenantId).Eq(tenantId)
+	got, err := ReadOneWorkCalendarException(qb, m)
+	if err == orm.ErrNotFound {
+		return WorkCalendarException{}, ErrNotFound
+	}
+	if err != nil {
+		return WorkCalendarException{}, err
+	}
+	return *got, nil
+}
+
 // ----------------------------------------------------------------------------
 // EmployeeServiceConfig
 // ----------------------------------------------------------------------------
