@@ -40,13 +40,9 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 		IsActive: true,
 	})
 
-	db.Create(&ab.WorkCalendarWeekly{
-		TenantId:   "t1",
-		StaffId:    "s1",
-		DayOfWeek:  3, // Wednesday, same as 1700000000 UTC which is Wednesday
-		WorkStart:  540,
-		WorkFinish: 1020,
-		IsActive:   true,
+	db.Create(&ab.WorkCalendarBlock{
+		TenantId: "t1", StaffId: "s1", DayOfWeek: 3, SpecificDate: 0,
+		StartMin: 540, EndMin: 1020, IsActive: true,
 	})
 
 	// 1700000000 UTC is Wednesday, 22:13:20 UTC. Wait! 1700000000 UTC is:
@@ -57,13 +53,9 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 	// Let's use 1736154000 (Jan 6, 2025 is Monday, 09:00 UTC) which we already proved works in setup_test.go.
 	// 1736154000 is Monday. Let's seed DayOfWeek: 1 (Monday).
 
-	db.Create(&ab.WorkCalendarWeekly{
-		TenantId:   "t1",
-		StaffId:    "s1",
-		DayOfWeek:  1, // Monday
-		WorkStart:  540,
-		WorkFinish: 1020,
-		IsActive:   true,
+	db.Create(&ab.WorkCalendarBlock{
+		TenantId: "t1", StaffId: "s1", DayOfWeek: 1, SpecificDate: 0,
+		StartMin: 540, EndMin: 1020, IsActive: true,
 	})
 
 	body := []byte(`{"tenant_id":"t1","client_id":"c1","creator_user_id":"u1",` +

@@ -183,88 +183,83 @@ func ReadAllWorkCalendarConfig(qb *orm.QB) (WorkCalendarConfigList, error) {
 	return results, err
 }
 
-type WorkCalendarWeekly struct {
+type WorkCalendarBlock struct {
 	Id string
 	TenantId string
 	StaffId string
 	DayOfWeek int64
-	WorkStart int64
-	WorkFinish int64
-	BreakStart int64
-	BreakFinish int64
+	SpecificDate int64
+	StartMin int64
+	EndMin int64
 	IsActive bool
 }
 
-func (m *WorkCalendarWeekly) ModelName() string { return "work_calendar_weekly" }
+func (m *WorkCalendarBlock) ModelName() string { return "work_calendar_block" }
 
-func (m *WorkCalendarWeekly) Schema() []model.Field { return WorkCalendarWeeklyModel.Fields }
+func (m *WorkCalendarBlock) Schema() []model.Field { return WorkCalendarBlockModel.Fields }
 
-func (m *WorkCalendarWeekly) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.StaffId, &m.DayOfWeek, &m.WorkStart, &m.WorkFinish, &m.BreakStart, &m.BreakFinish, &m.IsActive} }
+func (m *WorkCalendarBlock) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.StaffId, &m.DayOfWeek, &m.SpecificDate, &m.StartMin, &m.EndMin, &m.IsActive} }
 
-func (m *WorkCalendarWeekly) IsNil() bool { return m == nil }
+func (m *WorkCalendarBlock) IsNil() bool { return m == nil }
 
-func (m *WorkCalendarWeekly) EncodeFields(w model.FieldWriter) {
+func (m *WorkCalendarBlock) EncodeFields(w model.FieldWriter) {
 	w.String("id", m.Id)
 	w.String("tenant_id", m.TenantId)
 	w.String("staff_id", m.StaffId)
 	w.Int("day_of_week", m.DayOfWeek)
-	w.Int("work_start", m.WorkStart)
-	w.Int("work_finish", m.WorkFinish)
-	w.Int("break_start", m.BreakStart)
-	w.Int("break_finish", m.BreakFinish)
+	w.Int("specific_date", m.SpecificDate)
+	w.Int("start_min", m.StartMin)
+	w.Int("end_min", m.EndMin)
 	w.Bool("is_active", m.IsActive)
 }
 
-func (m *WorkCalendarWeekly) DecodeFields(r model.FieldReader) {
+func (m *WorkCalendarBlock) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("id"); ok { m.Id = v }
 	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
 	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
 	if v, ok := r.Int("day_of_week"); ok { m.DayOfWeek = v }
-	if v, ok := r.Int("work_start"); ok { m.WorkStart = v }
-	if v, ok := r.Int("work_finish"); ok { m.WorkFinish = v }
-	if v, ok := r.Int("break_start"); ok { m.BreakStart = v }
-	if v, ok := r.Int("break_finish"); ok { m.BreakFinish = v }
+	if v, ok := r.Int("specific_date"); ok { m.SpecificDate = v }
+	if v, ok := r.Int("start_min"); ok { m.StartMin = v }
+	if v, ok := r.Int("end_min"); ok { m.EndMin = v }
 	if v, ok := r.Bool("is_active"); ok { m.IsActive = v }
 }
 
-type WorkCalendarWeeklyList []*WorkCalendarWeekly
+type WorkCalendarBlockList []*WorkCalendarBlock
 
-func (s *WorkCalendarWeeklyList) Schema() []model.Field { return nil }
-func (s *WorkCalendarWeeklyList) Pointers() []any     { return nil }
-func (s *WorkCalendarWeeklyList) Len() int             { return len(*s) }
-func (s *WorkCalendarWeeklyList) At(i int) model.Fielder { return (*s)[i] }
-func (s *WorkCalendarWeeklyList) Append() model.Fielder  { v := &WorkCalendarWeekly{}; *s = append(*s, v); return v }
-func (s *WorkCalendarWeeklyList) IsNil() bool          { return s == nil }
-func (s *WorkCalendarWeeklyList) EncodeFields(_ model.FieldWriter) {}
-func (s *WorkCalendarWeeklyList) DecodeFields(_ model.FieldReader) {}
+func (s *WorkCalendarBlockList) Schema() []model.Field { return nil }
+func (s *WorkCalendarBlockList) Pointers() []any     { return nil }
+func (s *WorkCalendarBlockList) Len() int             { return len(*s) }
+func (s *WorkCalendarBlockList) At(i int) model.Fielder { return (*s)[i] }
+func (s *WorkCalendarBlockList) Append() model.Fielder  { v := &WorkCalendarBlock{}; *s = append(*s, v); return v }
+func (s *WorkCalendarBlockList) IsNil() bool          { return s == nil }
+func (s *WorkCalendarBlockList) EncodeFields(_ model.FieldWriter) {}
+func (s *WorkCalendarBlockList) DecodeFields(_ model.FieldReader) {}
 
-func (m *WorkCalendarWeekly) Validate(action byte) error {
+func (m *WorkCalendarBlock) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
-var WorkCalendarWeekly_ = struct {
+var WorkCalendarBlock_ = struct {
 	Id string
 	TenantId string
 	StaffId string
 	DayOfWeek string
-	WorkStart string
-	WorkFinish string
-	BreakStart string
-	BreakFinish string
+	SpecificDate string
+	StartMin string
+	EndMin string
 	IsActive string
 }{
 	Id: "id",
 	TenantId: "tenant_id",
 	StaffId: "staff_id",
 	DayOfWeek: "day_of_week",
-	WorkStart: "work_start",
-	WorkFinish: "work_finish",
-	BreakStart: "break_start",
-	BreakFinish: "break_finish",
+	SpecificDate: "specific_date",
+	StartMin: "start_min",
+	EndMin: "end_min",
 	IsActive: "is_active",
 }
 
-func ReadOneWorkCalendarWeekly(qb *orm.QB, model *WorkCalendarWeekly) (*WorkCalendarWeekly, error) {
+func ReadOneWorkCalendarBlock(qb *orm.QB, model *WorkCalendarBlock) (*WorkCalendarBlock, error) {
 	err := qb.ReadOne()
 	if err != nil {
 		return nil, err
@@ -272,11 +267,11 @@ func ReadOneWorkCalendarWeekly(qb *orm.QB, model *WorkCalendarWeekly) (*WorkCale
 	return model, nil
 }
 
-func ReadAllWorkCalendarWeekly(qb *orm.QB) (WorkCalendarWeeklyList, error) {
-	var results WorkCalendarWeeklyList
+func ReadAllWorkCalendarBlock(qb *orm.QB) (WorkCalendarBlockList, error) {
+	var results WorkCalendarBlockList
 	err := qb.ReadAll(
-		func() model.Model { return &WorkCalendarWeekly{} },
-		func(m model.Model) { results = append(results, m.(*WorkCalendarWeekly)) },
+		func() model.Model { return &WorkCalendarBlock{} },
+		func(m model.Model) { results = append(results, m.(*WorkCalendarBlock)) },
 	)
 	return results, err
 }
@@ -391,6 +386,7 @@ type Reservation struct {
 	LocalStringTime string
 	Status string
 	RescheduledFromId string
+	StatusBeforeConflict string
 	PaymentId string
 	Notes string
 	UpdatedAt int64
@@ -402,7 +398,7 @@ func (m *Reservation) ModelName() string { return "reservation" }
 
 func (m *Reservation) Schema() []model.Field { return ReservationModel.Fields }
 
-func (m *Reservation) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.ClientId, &m.CreatorUserId, &m.EmployeeServiceConfigId, &m.StaffIdsnapshot, &m.ServiceIdsnapshot, &m.DurationMinSnapshot, &m.PriceSnapshot, &m.CurrencySnapshot, &m.ReservationDate, &m.ReservationTime, &m.LocalStringDate, &m.LocalStringTime, &m.Status, &m.RescheduledFromId, &m.PaymentId, &m.Notes, &m.UpdatedAt, &m.UpdatedBy, &m.Revision} }
+func (m *Reservation) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.ClientId, &m.CreatorUserId, &m.EmployeeServiceConfigId, &m.StaffIdsnapshot, &m.ServiceIdsnapshot, &m.DurationMinSnapshot, &m.PriceSnapshot, &m.CurrencySnapshot, &m.ReservationDate, &m.ReservationTime, &m.LocalStringDate, &m.LocalStringTime, &m.Status, &m.RescheduledFromId, &m.StatusBeforeConflict, &m.PaymentId, &m.Notes, &m.UpdatedAt, &m.UpdatedBy, &m.Revision} }
 
 func (m *Reservation) IsNil() bool { return m == nil }
 
@@ -423,6 +419,7 @@ func (m *Reservation) EncodeFields(w model.FieldWriter) {
 	w.String("local_string_time", m.LocalStringTime)
 	w.String("status", m.Status)
 	w.String("rescheduled_from_id", m.RescheduledFromId)
+	w.String("status_before_conflict", m.StatusBeforeConflict)
 	w.String("payment_id", m.PaymentId)
 	w.String("notes", m.Notes)
 	w.Int("updated_at", m.UpdatedAt)
@@ -447,6 +444,7 @@ func (m *Reservation) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("local_string_time"); ok { m.LocalStringTime = v }
 	if v, ok := r.String("status"); ok { m.Status = v }
 	if v, ok := r.String("rescheduled_from_id"); ok { m.RescheduledFromId = v }
+	if v, ok := r.String("status_before_conflict"); ok { m.StatusBeforeConflict = v }
 	if v, ok := r.String("payment_id"); ok { m.PaymentId = v }
 	if v, ok := r.String("notes"); ok { m.Notes = v }
 	if v, ok := r.Int("updated_at"); ok { m.UpdatedAt = v }
@@ -486,6 +484,7 @@ var Reservation_ = struct {
 	LocalStringTime string
 	Status string
 	RescheduledFromId string
+	StatusBeforeConflict string
 	PaymentId string
 	Notes string
 	UpdatedAt string
@@ -508,6 +507,7 @@ var Reservation_ = struct {
 	LocalStringTime: "local_string_time",
 	Status: "status",
 	RescheduledFromId: "rescheduled_from_id",
+	StatusBeforeConflict: "status_before_conflict",
 	PaymentId: "payment_id",
 	Notes: "notes",
 	UpdatedAt: "updated_at",
@@ -875,59 +875,470 @@ func (m *UpsertCalendarConfigArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
-type UpsertWeeklyCalendarArgs struct {
+type SaveDayBlocksArgs struct {
 	TenantId string
 	StaffId string
 	DayOfWeek int64
-	WorkStart int64
-	WorkFinish int64
-	BreakStart int64
-	BreakFinish int64
-	IsActive bool
+	Blocks []WorkCalendarBlock
 }
 
-func (m *UpsertWeeklyCalendarArgs) ModelName() string { return "upsert_weekly_calendar_args" }
+func (m *SaveDayBlocksArgs) ModelName() string { return "save_day_blocks_args" }
 
-func (m *UpsertWeeklyCalendarArgs) Schema() []model.Field { return UpsertWeeklyCalendarArgsModel.Fields }
+func (m *SaveDayBlocksArgs) Schema() []model.Field { return SaveDayBlocksArgsModel.Fields }
 
-func (m *UpsertWeeklyCalendarArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.DayOfWeek, &m.WorkStart, &m.WorkFinish, &m.BreakStart, &m.BreakFinish, &m.IsActive} }
+func (m *SaveDayBlocksArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.DayOfWeek, &m.Blocks} }
 
-func (m *UpsertWeeklyCalendarArgs) IsNil() bool { return m == nil }
+func (m *SaveDayBlocksArgs) IsNil() bool { return m == nil }
 
-func (m *UpsertWeeklyCalendarArgs) EncodeFields(w model.FieldWriter) {
+func (m *SaveDayBlocksArgs) EncodeFields(w model.FieldWriter) {
 	w.String("tenant_id", m.TenantId)
 	w.String("staff_id", m.StaffId)
 	w.Int("day_of_week", m.DayOfWeek)
-	w.Int("work_start", m.WorkStart)
-	w.Int("work_finish", m.WorkFinish)
-	w.Int("break_start", m.BreakStart)
-	w.Int("break_finish", m.BreakFinish)
-	w.Bool("is_active", m.IsActive)
+		{
+			arr := w.Array("blocks", len(m.Blocks))
+			for _, x := range m.Blocks {
+				arr.Object(&x)
+			}
+			arr.Close()
+		}
 }
 
-func (m *UpsertWeeklyCalendarArgs) DecodeFields(r model.FieldReader) {
+func (m *SaveDayBlocksArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
 	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
 	if v, ok := r.Int("day_of_week"); ok { m.DayOfWeek = v }
-	if v, ok := r.Int("work_start"); ok { m.WorkStart = v }
-	if v, ok := r.Int("work_finish"); ok { m.WorkFinish = v }
-	if v, ok := r.Int("break_start"); ok { m.BreakStart = v }
-	if v, ok := r.Int("break_finish"); ok { m.BreakFinish = v }
-	if v, ok := r.Bool("is_active"); ok { m.IsActive = v }
+	if arr, ok := r.Array("blocks"); ok {
+		n := arr.Len()
+		m.Blocks = make([]WorkCalendarBlock, n)
+		for i := 0; i < n; i++ {
+			arr.Object(i, &m.Blocks[i])
+		}
+	}
 }
 
-type UpsertWeeklyCalendarArgsList []*UpsertWeeklyCalendarArgs
+type SaveDayBlocksArgsList []*SaveDayBlocksArgs
 
-func (s *UpsertWeeklyCalendarArgsList) Schema() []model.Field { return nil }
-func (s *UpsertWeeklyCalendarArgsList) Pointers() []any     { return nil }
-func (s *UpsertWeeklyCalendarArgsList) Len() int             { return len(*s) }
-func (s *UpsertWeeklyCalendarArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *UpsertWeeklyCalendarArgsList) Append() model.Fielder  { v := &UpsertWeeklyCalendarArgs{}; *s = append(*s, v); return v }
-func (s *UpsertWeeklyCalendarArgsList) IsNil() bool          { return s == nil }
-func (s *UpsertWeeklyCalendarArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *UpsertWeeklyCalendarArgsList) DecodeFields(_ model.FieldReader) {}
+func (s *SaveDayBlocksArgsList) Schema() []model.Field { return nil }
+func (s *SaveDayBlocksArgsList) Pointers() []any     { return nil }
+func (s *SaveDayBlocksArgsList) Len() int             { return len(*s) }
+func (s *SaveDayBlocksArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *SaveDayBlocksArgsList) Append() model.Fielder  { v := &SaveDayBlocksArgs{}; *s = append(*s, v); return v }
+func (s *SaveDayBlocksArgsList) IsNil() bool          { return s == nil }
+func (s *SaveDayBlocksArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *SaveDayBlocksArgsList) DecodeFields(_ model.FieldReader) {}
 
-func (m *UpsertWeeklyCalendarArgs) Validate(action byte) error {
+func (m *SaveDayBlocksArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type SaveDateBlocksArgs struct {
+	TenantId string
+	StaffId string
+	SpecificDate int64
+	Blocks []WorkCalendarBlock
+}
+
+func (m *SaveDateBlocksArgs) ModelName() string { return "save_date_blocks_args" }
+
+func (m *SaveDateBlocksArgs) Schema() []model.Field { return SaveDateBlocksArgsModel.Fields }
+
+func (m *SaveDateBlocksArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.SpecificDate, &m.Blocks} }
+
+func (m *SaveDateBlocksArgs) IsNil() bool { return m == nil }
+
+func (m *SaveDateBlocksArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+	w.Int("specific_date", m.SpecificDate)
+		{
+			arr := w.Array("blocks", len(m.Blocks))
+			for _, x := range m.Blocks {
+				arr.Object(&x)
+			}
+			arr.Close()
+		}
+}
+
+func (m *SaveDateBlocksArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+	if v, ok := r.Int("specific_date"); ok { m.SpecificDate = v }
+	if arr, ok := r.Array("blocks"); ok {
+		n := arr.Len()
+		m.Blocks = make([]WorkCalendarBlock, n)
+		for i := 0; i < n; i++ {
+			arr.Object(i, &m.Blocks[i])
+		}
+	}
+}
+
+type SaveDateBlocksArgsList []*SaveDateBlocksArgs
+
+func (s *SaveDateBlocksArgsList) Schema() []model.Field { return nil }
+func (s *SaveDateBlocksArgsList) Pointers() []any     { return nil }
+func (s *SaveDateBlocksArgsList) Len() int             { return len(*s) }
+func (s *SaveDateBlocksArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *SaveDateBlocksArgsList) Append() model.Fielder  { v := &SaveDateBlocksArgs{}; *s = append(*s, v); return v }
+func (s *SaveDateBlocksArgsList) IsNil() bool          { return s == nil }
+func (s *SaveDateBlocksArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *SaveDateBlocksArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *SaveDateBlocksArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type MarkWorkingDaysArgs struct {
+	TenantId string
+	StaffId string
+	Dates []int
+	StartMin int64
+	EndMin int64
+}
+
+func (m *MarkWorkingDaysArgs) ModelName() string { return "mark_working_days_args" }
+
+func (m *MarkWorkingDaysArgs) Schema() []model.Field { return MarkWorkingDaysArgsModel.Fields }
+
+func (m *MarkWorkingDaysArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.Dates, &m.StartMin, &m.EndMin} }
+
+func (m *MarkWorkingDaysArgs) IsNil() bool { return m == nil }
+
+func (m *MarkWorkingDaysArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+		{
+			arr := w.Array("dates", len(m.Dates))
+			for _, x := range m.Dates {
+				arr.Int(int64(x))
+			}
+			arr.Close()
+		}
+	w.Int("start_min", m.StartMin)
+	w.Int("end_min", m.EndMin)
+}
+
+func (m *MarkWorkingDaysArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+	if arr, ok := r.Array("dates"); ok {
+		n := arr.Len()
+		m.Dates = make([]int, n)
+		for i := 0; i < n; i++ {
+			m.Dates[i] = int(arr.Int(i))
+		}
+	}
+	if v, ok := r.Int("start_min"); ok { m.StartMin = v }
+	if v, ok := r.Int("end_min"); ok { m.EndMin = v }
+}
+
+type MarkWorkingDaysArgsList []*MarkWorkingDaysArgs
+
+func (s *MarkWorkingDaysArgsList) Schema() []model.Field { return nil }
+func (s *MarkWorkingDaysArgsList) Pointers() []any     { return nil }
+func (s *MarkWorkingDaysArgsList) Len() int             { return len(*s) }
+func (s *MarkWorkingDaysArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *MarkWorkingDaysArgsList) Append() model.Fielder  { v := &MarkWorkingDaysArgs{}; *s = append(*s, v); return v }
+func (s *MarkWorkingDaysArgsList) IsNil() bool          { return s == nil }
+func (s *MarkWorkingDaysArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *MarkWorkingDaysArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *MarkWorkingDaysArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type UnmarkWorkingDaysArgs struct {
+	TenantId string
+	StaffId string
+	Dates []int
+}
+
+func (m *UnmarkWorkingDaysArgs) ModelName() string { return "unmark_working_days_args" }
+
+func (m *UnmarkWorkingDaysArgs) Schema() []model.Field { return UnmarkWorkingDaysArgsModel.Fields }
+
+func (m *UnmarkWorkingDaysArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.Dates} }
+
+func (m *UnmarkWorkingDaysArgs) IsNil() bool { return m == nil }
+
+func (m *UnmarkWorkingDaysArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+		{
+			arr := w.Array("dates", len(m.Dates))
+			for _, x := range m.Dates {
+				arr.Int(int64(x))
+			}
+			arr.Close()
+		}
+}
+
+func (m *UnmarkWorkingDaysArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+	if arr, ok := r.Array("dates"); ok {
+		n := arr.Len()
+		m.Dates = make([]int, n)
+		for i := 0; i < n; i++ {
+			m.Dates[i] = int(arr.Int(i))
+		}
+	}
+}
+
+type UnmarkWorkingDaysArgsList []*UnmarkWorkingDaysArgs
+
+func (s *UnmarkWorkingDaysArgsList) Schema() []model.Field { return nil }
+func (s *UnmarkWorkingDaysArgsList) Pointers() []any     { return nil }
+func (s *UnmarkWorkingDaysArgsList) Len() int             { return len(*s) }
+func (s *UnmarkWorkingDaysArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *UnmarkWorkingDaysArgsList) Append() model.Fielder  { v := &UnmarkWorkingDaysArgs{}; *s = append(*s, v); return v }
+func (s *UnmarkWorkingDaysArgsList) IsNil() bool          { return s == nil }
+func (s *UnmarkWorkingDaysArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *UnmarkWorkingDaysArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *UnmarkWorkingDaysArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type ListBlocksArgs struct {
+	TenantId string
+	StaffId string
+}
+
+func (m *ListBlocksArgs) ModelName() string { return "list_blocks_args" }
+
+func (m *ListBlocksArgs) Schema() []model.Field { return ListBlocksArgsModel.Fields }
+
+func (m *ListBlocksArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId} }
+
+func (m *ListBlocksArgs) IsNil() bool { return m == nil }
+
+func (m *ListBlocksArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+}
+
+func (m *ListBlocksArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+}
+
+type ListBlocksArgsList []*ListBlocksArgs
+
+func (s *ListBlocksArgsList) Schema() []model.Field { return nil }
+func (s *ListBlocksArgsList) Pointers() []any     { return nil }
+func (s *ListBlocksArgsList) Len() int             { return len(*s) }
+func (s *ListBlocksArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *ListBlocksArgsList) Append() model.Fielder  { v := &ListBlocksArgs{}; *s = append(*s, v); return v }
+func (s *ListBlocksArgsList) IsNil() bool          { return s == nil }
+func (s *ListBlocksArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *ListBlocksArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *ListBlocksArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type GetDayBoundsArgs struct {
+	TenantId string
+	Date int64
+}
+
+func (m *GetDayBoundsArgs) ModelName() string { return "get_day_bounds_args" }
+
+func (m *GetDayBoundsArgs) Schema() []model.Field { return GetDayBoundsArgsModel.Fields }
+
+func (m *GetDayBoundsArgs) Pointers() []any { return []any{&m.TenantId, &m.Date} }
+
+func (m *GetDayBoundsArgs) IsNil() bool { return m == nil }
+
+func (m *GetDayBoundsArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.Int("date", m.Date)
+}
+
+func (m *GetDayBoundsArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.Int("date"); ok { m.Date = v }
+}
+
+type GetDayBoundsArgsList []*GetDayBoundsArgs
+
+func (s *GetDayBoundsArgsList) Schema() []model.Field { return nil }
+func (s *GetDayBoundsArgsList) Pointers() []any     { return nil }
+func (s *GetDayBoundsArgsList) Len() int             { return len(*s) }
+func (s *GetDayBoundsArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *GetDayBoundsArgsList) Append() model.Fielder  { v := &GetDayBoundsArgs{}; *s = append(*s, v); return v }
+func (s *GetDayBoundsArgsList) IsNil() bool          { return s == nil }
+func (s *GetDayBoundsArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *GetDayBoundsArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *GetDayBoundsArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type ListConflictingReservationsArgs struct {
+	TenantId string
+	StaffId string
+	From int64
+}
+
+func (m *ListConflictingReservationsArgs) ModelName() string { return "list_conflicting_reservations_args" }
+
+func (m *ListConflictingReservationsArgs) Schema() []model.Field { return ListConflictingReservationsArgsModel.Fields }
+
+func (m *ListConflictingReservationsArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.From} }
+
+func (m *ListConflictingReservationsArgs) IsNil() bool { return m == nil }
+
+func (m *ListConflictingReservationsArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+	w.Int("from", m.From)
+}
+
+func (m *ListConflictingReservationsArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+	if v, ok := r.Int("from"); ok { m.From = v }
+}
+
+type ListConflictingReservationsArgsList []*ListConflictingReservationsArgs
+
+func (s *ListConflictingReservationsArgsList) Schema() []model.Field { return nil }
+func (s *ListConflictingReservationsArgsList) Pointers() []any     { return nil }
+func (s *ListConflictingReservationsArgsList) Len() int             { return len(*s) }
+func (s *ListConflictingReservationsArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *ListConflictingReservationsArgsList) Append() model.Fielder  { v := &ListConflictingReservationsArgs{}; *s = append(*s, v); return v }
+func (s *ListConflictingReservationsArgsList) IsNil() bool          { return s == nil }
+func (s *ListConflictingReservationsArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *ListConflictingReservationsArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *ListConflictingReservationsArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type RecomputeConflictsArgs struct {
+	TenantId string
+	From int64
+	To int64
+}
+
+func (m *RecomputeConflictsArgs) ModelName() string { return "recompute_conflicts_args" }
+
+func (m *RecomputeConflictsArgs) Schema() []model.Field { return RecomputeConflictsArgsModel.Fields }
+
+func (m *RecomputeConflictsArgs) Pointers() []any { return []any{&m.TenantId, &m.From, &m.To} }
+
+func (m *RecomputeConflictsArgs) IsNil() bool { return m == nil }
+
+func (m *RecomputeConflictsArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.Int("from", m.From)
+	w.Int("to", m.To)
+}
+
+func (m *RecomputeConflictsArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.Int("from"); ok { m.From = v }
+	if v, ok := r.Int("to"); ok { m.To = v }
+}
+
+type RecomputeConflictsArgsList []*RecomputeConflictsArgs
+
+func (s *RecomputeConflictsArgsList) Schema() []model.Field { return nil }
+func (s *RecomputeConflictsArgsList) Pointers() []any     { return nil }
+func (s *RecomputeConflictsArgsList) Len() int             { return len(*s) }
+func (s *RecomputeConflictsArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *RecomputeConflictsArgsList) Append() model.Fielder  { v := &RecomputeConflictsArgs{}; *s = append(*s, v); return v }
+func (s *RecomputeConflictsArgsList) IsNil() bool          { return s == nil }
+func (s *RecomputeConflictsArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *RecomputeConflictsArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *RecomputeConflictsArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type ConflictingReservation struct {
+	ReservationId string
+	StartsAt int64
+	ClientId string
+	Reason string
+}
+
+func (m *ConflictingReservation) ModelName() string { return "conflicting_reservation" }
+
+func (m *ConflictingReservation) Schema() []model.Field { return ConflictingReservationModel.Fields }
+
+func (m *ConflictingReservation) Pointers() []any { return []any{&m.ReservationId, &m.StartsAt, &m.ClientId, &m.Reason} }
+
+func (m *ConflictingReservation) IsNil() bool { return m == nil }
+
+func (m *ConflictingReservation) EncodeFields(w model.FieldWriter) {
+	w.String("reservation_id", m.ReservationId)
+	w.Int("starts_at", m.StartsAt)
+	w.String("client_id", m.ClientId)
+	w.String("reason", m.Reason)
+}
+
+func (m *ConflictingReservation) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("reservation_id"); ok { m.ReservationId = v }
+	if v, ok := r.Int("starts_at"); ok { m.StartsAt = v }
+	if v, ok := r.String("client_id"); ok { m.ClientId = v }
+	if v, ok := r.String("reason"); ok { m.Reason = v }
+}
+
+type ConflictingReservationList []*ConflictingReservation
+
+func (s *ConflictingReservationList) Schema() []model.Field { return nil }
+func (s *ConflictingReservationList) Pointers() []any     { return nil }
+func (s *ConflictingReservationList) Len() int             { return len(*s) }
+func (s *ConflictingReservationList) At(i int) model.Fielder { return (*s)[i] }
+func (s *ConflictingReservationList) Append() model.Fielder  { v := &ConflictingReservation{}; *s = append(*s, v); return v }
+func (s *ConflictingReservationList) IsNil() bool          { return s == nil }
+func (s *ConflictingReservationList) EncodeFields(_ model.FieldWriter) {}
+func (s *ConflictingReservationList) DecodeFields(_ model.FieldReader) {}
+
+func (m *ConflictingReservation) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type DayBoundsResult struct {
+	Open bool
+	OpenMin int64
+	CloseMin int64
+}
+
+func (m *DayBoundsResult) ModelName() string { return "day_bounds_result" }
+
+func (m *DayBoundsResult) Schema() []model.Field { return DayBoundsResultModel.Fields }
+
+func (m *DayBoundsResult) Pointers() []any { return []any{&m.Open, &m.OpenMin, &m.CloseMin} }
+
+func (m *DayBoundsResult) IsNil() bool { return m == nil }
+
+func (m *DayBoundsResult) EncodeFields(w model.FieldWriter) {
+	w.Bool("open", m.Open)
+	w.Int("open_min", m.OpenMin)
+	w.Int("close_min", m.CloseMin)
+}
+
+func (m *DayBoundsResult) DecodeFields(r model.FieldReader) {
+	if v, ok := r.Bool("open"); ok { m.Open = v }
+	if v, ok := r.Int("open_min"); ok { m.OpenMin = v }
+	if v, ok := r.Int("close_min"); ok { m.CloseMin = v }
+}
+
+type DayBoundsResultList []*DayBoundsResult
+
+func (s *DayBoundsResultList) Schema() []model.Field { return nil }
+func (s *DayBoundsResultList) Pointers() []any     { return nil }
+func (s *DayBoundsResultList) Len() int             { return len(*s) }
+func (s *DayBoundsResultList) At(i int) model.Fielder { return (*s)[i] }
+func (s *DayBoundsResultList) Append() model.Fielder  { v := &DayBoundsResult{}; *s = append(*s, v); return v }
+func (s *DayBoundsResultList) IsNil() bool          { return s == nil }
+func (s *DayBoundsResultList) EncodeFields(_ model.FieldWriter) {}
+func (s *DayBoundsResultList) DecodeFields(_ model.FieldReader) {}
+
+func (m *DayBoundsResult) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
@@ -1066,44 +1477,6 @@ func (s *ListAvailabilityArgsList) EncodeFields(_ model.FieldWriter) {}
 func (s *ListAvailabilityArgsList) DecodeFields(_ model.FieldReader) {}
 
 func (m *ListAvailabilityArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type ListWeeklyCalendarArgs struct {
-	TenantId string
-	StaffId string
-}
-
-func (m *ListWeeklyCalendarArgs) ModelName() string { return "list_weekly_calendar_args" }
-
-func (m *ListWeeklyCalendarArgs) Schema() []model.Field { return ListWeeklyCalendarArgsModel.Fields }
-
-func (m *ListWeeklyCalendarArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId} }
-
-func (m *ListWeeklyCalendarArgs) IsNil() bool { return m == nil }
-
-func (m *ListWeeklyCalendarArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	w.String("staff_id", m.StaffId)
-}
-
-func (m *ListWeeklyCalendarArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
-}
-
-type ListWeeklyCalendarArgsList []*ListWeeklyCalendarArgs
-
-func (s *ListWeeklyCalendarArgsList) Schema() []model.Field { return nil }
-func (s *ListWeeklyCalendarArgsList) Pointers() []any     { return nil }
-func (s *ListWeeklyCalendarArgsList) Len() int             { return len(*s) }
-func (s *ListWeeklyCalendarArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *ListWeeklyCalendarArgsList) Append() model.Fielder  { v := &ListWeeklyCalendarArgs{}; *s = append(*s, v); return v }
-func (s *ListWeeklyCalendarArgsList) IsNil() bool          { return s == nil }
-func (s *ListWeeklyCalendarArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *ListWeeklyCalendarArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *ListWeeklyCalendarArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 

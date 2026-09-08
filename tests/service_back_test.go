@@ -51,13 +51,8 @@ func TestService_Back(t *testing.T) {
 			Timezone: "UTC",
 			IsActive: true,
 		})
-		s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:   "t99",
-			StaffId:    "s99",
-			DayOfWeek:  4, // Thursday
-			WorkStart:  540,
-			WorkFinish: 600,
-			IsActive:   true,
+		s.SaveDayBlocks("t99", "s99", 4, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 600, IsActive: true},
 		})
 
 		targetDay := Date(2025, 1, 9, 0, 0, 0, 0) // Jan 9, 2025 is Thursday

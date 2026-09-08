@@ -12,11 +12,20 @@ flowchart TD
     PENDING -->|EXPIRE| EXPIRED((EXPIRED))
     PENDING -->|RESCHEDULE| RESCHEDULED((RESCHEDULED))
 
-    CONFIRMED -->|CANCEL| CANCELLED
+CONFIRMED -->|CANCEL| CANCELLED
     CONFIRMED -->|COMPLETE| COMPLETED((COMPLETED))
     CONFIRMED -->|NO_SHOW| NO_SHOW((NO_SHOW))
-    CONFIRMED -->|RESCHEDULE| RESCHEDULED
+    CONFIRMED -->|RESCHEDULE| RESCHEDULED((RESCHEDULED))
+
+    PENDING -->|CONFLICT| CONFLICTED[CONFLICTED]
+    CONFIRMED -->|CONFLICT| CONFLICTED
+    CONFLICTED -->|RESOLVE| PENDING
+    CONFLICTED -->|RESOLVE| CONFIRMED
 ```
+
+`CONFLICTED → (PENDING | CONFIRMED)` via `RESOLVE` is shown as both successors on purpose: the
+actual restore target is whatever `StatusBeforeConflict` recorded — the resolution is a recomputation
+that re-evaluates the appointment against the CURRENT schedule, never a guess between the two.
 
 ## State descriptions
 
@@ -29,6 +38,7 @@ flowchart TD
 | `NO_SHOW` | Client did not attend | Yes |
 | `EXPIRED` | Unpaid PENDING reservation that timed out — triggered externally by `expire_pending_reservations` MCP tool | Yes |
 | `RESCHEDULED` | Original reservation superseded by a new one — distinct from CANCELLED for audit/analytics | Yes |
+| `CONFLICTED` | The current schedule (professional's blocks or the establishment's window) no longer covers this appointment — marked/cleared by a recomputation, never by a user event | **No** |
 
 ## Event descriptions
 
@@ -40,3 +50,5 @@ flowchart TD
 | `NO_SHOW` | `CONFIRMED` | Client did not appear |
 | `EXPIRE` | `PENDING` | Called by external scheduler only |
 | `RESCHEDULE` | `PENDING`, `CONFIRMED` | Original marked RESCHEDULED; new reservation created atomically |
+| `CONFLICT` | `PENDING`, `CONFIRMED` | Fired only by a conflict recomputation, never by a user event |
+| `RESOLVE` | `CONFLICTED` | Restores `StatusBeforeConflict` after a recomputation confirms the appointment fits again |

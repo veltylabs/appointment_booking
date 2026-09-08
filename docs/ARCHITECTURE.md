@@ -9,17 +9,17 @@
 
 The `appointment-booking` module manages the complete lifecycle of a scheduled service appointment. It is responsible for:
 - Configuring which services each staff member offers (duration, price, buffer time).
-- Defining staff availability via weekly calendars and one-off exceptions (holidays, special hours, blocked intervals).
+- Defining staff availability via **blocks** (weekly and dated) and one-off exceptions (holidays, special hours, blocked intervals), constrained by the establishment's usable window.
 - Calculating free time slots and creating reservations with atomic conflict prevention.
-- Enforcing reservation state transitions via a Finite State Machine (FSM).
+- Enforcing reservation state transitions via a Finite State Machine (FSM), including a `CONFLICTED` state for appointments the current schedule no longer covers.
 
 ## 2. Core Entities
 
 - **`EmployeeServiceConfig`:** Maps a staff member to a service item, defining duration, buffer time, and price override. The source of truth for slot granularity.
-- **`Reservation`:** The appointment itself. Stores snapshots of staff, service, price, and currency at creation time for financial auditability — these never change even if the source data is later modified.
-- **`WorkCalendarConfig`:** One row per staff member. Single source of truth for the IANA timezone of the staff calendar. Must exist before weekly rows can be inserted.
-- **`WorkCalendarWeekly`:** Recurring weekly schedule for a staff member (one row per working day). Defines local working hours and break. Does not carry timezone — inherits it from `WorkCalendarConfig`.
-- **`WorkCalendarException`:** One-off overrides for a specific date: `HOLIDAY` (no availability), `SPECIAL_HOURS` (different hours), or `BLOCKED` (interval subtracted from available window).
+- **`Reservation`:** The appointment itself. Stores snapshots of staff, service, price, and currency at creation time for financial auditability — these never change even if the source data is later modified. Also tracks `StatusBeforeConflict` so a conflicted appointment can be restored to exactly the state it had before the conflict.
+- **`WorkCalendarConfig`:** One row per staff member. Single source of truth for the IANA timezone of the staff calendar. Must exist before blocks can be saved.
+- **`WorkCalendarBlock`:** One row per block of working time. A day may hold several — "morning 09:00–13:00, afternoon 15:00–19:00" is two rows, and the lunch **break is the gap between them** (there is deliberately no break column). `specific_date == 0` means the block is WEEKLY (applies to `day_of_week`); `specific_date > 0` means the block is DATED (applies to that date only and **opens** the day even if no weekly block covers that weekday — how an irregular professional marks the days they work). Does not carry timezone — inherits it from `WorkCalendarConfig`.
+- **`WorkCalendarException`:** One-off overrides for a specific date: `HOLIDAY` (no availability), `SPECIAL_HOURS` (narrows a day that a block covers), or `BLOCKED` (interval subtracted from available windows).
 
 This module owns and migrates the schema for all five entities above (unlike e.g. `work_schedule`,
 which only reads read-only tables owned elsewhere) — see §7.
@@ -33,12 +33,15 @@ See: [FSM Diagram](diagrams/fsm.md)
 Key decisions:
 - `RESCHEDULED` is a distinct terminal state (not `CANCELLED`) to preserve audit trail clarity in analytics.
 - `EXPIRED` is triggered exclusively by an external scheduler via the `expire_pending_reservations` operation — the module does not run background goroutines.
+- `CONFLICTED` is **not** terminal: a recomputation enters it from `PENDING`/`CONFIRMED` when the current schedule (professional's blocks or the establishment's window) no longer covers the appointment, and leaves it — restoring exactly what `StatusBeforeConflict` recorded (§8.5 of the plan) — when the schedule covers it again. Why a day is closed is the establishment's business: this module only reasons about "does the instant still fit", never about the reason (the neutrality is inherited from `time.DayBounds`).
 
 ## 4. Architectural Patterns
 
-1. **Dependency Injection:** the module receives three external readers (`StaffReader`,
-   `CatalogReader`, `DirectoryReader`) and one `events.Publisher` via `Deps` at construction (`New(db,
-   deps)`). No global state, no direct imports from other modules.
+1. **Dependency Injection:** the module receives external readers (`StaffReader`,
+   `CatalogReader`, `DirectoryReader`), an optional `BoundsReader` (the establishment's usable
+   daily window; nil = unbounded, correct for an app with no institution above the professional)
+   and one `events.Publisher` via `Deps` at construction (`New(db, deps)`). No global state, no
+   direct imports from other modules.
 
 2. **Direct ORM access (no store interfaces):** the module holds `*orm.DB` directly (through an
    internal `*Repository`) and calls ORM functions from `model_orm.go`. There is no intermediate
@@ -55,11 +58,13 @@ Key decisions:
 
 4. **Snapshotting:** Price, currency, duration, staff ID, and service ID are snapshotted at reservation creation. Downstream changes to catalog or staff data do not alter existing reservations.
 
-5. **Local Integer Time + IANA Timezone (Single Source of Truth):** Working hours in `WorkCalendarWeekly` are stored as local integers (e.g., `900 = 09:00`). The IANA timezone is stored exclusively in `WorkCalendarConfig` (one row per staff) — `WorkCalendarWeekly` and `WorkCalendarException` do not carry timezone fields. This prevents per-row timezone inconsistency by construction. The `ListAvailability` algorithm loads `WorkCalendarConfig` first to obtain the timezone, then converts local boundaries to Unix UTC using `github.com/webtyp/time` (imported directly — no local fork). This design ensures recurring schedules remain correct across DST transitions.
+5. **Local Integer Time + IANA Timezone (Single Source of Truth):** Working hours in `WorkCalendarBlock` are stored as local integer minutes from midnight (e.g., `540 = 09:00`). The IANA timezone is stored exclusively in `WorkCalendarConfig` (one row per staff) — blocks and exceptions do not carry timezone fields. This prevents per-row timezone inconsistency by construction. The `ListAvailability` algorithm loads `WorkCalendarConfig` first to obtain the timezone, then converts local boundaries to Unix UTC using `webtyp.com/time` (`LocalMinutesToUnixUTC`). This design ensures recurring schedules remain correct across DST transitions.
 
 6. **Optimistic Concurrency:** `Reservation.revision` is incremented on each status update. `UpdateReservationStatus` enforces `WHERE revision = N` — a mismatch returns `ErrConflict`, preventing silent overwrites.
 
 7. **Atomic Reschedule:** Rescheduling is not a status — it is a transactional operation: create new reservation + mark original as `RESCHEDULED` within a single DB transaction.
+
+8. **Stale data is recomputed, never reverted:** a schedule change (professional's edit, or the establishment's via `RecomputeConflicts`) re-evaluates all future reservations in the affected range against the CURRENT schedule and bounds. `CONFLICTED` is marked and cleared only by that single resolution rule, shared with `ListAvailability` (`availableRanges`) — never toggled by the event that fired, so two independent causes cannot hide the second one.
 
 ## 5. Identity Contract & RBAC
 
@@ -95,13 +100,23 @@ After each successful state mutation, the module publishes a domain event with a
 | `ChangeStatus` NO_SHOW | `appointment.reservation.no_show` |
 | `ChangeStatus` EXPIRE | `appointment.reservation.expired` |
 | Reschedule (original) | `appointment.reservation.rescheduled` |
-| `UpsertWeeklyCalendar` / `AddException` / `RemoveException` | `appointment.schedule.changed` |
+| A professional's schedule edit that conflicts ≥1 reservation | `appointment.schedule.changed` (once per staff) **+** `appointment.reservation.conflicted` (once per conflicted reservation) |
+| An establishment-wide recompute (`RecomputeConflicts`) that conflicts ≥1 | `appointment.schedule.changed` (once per affected staff) |
 
-The `appointment.schedule.changed` event carries a `ScheduleChangedPayload{TenantId, StaffId}` and is
-published whenever a staff member's schedule mutates. It implements both `model.Encodable` (required
-by `events.Event.Payload`) and `model.Decodable`, so a wire-crossing broker (`webtyp/sse`) can serialize
-it; an in-process broker delivers the concrete pointer without encoding. Consumers (e.g. a reservation
-screen that recomputes free slots) subscribe and act when the event's `StaffId` matches their scope.
+The `appointment.schedule.changed` event carries a **`ScheduleChangedPayload{TenantId, StaffId,
+FromDate, ToDate, ConflictCount}`** — the range that changed (so a consumer recomputes a bounded
+range instead of everything) and how many reservations the change put in conflict. Per CU-19,
+**nothing is published when the change conflicts nobody** — the payload is never "empty news". It
+implements both `model.Encodable` (required by `events.Event.Payload`) and `model.Decodable`, so a
+wire-crossing broker (`webtyp/sse`) can serialize it; an in-process broker delivers the concrete
+pointer without encoding. Consumers (e.g. a notifier reaching the patient, or a screen that
+recomputes free slots) subscribe and act when the event's `StaffId`/range matches their scope.
+
+`appointment.reservation.conflicted` is per-reservation **only** when the change came from the
+professional's own edit, where the count is small and a patient-facing notifier needs the
+individual record. The establishment-wide case (a holiday hitting hundreds of appointments) never
+floods the broker: consumers read `ListConflictingReservations`, which is the administrator's
+worklist.
 
 **Rules:**
 - Event publishing is **fire-and-forget** — `events.Publisher.Publish` has no error return; a
@@ -109,12 +124,16 @@ screen that recomputes free slots) subscribe and act when the event's `StaffId` 
 - Passing `nil` as `Deps.Publisher` safely disables events (useful in tests or CLI tools).
 - The concrete broker (in-process, `github.com/webtyp/sse`, a queue adapter) is decided by the
   composition root, never by this module.
+- **The module does NOT subscribe** to the establishment's calendar. `RecomputeConflicts` is the
+  exported recomputation; the application — which legitimately knows both modules — subscribes to
+  `business.calendar.changed` and calls it. No `Subscriber` dependency exists here (§8.4 of the
+  plan).
 
 ## 7. Transport, Identity, View — Composition Root
 
 The module implements `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`)
-instead of `mcp.ToolProvider` — it never imports `tinywasm/mcp`. All 13 operations (6 reservation +
-7 calendar) are registered by a single `*Module`; the transport adapter that harvests them (`mcp`
+instead of `mcp.ToolProvider` — it never imports `tinywasm/mcp`. All 19 operations (8 reservation +
+11 calendar) are registered by a single `*Module`; the transport adapter that harvests them (`mcp`
 today, any future `router.OpRegistry`-satisfying transport tomorrow) is the composition root's
 choice, not this module's.
 
@@ -128,12 +147,18 @@ choice, not this module's.
 | `list_reservations_by_client` | `r` | `reservation` | Lists reservations by client ID |
 | `change_reservation_status` | `u` | `reservation` | Changes a reservation status via FSM event |
 | `expire_pending_reservations` | `u` | `reservation` | Expires unconfirmed pending reservations (called by an external scheduler) |
+| `list_conflicting_reservations` | `r` | `reservation` | The administrator worklist: future reservations the current schedule no longer covers |
+| `recompute_conflicts` | `u` | `reservation` | Re-evaluates every future reservation in a range; marks/clears `CONFLICTED`; idempotent — the trigger for establishment-wide changes |
 | `upsert_calendar_config` | `u` | `calendar` | Sets IANA timezone for a staff member |
-| `upsert_weekly_calendar` | `u` | `calendar` | Sets weekly schedule for a staff member |
+| `save_day_blocks` | `u` | `calendar` | Replaces EVERY weekly block of a weekday — the whole-day edit |
+| `save_date_blocks` | `u` | `calendar` | Replaces the dated blocks of ONE date (a marked day diverging from its common window) |
+| `mark_working_days` | `u` | `calendar` | Marks dates as worked with one common window (the irregular professional's gesture) |
+| `unmark_working_days` | `d` | `calendar` | Deletes the dated blocks of those dates — the day returns to the weekly template or to unworked |
+| `list_blocks` | `r` | `calendar` | Lists every block of a staff member (weekly + dated; for the schedule editor) |
+| `get_day_bounds` | `r` | `calendar` | Proxies `Deps.Bounds` so the editor bounds its own controls through this module |
 | `add_calendar_exception` | `c` | `calendar` | Adds a calendar exception for a specific date |
 | `remove_calendar_exception` | `d` | `calendar` | Removes a calendar exception |
 | `list_availability` | `r` | `calendar` | Lists available time slots for a staff member |
-| `list_weekly_calendar` | `r` | `calendar` | Lists the raw weekly rows (for the schedule editor) |
 | `list_exceptions` | `r` | `calendar` | Lists calendar exceptions in a date range (for the schedule editor) |
 
 ### View
@@ -156,11 +181,11 @@ would page over, and the `upsert_*`/`add_*`/`remove_*` ops cover every calendar 
 to drive directly. A `view.Presenter` list UI would be manufacturing a list for data that isn't
 list-shaped; instead, this module exposes the schedule editor's face as a **caller-side typed client**:
 
-- `list_weekly_calendar` + `list_exceptions` — the raw reads a `scheduleeditor` needs (previously
-  internal to `Repository`).
-- `NewScheduleClient(caller, tenantId, staffId)` — a caller-side typed client (`Weekly`, `Exceptions`,
-  `SaveWeeklyRow`, `AddException`, `RemoveException`) over those ops plus the existing write ops. The
-  app (e.g. `app-demo`) adapts it to a UI component's callbacks; this module never imports a renderer.
+- `list_blocks` + `list_exceptions` — the raw reads a `scheduleeditor` needs.
+- `NewScheduleClient(caller, tenantId, staffId)` — a caller-side typed client (`Blocks`,
+  `SaveDayBlocks`, `Exceptions`, `AddException`, `RemoveException`) over those ops plus the existing
+  write ops. The app (e.g. `app-demo`) adapts it to a UI component's callbacks; this module never
+  imports a renderer.
 
 So a schedule editor screen is a **small, separate addition** — delivered here as `ScheduleClient`,
 consumed by whatever UI the composition root chooses.
@@ -178,13 +203,19 @@ catalogSvc, _ := itemcatalog.New(db, itemcatalog.Deps{
     Publisher: eventBroker, // events.Publisher, nil disables publishing
 })
 
-// db is *orm.DB — shared with the rest of the monolith or module-specific.
+// No module imports another directly — `appointment_booking` declares `StaffReader`,
+// `CatalogReader`, `DirectoryReader` and the `BoundsReader` port here (§6.1 of the plan); the
+// siblings satisfy them structurally with no import back into this package. The value that crosses
+// the establishment boundary is `tinytime.DayBounds` (`webtyp.com/time`), imported by both sides
+// already — so an appointment-booking app is never forced to adopt one particular model of "the
+// establishment".
 scheduling, _ := appointmentbooking.New(db, appointmentbooking.Deps{
     Staff:     staffSvc,
     Catalog:   catalogSvc,   // *itemcatalog.Module satisfies CatalogReader
     Directory: directorySvc,
     IDs:       idGen,        // model.IDGenerator — unixid.NewUnixID() (or any generator) injected here, never constructed inside the module
     Publisher: eventBroker,  // events.Publisher, nil disables publishing
+    Bounds:    calendarSvc,  // *business_calendar.Module satisfies BoundsReader; nil = unbounded (a freelancer)
 })
 
 scheduling.MountOps(opRegistry)               // router.OpRegistry — mcp.HarvestOps(scheduling, ...) today
@@ -198,9 +229,19 @@ package.
 ## 8. Availability Calculation
 
 Free slots are derived at query time from the intersection of:
-- Weekly calendar rules (recurring working hours)
-- One-off exceptions (override or subtract from weekly rules)
-- Existing non-terminal reservations (block occupied intervals including buffer time)
+- The establishment's usable window (`BoundsReader.GetDayBounds`, resolved once to
+  `tinytime.Unbounded()` when `Deps.Bounds` is nil). A closed building closes everyone before any
+  professional is consulted.
+- Per day, **dated blocks first** (they OPEN their day whether or not the weekly template covers the
+  weekday), then active **weekly blocks** for that weekday — each clamped to the establishment's
+  window.
+- One-off exceptions applied over those windows: `HOLIDAY` kills the day, `SPECIAL_HOURS` narrows it
+  to a single window, `BLOCKED` subtracts an interval from the day's windows.
+- Existing non-terminal reservations (block occupied intervals including buffer time).
+
+The per-day windows are produced by one unexported rule (`availableRanges`) shared by
+`ListAvailability`, `ListConflictingReservations` and the conflict recomputation — the "does this
+instant fit" test is never implemented twice.
 
 Exception priority: `HOLIDAY` > `SPECIAL_HOURS` > `BLOCKED`.
 

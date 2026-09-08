@@ -30,13 +30,8 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 
 		dow := tinytime.Weekday(slotStart)
 
-		s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:   tenant,
-			StaffId:    staff,
-			DayOfWeek:  int64(dow),
-			WorkStart:  540,  // 09:00
-			WorkFinish: 1020, // 17:00
-			IsActive:   true,
+		s.SaveDayBlocks(tenant, staff, dow, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 1020, IsActive: true}, // 09:00–17:00
 		})
 		return cfgID
 	}
@@ -128,16 +123,10 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 
 		dayStart := Date(2025, 3, 4, 0, 0, 0, 0)
 
-		// Update weekly config to add break
-		s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:    "t_uc11",
-			StaffId:     "s_uc11",
-			DayOfWeek:   int64(tinytime.Weekday(slot)),
-			WorkStart:   540,  // 09:00
-			WorkFinish:  1020, // 17:00
-			BreakStart:  720,  // 12:00
-			BreakFinish: 780,  // 13:00
-			IsActive:    true,
+		// Un día con DOS bloques: la comida es el GAP entre ellos (CU-09).
+		s.SaveDayBlocks("t_uc11", "s_uc11", tinytime.Weekday(slot), []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 720, IsActive: true},  // 09:00–12:00
+			{StartMin: 780, EndMin: 1020, IsActive: true}, // 13:00–17:00
 		})
 
 		slots, err := s.ListAvailability("t_uc11", "s_uc11", cfgID, dayStart, dayStart+86400)

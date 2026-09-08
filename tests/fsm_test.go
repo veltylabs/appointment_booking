@@ -21,6 +21,10 @@ func TestFSM(t *testing.T) {
 		{ab.StatusConfirmed, ab.EventComplete, ab.StatusCompleted},
 		{ab.StatusConfirmed, ab.EventNoShow, ab.StatusNoShow},
 		{ab.StatusConfirmed, ab.EventReschedule, ab.StatusRescheduled},
+
+		// CONFLICTED se entra desde PENDING o CONFIRMED y no es terminal.
+		{ab.StatusPending, ab.EventConflict, ab.StatusConflicted},
+		{ab.StatusConfirmed, ab.EventConflict, ab.StatusConflicted},
 	}
 
 	for _, tc := range validTests {
@@ -82,6 +86,7 @@ func TestFSM(t *testing.T) {
 	nonTerminalStates := []string{
 		ab.StatusPending,
 		ab.StatusConfirmed,
+		ab.StatusConflicted,
 	}
 
 	for _, state := range nonTerminalStates {

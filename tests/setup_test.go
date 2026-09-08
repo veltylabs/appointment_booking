@@ -58,16 +58,11 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 			t.Fatalf("UpsertCalendarConfig: %v", err)
 		}
 
-		// Weekly calendar
-		if err := s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:   "t1",
-			StaffId:    "s1",
-			DayOfWeek:  1, // Monday
-			WorkStart:  540, // 09:00
-			WorkFinish: 1020, // 17:00
-			IsActive:   true,
+		// Weekly calendar: Monday 09:00–17:00
+		if err := s.SaveDayBlocks("t1", "s1", 1, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 1020, IsActive: true},
 		}); err != nil {
-			t.Fatalf("UpsertWeeklyCalendar: %v", err)
+			t.Fatalf("SaveDayBlocks: %v", err)
 		}
 
 		targetDay := Date(2025, 1, 6, 0, 0, 0, 0) // Jan 6, 2025 is Monday
@@ -160,13 +155,8 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 			IsActive: true,
 		})
 
-		s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:   "t2",
-			StaffId:    "s2",
-			DayOfWeek:  2, // Tuesday
-			WorkStart:  540,
-			WorkFinish: 600, // 09:00 to 10:00 - exactly 1 hour
-			IsActive:   true,
+		s.SaveDayBlocks("t2", "s2", 2, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 600, IsActive: true}, // 09:00 to 10:00 - exactly 1 hour
 		})
 
 		targetDay := Date(2025, 1, 7, 0, 0, 0, 0) // Jan 7, 2025 is Tuesday
@@ -211,13 +201,8 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 			IsActive: true,
 		})
 
-		s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:   "t3",
-			StaffId:    "s3",
-			DayOfWeek:  3, // Wednesday
-			WorkStart:  540,
-			WorkFinish: 600,
-			IsActive:   true,
+		s.SaveDayBlocks("t3", "s3", 3, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 600, IsActive: true},
 		})
 
 		targetDay := Date(2025, 1, 8, 0, 0, 0, 0) // Jan 8, 2025 is Wednesday

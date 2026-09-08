@@ -134,51 +134,82 @@ func TestGetCalendarConfig_NotFound(t *testing.T) {
 	}
 }
 
-func TestUpsertWeeklyCalendar_CreateAndUpdate(t *testing.T) {
+func TestReplaceWeekdayBlocks_WholeDayReplace(t *testing.T) {
 	repo := newTestRepo(t)
 
-	// Create
-	cal1 := ab.WorkCalendarWeekly{
-		TenantId:  "t1",
-		StaffId:   "s1",
-		DayOfWeek: 1, // Monday
-		WorkStart: 540, // 9:00
-	}
-	err := repo.UpsertWeeklyCalendar(cal1)
+	// Create: dos bloques para el lunes.
+	err := repo.ReplaceWeekdayBlocks("t1", "s1", 1, []ab.WorkCalendarBlock{
+		{TenantId: "t1", StaffId: "s1", DayOfWeek: 1, SpecificDate: 0, StartMin: 540, EndMin: 720, IsActive: true},
+		{TenantId: "t1", StaffId: "s1", DayOfWeek: 1, SpecificDate: 0, StartMin: 780, EndMin: 1020, IsActive: true},
+	})
 	if err != nil {
-		t.Fatalf("UpsertWeeklyCalendar (create) failed: %v", err)
+		t.Fatalf("ReplaceWeekdayBlocks (create) failed: %v", err)
 	}
 
-	cals, err := repo.ListWeeklyCalendar("t1", "s1")
+	blocks, err := repo.ListBlocks("t1", "s1")
 	if err != nil {
-		t.Fatalf("ListWeeklyCalendar failed: %v", err)
+		t.Fatalf("ListBlocks failed: %v", err)
 	}
-	if len(cals) != 1 || cals[0].WorkStart != 540 {
-		t.Fatalf("Expected 1 cal with WorkStart=540, got %+v", cals)
-	}
-	originalID := cals[0].Id
-
-	// Update
-	cal2 := ab.WorkCalendarWeekly{
-		TenantId:  "t1",
-		StaffId:   "s1",
-		DayOfWeek: 1, // Monday
-		WorkStart: 600, // 10:00
-	}
-	err = repo.UpsertWeeklyCalendar(cal2)
-	if err != nil {
-		t.Fatalf("UpsertWeeklyCalendar (update) failed: %v", err)
+	if len(blocks) != 2 {
+		t.Fatalf("expected 2 blocks, got %d", len(blocks))
 	}
 
-	cals2, err := repo.ListWeeklyCalendar("t1", "s1")
+	// Replace: un solo bloque — el reemplazo es del DÍA completo, no un upsert por fila.
+	err = repo.ReplaceWeekdayBlocks("t1", "s1", 1, []ab.WorkCalendarBlock{
+		{TenantId: "t1", StaffId: "s1", DayOfWeek: 1, SpecificDate: 0, StartMin: 600, EndMin: 900, IsActive: true},
+	})
 	if err != nil {
-		t.Fatalf("ListWeeklyCalendar failed: %v", err)
+		t.Fatalf("ReplaceWeekdayBlocks (update) failed: %v", err)
 	}
-	if len(cals2) != 1 || cals2[0].WorkStart != 600 {
-		t.Fatalf("Expected 1 cal with WorkStart=600, got %+v", cals2)
+
+	blocks2, err := repo.ListBlocks("t1", "s1")
+	if err != nil {
+		t.Fatalf("ListBlocks failed: %v", err)
 	}
-	if cals2[0].Id != originalID {
-		t.Fatalf("Expected ID to be preserved")
+	if len(blocks2) != 1 || blocks2[0].StartMin != 600 || blocks2[0].EndMin != 900 {
+		t.Fatalf("expected single block 600-900 after replace, got %+v", blocks2)
+	}
+
+	// Un reemplazo del martes no toca al lunes.
+	err = repo.ReplaceWeekdayBlocks("t1", "s1", 2, []ab.WorkCalendarBlock{
+		{TenantId: "t1", StaffId: "s1", DayOfWeek: 2, SpecificDate: 0, StartMin: 540, EndMin: 720, IsActive: true},
+	})
+	if err != nil {
+		t.Fatalf("ReplaceWeekdayBlocks (tuesday) failed: %v", err)
+	}
+	blocks3, _ := repo.ListBlocks("t1", "s1")
+	if len(blocks3) != 2 {
+		t.Fatalf("expected 2 blocks (monday + tuesday), got %d", len(blocks3))
+	}
+}
+
+func TestReplaceAndDeleteDateBlocks(t *testing.T) {
+	repo := newTestRepo(t)
+
+	day := Date(2027, 6, 7, 0, 0, 0, 0)
+	err := repo.ReplaceDateBlocks("t1", "s1", day, []ab.WorkCalendarBlock{
+		{TenantId: "t1", StaffId: "s1", SpecificDate: day, StartMin: 540, EndMin: 720, IsActive: true},
+	})
+	if err != nil {
+		t.Fatalf("ReplaceDateBlocks failed: %v", err)
+	}
+
+	blocks, err := repo.ListBlocks("t1", "s1")
+	if err != nil {
+		t.Fatalf("ListBlocks failed: %v", err)
+	}
+	if len(blocks) != 1 || blocks[0].SpecificDate != day {
+		t.Fatalf("expected 1 dated block, got %+v", blocks)
+	}
+
+	err = repo.DeleteDateBlocks("t1", "s1", day)
+	if err != nil {
+		t.Fatalf("DeleteDateBlocks failed: %v", err)
+	}
+
+	blocks2, _ := repo.ListBlocks("t1", "s1")
+	if len(blocks2) != 0 {
+		t.Fatalf("expected 0 blocks after delete, got %d", len(blocks2))
 	}
 }
 

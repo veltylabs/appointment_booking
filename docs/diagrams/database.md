@@ -20,8 +20,8 @@ erDiagram
         string client_id
         string creator_user_id
         string employee_service_config_id
-        string staff_id_snapshot
-        string service_id_snapshot
+        string staff_idsnapshot
+        string service_idsnapshot
         int duration_min_snapshot
         float price_snapshot
         string currency_snapshot
@@ -31,6 +31,7 @@ erDiagram
         string local_string_time
         string status
         string rescheduled_from_id
+        string status_before_conflict
         string payment_id
         string notes
         int64 updated_at
@@ -46,15 +47,14 @@ erDiagram
         bool is_active
     }
 
-    workcalendar_weekly {
-        string id_calendar PK
+    workcalendar_block {
+        string id_block PK
         string tenant_id
         string staff_id
         int day_of_week
-        int work_start
-        int work_finish
-        int break_start
-        int break_finish
+        int64 specific_date
+        int start_min
+        int end_min
         bool is_active
     }
 
@@ -69,7 +69,7 @@ erDiagram
         string notes
     }
 
-    workcalendar_config ||--o{ workcalendar_weekly : "staff-calendar"
+    workcalendar_config ||--o{ workcalendar_block : "staff-blocks"
     workcalendar_config ||--o{ workcalendar_exception : "staff-exceptions"
     employee_service_config ||--o{ reservation : "service-config"
 ```
@@ -82,7 +82,22 @@ erDiagram
 > - `reservation.payment_id` → Payment module (nullable)
 >
 > **`workcalendar_config`** is the single source of truth for the IANA timezone of a staff member's calendar.
-> `workcalendar_weekly` and `workcalendar_exception` do NOT carry timezone — they inherit it from `workcalendar_config`.
+> `workcalendar_block` and `workcalendar_exception` do NOT carry timezone — they inherit it from `workcalendar_config`.
 >
-> **reservation.status** is enforced by an in-code FSM (not a DB table).
-> Availability rules (calendar + exceptions) are enforced at the service layer, not via DB relations.
+> **`workcalendar_block`** holds BOTH shapes in one table: `specific_date == 0` is a WEEKLY block
+> (applies to `day_of_week`, `is_active` toggles it), `specific_date > 0` is a DATED block (applies
+> to that date only and opens it even when the weekly template has nothing for that weekday). A day
+> with several blocks ("morning + afternoon") is several rows; the lunch break is the GAP between
+> them — there is no break column. `start_min`/`end_min` are minutes from midnight in the staff's
+> local timezone.
+>
+> **`reservation.status`** is enforced by an in-code FSM (not a DB table). `CONFLICTED` is a
+> non-terminal state whose `status_before_conflict` records where the reservation came from, so a
+> recomputation can restore it exactly.
+>
+> **Irregular column names — do not "fix":** `staff_idsnapshot` / `service_idsnapshot` lack the
+> underscore between `id` and `snapshot` (a historical snake_case quirk already live in production);
+> a rename would force a destructive column rename in every deployed database.
+>
+> Availability rules (blocks + exceptions + the establishment's `time.DayBounds` window) are enforced
+> at the service layer, not via DB relations.

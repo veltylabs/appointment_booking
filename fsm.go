@@ -11,6 +11,7 @@ const (
 	StatusNoShow      = "NO_SHOW"
 	StatusExpired     = "EXPIRED"     // reserva no pagada que expiró (disparador: scheduler externo vía MCP)
 	StatusRescheduled = "RESCHEDULED" // reserva original reemplazada por una nueva (registro de auditoría)
+	StatusConflicted  = "CONFLICTED"  // la agenda actual ya no cubre esta reserva — NO es terminal
 )
 
 // Eventos
@@ -21,6 +22,8 @@ const (
 	EventNoShow     = "NO_SHOW_EVENT"
 	EventExpire     = "EXPIRE"
 	EventReschedule = "RESCHEDULE" // marca la original como RESCHEDULED; la nueva reserva se crea atómicamente
+	EventConflict   = "CONFLICT"   // una recomputación pone la reserva en conflicto
+	EventResolve    = "RESOLVE"    // una recomputación la saca del conflicto
 )
 
 // transition es una fila de la tabla de transiciones FSM: (estado actual, evento) -> estado siguiente.
@@ -41,6 +44,16 @@ var transitions = []transition{
 	{StatusConfirmed, EventComplete, StatusCompleted},
 	{StatusConfirmed, EventNoShow, StatusNoShow},
 	{StatusConfirmed, EventReschedule, StatusRescheduled},
+	// CONFLICTED se entra desde PENDING o CONFIRMED (vía EventConflict, siempre
+	// por una recomputación, nunca por un event de usuario) y se sale "hacia
+	// cualquiera de los dos" (EventResolve): el destino real NO lo decide esta
+	// tabla sino StatusBeforeConflict — la recomputación restaura el estado
+	// previo (fuente única, §8.5). Las dos filas declaradas documentan que ambos
+	// son sucesores legales; Transition() no se usa para elegir el destino.
+	{StatusPending, EventConflict, StatusConflicted},
+	{StatusConfirmed, EventConflict, StatusConflicted},
+	{StatusConflicted, EventResolve, StatusPending},
+	{StatusConflicted, EventResolve, StatusConfirmed},
 	// CANCELLED, COMPLETED, NO_SHOW, EXPIRED, RESCHEDULED son terminales — sin transiciones salientes
 }
 

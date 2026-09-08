@@ -31,18 +31,30 @@ var WorkCalendarConfigModel = model.Definition{
 	},
 }
 
-var WorkCalendarWeeklyModel = model.Definition{
-	Name: "work_calendar_weekly",
+// WorkCalendarBlockModel: one row per block of working time. A day may hold
+// several — "morning 09:00–13:00, afternoon 15:00–19:00" is two rows, and the
+// lunch break is the GAP between them. There is deliberately no break field:
+// a break that is a column can only ever describe one interruption, and the
+// gap describes any number.
+//
+// specific_date == 0 → the block is WEEKLY and applies to day_of_week.
+// specific_date  > 0 → the block is DATED and applies to that date only,
+//                      and day_of_week carries no meaning.
+//
+// A dated block OPENS its day whether or not a weekly block covers that
+// weekday. That is what lets an irregular professional mark the days they
+// work with no weekly template at all.
+var WorkCalendarBlockModel = model.Definition{
+	Name: "work_calendar_block",
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
-		{Name: "day_of_week", Type: model.Int()},
-		{Name: "work_start", Type: model.Int()},
-		{Name: "work_finish", Type: model.Int()},
-		{Name: "break_start", Type: model.Int()},
-		{Name: "break_finish", Type: model.Int()},
-		{Name: "is_active", Type: model.Bool()},
+		{Name: "day_of_week", Type: model.Int(), NotNull: true},   // 0..6, meaningful when specific_date == 0
+		{Name: "specific_date", Type: model.Int(), NotNull: true}, // 0 = weekly; else midnight UTC seconds
+		{Name: "start_min", Type: model.Int(), NotNull: true},     // minutes from midnight
+		{Name: "end_min", Type: model.Int(), NotNull: true},
+		{Name: "is_active", Type: model.Bool(), NotNull: true},
 	},
 }
 
@@ -84,6 +96,13 @@ var ReservationModel = model.Definition{
 		// literales viven SOLO en esas constantes (regla anti magic-string, ver item_catalog).
 		{Name: "status", Type: model.Text(), NotNull: true},
 		{Name: "rescheduled_from_id", Type: model.Text()},
+		// status_before_conflict: el estado anterior cuando Status == CONFLICTED —
+		// es la columna del campo StatusBeforeConflict del struct generado: se
+		// escribe al entrar en conflicto y se limpia al salir. Sin él,
+		// "des-conflictear" tendría que adivinar entre PENDING y CONFIRMED, y
+		// adivinar convierte una reserva confirmada en pendiente a espaldas del
+		// paciente (ver PLAN §8.5).
+		{Name: "status_before_conflict", Type: model.Text()},
 		{Name: "payment_id", Type: model.Text()},
 		{Name: "notes", Type: model.Text()},
 		{Name: "updated_at", Type: model.Int()},
@@ -176,17 +195,103 @@ var UpsertCalendarConfigArgsModel = model.Definition{
 	},
 }
 
-var UpsertWeeklyCalendarArgsModel = model.Definition{
-	Name: "upsert_weekly_calendar_args",
+var SaveDayBlocksArgsModel = model.Definition{
+	Name: "save_day_blocks_args",
 	Fields: model.Fields{
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
 		{Name: "staff_id", Type: input.Text()},
 		{Name: "day_of_week", Type: input.Number()},
-		{Name: "work_start", Type: input.Number()},
-		{Name: "work_finish", Type: input.Number()},
-		{Name: "break_start", Type: input.Number()},
-		{Name: "break_finish", Type: input.Number()},
-		{Name: "is_active", Type: input.Checkbox()},
+		{Name: "blocks", Type: model.StructSlice(&WorkCalendarBlockModel)},
+	},
+}
+
+var SaveDateBlocksArgsModel = model.Definition{
+	Name: "save_date_blocks_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "specific_date", Type: input.Number()},
+		{Name: "blocks", Type: model.StructSlice(&WorkCalendarBlockModel)},
+	},
+}
+
+var MarkWorkingDaysArgsModel = model.Definition{
+	Name: "mark_working_days_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "dates", Type: model.IntSlice()}, // midnight UTC seconds
+		{Name: "start_min", Type: input.Number()},
+		{Name: "end_min", Type: input.Number()},
+	},
+}
+
+var UnmarkWorkingDaysArgsModel = model.Definition{
+	Name: "unmark_working_days_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "dates", Type: model.IntSlice()}, // midnight UTC seconds
+	},
+}
+
+var ListBlocksArgsModel = model.Definition{
+	Name: "list_blocks_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+	},
+}
+
+var GetDayBoundsArgsModel = model.Definition{
+	Name: "get_day_bounds_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "date", Type: input.Number()},    // midnight UTC seconds
+	},
+}
+
+var ListConflictingReservationsArgsModel = model.Definition{
+	Name: "list_conflicting_reservations_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "from", Type: input.Number()},
+	},
+}
+
+var RecomputeConflictsArgsModel = model.Definition{
+	Name: "recompute_conflicts_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "from", Type: input.Number()},
+		{Name: "to", Type: input.Number()}, // 0 = módulo completo (el propio forward horizon)
+	},
+}
+
+// ConflictingReservationModel es transport-only (salida de
+// list_conflicting_reservations / recompute_conflicts) — nunca se renderiza
+// como form editable.
+var ConflictingReservationModel = model.Definition{
+	Name: "conflicting_reservation",
+	Fields: model.Fields{
+		{Name: "reservation_id", Type: model.Text()},
+		{Name: "starts_at", Type: model.Int()},
+		{Name: "client_id", Type: model.Text()},
+		{Name: "reason", Type: model.Text()}, // "OUTSIDE_BLOCKS" | "DAY_CLOSED" | "OUTSIDE_BUSINESS_HOURS"
+	},
+}
+
+// DayBoundsResultModel es transport-only (salida de get_day_bounds) — la
+// proyección encodable de time.DayBounds para que el editor acote sus controles
+// (§6.2). time.DayBounds NO es model.Encodable, así que se cruza por esta
+// forma.
+var DayBoundsResultModel = model.Definition{
+	Name: "day_bounds_result",
+	Fields: model.Fields{
+		{Name: "open", Type: model.Bool()},
+		{Name: "open_min", Type: model.Int()},
+		{Name: "close_min", Type: model.Int()},
 	},
 }
 
@@ -219,14 +324,6 @@ var ListAvailabilityArgsModel = model.Definition{
 		{Name: "config_id", Type: input.Text()},
 		{Name: "from", Type: input.Number()},
 		{Name: "to", Type: input.Number()},
-	},
-}
-
-var ListWeeklyCalendarArgsModel = model.Definition{
-	Name: "list_weekly_calendar_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
 	},
 }
 

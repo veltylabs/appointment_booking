@@ -13,7 +13,7 @@ require (
 	webtyp.com/router v0.1.35
 	webtyp.com/storage v0.0.7
 	webtyp.com/svg v0.3.5
-	webtyp.com/time v0.5.5
+	webtyp.com/time v0.5.6
 	webtyp.com/view v0.5.2
 )
 

@@ -4,6 +4,7 @@ import (
 	"webtyp.com/events"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
+	tinytime "webtyp.com/time"
 	ab "github.com/veltylabs/appointment_booking"
 )
 
@@ -44,6 +45,38 @@ func (m *MockEventPublisher) Publish(e events.Event) {
 
 var _ events.Publisher = (*MockEventPublisher)(nil)
 
+// DateBound fija los bounds de una fecha puntual (para simular un feriado o un
+// cierre local). Slice de structs, no map — la regla "cero map" de AGENTS.md
+// llega también al código de test.
+type DateBound struct {
+	Date   int64
+	Bounds tinytime.DayBounds
+}
+
+// MockBoundsReader es el fake de ab.BoundsReader: bounds por fecha vía
+// Overrides (scan lineal) y un Default para el resto.
+type MockBoundsReader struct {
+	Default   tinytime.DayBounds
+	Overrides []DateBound
+}
+
+func (b *MockBoundsReader) GetDayBounds(date int64) (tinytime.DayBounds, error) {
+	if b == nil {
+		return tinytime.Unbounded(), nil
+	}
+	for _, o := range b.Overrides {
+		if o.Date == date {
+			return o.Bounds, nil
+		}
+	}
+	return b.Default, nil
+}
+
+var _ ab.BoundsReader = (*MockBoundsReader)(nil)
+
+// OpenDayBounds es la ventana típica de un establecimiento: 08:00–20:00.
+var OpenDayBounds = tinytime.DayBounds{Open: true, OpenMin: 480, CloseMin: 1200}
+
 type fakeIDs struct{ n int }
 
 func (f *fakeIDs) NewID() string {
@@ -61,4 +94,10 @@ func SetupDependencies() ab.Deps {
 		IDs:       &fakeIDs{},
 		Publisher: &MockEventPublisher{},
 	}
+}
+
+func SetupDependenciesWithBounds(bounds ab.BoundsReader) ab.Deps {
+	deps := SetupDependencies()
+	deps.Bounds = bounds
+	return deps
 }

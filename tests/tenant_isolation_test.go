@@ -38,13 +38,8 @@ func TestTenantIsolation(t *testing.T) {
 		Timezone: "UTC",
 		IsActive: true,
 	})
-	svc.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-		TenantId:   "TA",
-		StaffId:    "staff_A",
-		DayOfWeek:  1, // Monday
-		WorkStart:  540,
-		WorkFinish: 1020,
-		IsActive:   true,
+	svc.SaveDayBlocks("TA", "staff_A", 1, []ab.WorkCalendarBlock{
+		{StartMin: 540, EndMin: 1020, IsActive: true},
 	})
 
 	slotA := Date(2025, 1, 6, 10, 0, 0, 0) // Monday, 10:00 UTC

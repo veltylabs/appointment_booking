@@ -150,13 +150,8 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 
 		dow := tinytime.Weekday(slotStart)
 
-		s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:   tenant,
-			StaffId:    staff,
-			DayOfWeek:  int64(dow),
-			WorkStart:  0,
-			WorkFinish: 1440, // all day
-			IsActive:   true,
+		s.SaveDayBlocks(tenant, staff, dow, []ab.WorkCalendarBlock{
+			{StartMin: 0, EndMin: 1440, IsActive: true}, // all day
 		})
 		return cfgID
 	}
@@ -351,12 +346,9 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		}
 	})
 
-	t.Run("UC-12_UpsertWeeklyCalendar_CalendarConfigNotFound", func(t *testing.T) {
-		err := s.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId:  "t_uc12",
-			StaffId:   "non_existent",
-			DayOfWeek: 1,
-			WorkStart: 540,
+	t.Run("UC-12_SaveDayBlocks_CalendarConfigNotFound", func(t *testing.T) {
+		err := s.SaveDayBlocks("t_uc12", "non_existent", 1, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 1020, IsActive: true},
 		})
 		if err != ab.ErrCalendarConfigNotFound {
 			t.Fatalf("expected ErrCalendarConfigNotFound, got %v", err)

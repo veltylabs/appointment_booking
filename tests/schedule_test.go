@@ -8,6 +8,7 @@ import (
 	"webtyp.com/orm"
 	"webtyp.com/router/loopback"
 	"webtyp.com/storage/mem"
+	tinytime "webtyp.com/time"
 	ab "github.com/veltylabs/appointment_booking"
 )
 
@@ -33,29 +34,43 @@ func newModuleWithBroker(t *testing.T) (*ab.Module, *mock.Broker) {
 	return m, broker
 }
 
-func TestListWeeklyOp_ReturnsRows(t *testing.T) {
+func TestListBlocksOp_ReturnsRows(t *testing.T) {
 	m, _ := newModuleWithBroker(t)
 	seedCalendar(t, m, "t1", "s1")
 
-	days := []int64{1, 2, 3}
+	days := []int{1, 2, 3}
 	for _, d := range days {
-		if err := m.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-			TenantId: "t1", StaffId: "s1", DayOfWeek: d,
-			WorkStart: 540, WorkFinish: 1020, IsActive: true,
+		if err := m.SaveDayBlocks("t1", "s1", d, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 1020, IsActive: true},
 		}); err != nil {
-			t.Fatalf("UpsertWeeklyCalendar day %d: %v", d, err)
+			t.Fatalf("SaveDayBlocks day %d: %v", d, err)
 		}
 	}
 
 	caller := loopback.New(m)
-	out := &ab.WorkCalendarWeeklyList{}
+	out := &ab.WorkCalendarBlockList{}
 	var got error
-	caller.Call(ab.OpListWeeklyCalendar, &ab.ListWeeklyCalendarArgs{TenantId: "t1", StaffId: "s1"}, out, func(err error) { got = err })
+	caller.Call(ab.OpListBlocks, &ab.ListBlocksArgs{TenantId: "t1", StaffId: "s1"}, out, func(err error) { got = err })
 	if got != nil {
 		t.Fatalf("Call: %v", got)
 	}
 	if out.Len() != 3 {
-		t.Fatalf("expected 3 rows, got %d", out.Len())
+		t.Fatalf("expected 3 blocks, got %d", out.Len())
+	}
+}
+
+func TestGetDayBoundsOp_NilBoundsMeansUnbounded(t *testing.T) {
+	m, _ := newModuleWithBroker(t)
+
+	caller := loopback.New(m)
+	out := &ab.DayBoundsResult{}
+	var got error
+	caller.Call(ab.OpGetDayBounds, &ab.GetDayBoundsArgs{TenantId: "t1", Date: 1767139200}, out, func(err error) { got = err })
+	if got != nil {
+		t.Fatalf("Call: %v", got)
+	}
+	if !out.Open || out.OpenMin != 0 || out.CloseMin != 1440 {
+		t.Fatalf("expected unbounded bounds when Deps.Bounds is nil, got %+v", out)
 	}
 }
 
@@ -86,76 +101,97 @@ func TestListExceptionsOp_RangeFilter(t *testing.T) {
 	}
 }
 
-func TestUpsertWeekly_PublishesScheduleChanged(t *testing.T) {
+func TestSaveDayBlocks_NoAffectedReservationsIsSilent(t *testing.T) {
+	// CU-19 — cambiar la agenda sin reservas afectadas no publica nada.
 	m, broker := newModuleWithBroker(t)
 	seedCalendar(t, m, "t1", "s1")
 
-	var payload *ab.ScheduleChangedPayload
-	broker.Subscribe(ab.EventScheduleChanged, func(e events.Event) {
-		payload = e.Payload.(*ab.ScheduleChangedPayload)
-	})
+	var count int
+	broker.Subscribe(ab.EventScheduleChanged, func(e events.Event) { count++ })
+	broker.Subscribe(ab.EventReservationConflicted, func(e events.Event) { count++ })
 
-	if err := m.UpsertWeeklyCalendar(ab.WorkCalendarWeekly{
-		TenantId: "t1", StaffId: "s1", DayOfWeek: 1,
-		WorkStart: 540, WorkFinish: 1020, IsActive: true,
+	if err := m.SaveDayBlocks("t1", "s1", 1, []ab.WorkCalendarBlock{
+		{StartMin: 540, EndMin: 1020, IsActive: true},
 	}); err != nil {
-		t.Fatalf("UpsertWeeklyCalendar: %v", err)
+		t.Fatalf("SaveDayBlocks: %v", err)
 	}
-	if payload == nil {
-		t.Fatal("expected schedule.changed event, got none")
-	}
-	if payload.StaffId != "s1" || payload.TenantId != "t1" {
-		t.Fatalf("unexpected payload: %+v", payload)
+	if count != 0 {
+		t.Fatalf("expected no events without affected reservations, got %d", count)
 	}
 }
 
-func TestAddException_PublishesScheduleChanged(t *testing.T) {
-	m, broker := newModuleWithBroker(t)
+func TestAddExceptionHoliday_ConflictsAndPublishes(t *testing.T) {
+	broker := &mock.Broker{}
+	deps := SetupDependencies()
+	deps.Publisher = broker
+	m, repo, _ := newTestModule(t, deps)
 	seedCalendar(t, m, "t1", "s1")
+	d := Date(2027, 6, 7, 0, 0, 0, 0)
+	seedWeekdayBlock(t, m, "t1", "s1", int(tinytime.Weekday(d)), defaultBlocks())
+	cfgID := seedEmployeeConfig(t, repo, "t1", "s1", 60)
+	createBooked(t, m, "t1", "s1", cfgID, d+10*3600)
 
-	var received []*ab.ScheduleChangedPayload
+	var sched *ab.ScheduleChangedPayload
 	broker.Subscribe(ab.EventScheduleChanged, func(e events.Event) {
-		received = append(received, e.Payload.(*ab.ScheduleChangedPayload))
+		sched = e.Payload.(*ab.ScheduleChangedPayload)
 	})
 
 	if err := m.AddException(ab.WorkCalendarException{
-		TenantId: "t1", StaffId: "s1", SpecificDate: 1767139200,
-		ExceptionType: ab.ExcHoliday,
+		TenantId: "t1", StaffId: "s1", SpecificDate: d, ExceptionType: ab.ExcHoliday,
 	}); err != nil {
 		t.Fatalf("AddException: %v", err)
 	}
-	if len(received) != 1 || received[0].StaffId != "s1" {
-		t.Fatalf("expected 1 schedule.changed with staff s1, got %+v", received)
+	if sched == nil || sched.StaffId != "s1" {
+		t.Fatalf("expected schedule.changed with staff s1, got %+v", sched)
+	}
+	if sched.ConflictCount != 1 {
+		t.Fatalf("expected ConflictCount 1, got %d", sched.ConflictCount)
 	}
 }
 
-func TestRemoveException_PublishesScheduleChanged(t *testing.T) {
-	m, broker := newModuleWithBroker(t)
+func TestRemoveExceptionHoliday_RestoresAndIsSilentOnNewConflicts(t *testing.T) {
+	broker := &mock.Broker{}
+	deps := SetupDependencies()
+	deps.Publisher = broker
+	m, repo, _ := newTestModule(t, deps)
 	seedCalendar(t, m, "t1", "s1")
+	d := Date(2027, 6, 8, 0, 0, 0, 0)
+	seedWeekdayBlock(t, m, "t1", "s1", int(tinytime.Weekday(d)), defaultBlocks())
+	cfgID := seedEmployeeConfig(t, repo, "t1", "s1", 60)
+	createBooked(t, m, "t1", "s1", cfgID, d+10*3600)
 
 	if err := m.AddException(ab.WorkCalendarException{
-		TenantId: "t1", StaffId: "s1", SpecificDate: 1767139200,
-		ExceptionType: ab.ExcBlocked,
+		TenantId: "t1", StaffId: "s1", SpecificDate: d, ExceptionType: ab.ExcHoliday,
 	}); err != nil {
 		t.Fatalf("AddException: %v", err)
 	}
-	excs, err := m.ListExceptions("t1", "s1", 1767139200, 1767139200)
+	excs, err := m.ListExceptions("t1", "s1", d, d)
 	if err != nil || len(excs) != 1 {
 		t.Fatalf("ListExceptions after add: %v, %d", err, len(excs))
 	}
-	excID := excs[0].Id
 
-	var evPayload *ab.ScheduleChangedPayload
-	broker.Subscribe(ab.EventScheduleChanged, func(e events.Event) {
-		evPayload = e.Payload.(*ab.ScheduleChangedPayload)
-	})
+	var count int
+	broker.Subscribe(ab.EventScheduleChanged, func(e events.Event) { count++ })
 
-	if err := m.RemoveException("t1", excID); err != nil {
+	if err := m.RemoveException("t1", excs[0].Id); err != nil {
 		t.Fatalf("RemoveException: %v", err)
 	}
-	if evPayload == nil || evPayload.StaffId != "s1" {
-		t.Fatalf("expected schedule.changed with the removed exception staffId, got %+v", evPayload)
+	got, _ := m.GetReservation("t1", firstReservation(t, m))
+	if got.Status != ab.StatusConfirmed {
+		t.Fatalf("expected the reservation restored to CONFIRMED, got %s", got.Status)
 	}
+	if count != 0 {
+		t.Fatalf("removing a holiday that resolves conflicts does not put anyone in conflict; expected 0 events, got %d", count)
+	}
+}
+
+func firstReservation(t *testing.T, m *ab.Module) string {
+	t.Helper()
+	rows, err := m.ListReservationsByStaff("t1", "s1", 0, Date(2030, 1, 1, 0, 0, 0, 0))
+	if err != nil || len(rows) == 0 {
+		t.Fatalf("ListReservationsByStaff: %v, %d", err, len(rows))
+	}
+	return rows[0].Id
 }
 
 func TestScheduleClient_RoundTrip(t *testing.T) {
@@ -166,23 +202,22 @@ func TestScheduleClient_RoundTrip(t *testing.T) {
 	cl := ab.NewScheduleClient(caller, "t1", "s1")
 
 	var saveErr error
-	cl.SaveWeeklyRow(ab.WorkCalendarWeekly{
-		TenantId: "t1", StaffId: "s1", DayOfWeek: 5,
-		WorkStart: 540, WorkFinish: 1020, IsActive: true,
+	cl.SaveDayBlocks(5, []ab.WorkCalendarBlock{
+		{StartMin: 540, EndMin: 1020, IsActive: true},
 	}, func(err error) { saveErr = err })
 	if saveErr != nil {
-		t.Fatalf("SaveWeeklyRow: %v", saveErr)
+		t.Fatalf("SaveDayBlocks: %v", saveErr)
 	}
 
-	var rows []ab.WorkCalendarWeekly
-	cl.Weekly(func(r []ab.WorkCalendarWeekly, err error) {
+	var rows []ab.WorkCalendarBlock
+	cl.Blocks(func(r []ab.WorkCalendarBlock, err error) {
 		rows, saveErr = r, err
 	})
 	if saveErr != nil {
-		t.Fatalf("Weekly: %v", saveErr)
+		t.Fatalf("Blocks: %v", saveErr)
 	}
-	if len(rows) != 1 || rows[0].DayOfWeek != 5 || rows[0].WorkStart != 540 {
-		t.Fatalf("unexpected weekly rows: %+v", rows)
+	if len(rows) != 1 || rows[0].DayOfWeek != 5 || rows[0].StartMin != 540 {
+		t.Fatalf("unexpected blocks: %+v", rows)
 	}
 }
 

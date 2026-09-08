@@ -25,7 +25,7 @@ func NewRepository(db *orm.DB, ids model.IDGenerator) (*Repository, error) {
 	tables := []model.Model{
 		&EmployeeServiceConfig{},
 		&WorkCalendarConfig{},
-		&WorkCalendarWeekly{},
+		&WorkCalendarBlock{},
 		&WorkCalendarException{},
 		&Reservation{},
 	}
@@ -95,6 +95,29 @@ func (r *Repository) ListReservationsByStaff(tenantId, staffId string, from, to 
 	return out, nil
 }
 
+// ListReservationsByTenantRange lista las reservas de todo un tenant en un rango
+// de fechas — el alcance del recompute del establecimiento (un feriado golpea a
+// todos los profesionales a la vez).
+func (r *Repository) ListReservationsByTenantRange(tenantId string, from, to int64) ([]Reservation, error) {
+	proxy := &Reservation{}
+	qb := r.db.Query(proxy).
+		Where(Reservation_.TenantId).Eq(tenantId).
+		Where(Reservation_.ReservationDate).Gte(from).
+		Where(Reservation_.ReservationDate).Lte(to)
+	rows, err := ReadAllReservation(qb)
+	if err != nil {
+		if err == orm.ErrNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := make([]Reservation, len(rows))
+	for i, row := range rows {
+		out[i] = *row
+	}
+	return out, nil
+}
+
 func (r *Repository) ListReservationsByClient(tenantId, clientId string) ([]Reservation, error) {
 	proxy := &Reservation{}
 	qb := r.db.Query(proxy).
@@ -135,6 +158,31 @@ func (r *Repository) UpdateReservationStatusTx(tx *orm.DB, id, status, updatedBy
 	got.UpdatedAt = updatedAt
 	got.Revision++
 	return tx.Update(got, orm.Eq(Reservation_.Id, id), orm.Eq(Reservation_.TenantId, got.TenantId))
+}
+
+// UpdateReservationConflictTx escribe el estado CONFLICTED (o su restauración)
+// con optimismo: WHERE revision = N y tenant scope en ambas ramas. statusBefore
+// queda grabado al entrar en conflicto y "" al salir (fuente única de
+// restauración, §8.5).
+func (r *Repository) UpdateReservationConflictTx(tx *orm.DB, id, tenantId, status, statusBefore, updatedBy string, updatedAt int64, expectedRevision int64) error {
+	current := &Reservation{}
+	qb := tx.Query(current).Where(Reservation_.Id).Eq(id).Where(Reservation_.TenantId).Eq(tenantId)
+	got, err := ReadOneReservation(qb, current)
+	if err == orm.ErrNotFound {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if got.Revision != expectedRevision {
+		return ErrConflict
+	}
+	got.Status = status
+	got.StatusBeforeConflict = statusBefore
+	got.UpdatedBy = updatedBy
+	got.UpdatedAt = updatedAt
+	got.Revision++
+	return tx.Update(got, orm.Eq(Reservation_.Id, id), orm.Eq(Reservation_.TenantId, tenantId))
 }
 
 // ----------------------------------------------------------------------------
@@ -269,39 +317,78 @@ func (r *Repository) GetCalendarConfig(tenantId, staffId string) (WorkCalendarCo
 }
 
 // ----------------------------------------------------------------------------
-// WorkCalendarWeekly
+// WorkCalendarBlock
 // ----------------------------------------------------------------------------
 
-func (r *Repository) UpsertWeeklyCalendar(cal WorkCalendarWeekly) error {
-	existing := &WorkCalendarWeekly{}
-	qb := r.db.Query(existing).
-		Where(WorkCalendarWeekly_.TenantId).Eq(cal.TenantId).
-		Where(WorkCalendarWeekly_.StaffId).Eq(cal.StaffId).
-		Where(WorkCalendarWeekly_.DayOfWeek).Eq(cal.DayOfWeek)
-	got, err := ReadOneWorkCalendarWeekly(qb, existing)
-	if err != nil && err != orm.ErrNotFound {
-		return err
-	}
-	if err == orm.ErrNotFound {
-		cal.Id = r.ids.NewID()
-		return r.db.Create(&cal)
-	}
-	cal.Id = got.Id
-	return r.db.Update(&cal, orm.Eq(WorkCalendarWeekly_.Id, cal.Id), orm.Eq(WorkCalendarWeekly_.TenantId, cal.TenantId))
-}
-
-func (r *Repository) ListWeeklyCalendar(tenantId, staffId string) ([]WorkCalendarWeekly, error) {
-	proxy := &WorkCalendarWeekly{}
+// ListBlocks devuelve todos los bloques de un staff — semanales y datados
+// mezclados; ListAvailability los separa por fecha/weekday con las helpers del
+// servicio.
+func (r *Repository) ListBlocks(tenantId, staffId string) ([]WorkCalendarBlock, error) {
+	proxy := &WorkCalendarBlock{}
 	qb := r.db.Query(proxy).
-		Where(WorkCalendarWeekly_.TenantId).Eq(tenantId).
-		Where(WorkCalendarWeekly_.StaffId).Eq(staffId)
-	rows, err := ReadAllWorkCalendarWeekly(qb)
+		Where(WorkCalendarBlock_.TenantId).Eq(tenantId).
+		Where(WorkCalendarBlock_.StaffId).Eq(staffId)
+	rows, err := ReadAllWorkCalendarBlock(qb)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]WorkCalendarWeekly, len(rows))
+	out := make([]WorkCalendarBlock, len(rows))
 	for i, row := range rows {
 		out[i] = *row
 	}
 	return out, nil
+}
+
+// ReplaceWeekdayBlocks pisa todos los bloques semanales del weekday dado — un
+// replace de día completo, no un upsert por fila: los edits parciales son lo
+// que desincroniza el conjunto guardado de lo que muestra el editor (§7).
+func (r *Repository) ReplaceWeekdayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error {
+	return r.db.Tx(func(tx *orm.DB) error {
+		if err := tx.Delete(&WorkCalendarBlock{},
+			orm.Eq(WorkCalendarBlock_.TenantId, tenantId),
+			orm.Eq(WorkCalendarBlock_.StaffId, staffId),
+			orm.Eq(WorkCalendarBlock_.DayOfWeek, int64(dayOfWeek)),
+			orm.Eq(WorkCalendarBlock_.SpecificDate, int64(0)),
+		); err != nil {
+			return err
+		}
+		for i := range blocks {
+			blocks[i].Id = r.ids.NewID()
+			if err := tx.Create(&blocks[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// ReplaceDateBlocks pisa los bloques DATADOS de una fecha (CU-11: un día
+// marcado puede divergir de la ventana común con la que se creó).
+func (r *Repository) ReplaceDateBlocks(tenantId, staffId string, date int64, blocks []WorkCalendarBlock) error {
+	return r.db.Tx(func(tx *orm.DB) error {
+		if err := tx.Delete(&WorkCalendarBlock{},
+			orm.Eq(WorkCalendarBlock_.TenantId, tenantId),
+			orm.Eq(WorkCalendarBlock_.StaffId, staffId),
+			orm.Eq(WorkCalendarBlock_.SpecificDate, date),
+		); err != nil {
+			return err
+		}
+		for i := range blocks {
+			blocks[i].Id = r.ids.NewID()
+			if err := tx.Create(&blocks[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// DeleteDateBlocks borra todos los bloques datados de esas fechas (CU-15:
+// devuelve el día a lo que diga el template semanal, o a des-trabajado).
+func (r *Repository) DeleteDateBlocks(tenantId, staffId string, date int64) error {
+	return r.db.Delete(&WorkCalendarBlock{},
+		orm.Eq(WorkCalendarBlock_.TenantId, tenantId),
+		orm.Eq(WorkCalendarBlock_.StaffId, staffId),
+		orm.Eq(WorkCalendarBlock_.SpecificDate, date),
+	)
 }

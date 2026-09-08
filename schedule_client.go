@@ -18,21 +18,21 @@ func NewScheduleClient(caller router.Caller, tenantId, staffId string) *Schedule
 	return &ScheduleClient{caller: caller, tenantId: tenantId, staffId: staffId}
 }
 
-// Weekly carga la plantilla semanal completa del profesional.
-func (c *ScheduleClient) Weekly(done func([]WorkCalendarWeekly, error)) {
-	out := &WorkCalendarWeeklyList{}
+// Blocks carga todos los bloques del profesional (semanales y datados).
+func (c *ScheduleClient) Blocks(done func([]WorkCalendarBlock, error)) {
+	out := &WorkCalendarBlockList{}
 	c.caller.Call(
-		OpListWeeklyCalendar,
-		&ListWeeklyCalendarArgs{TenantId: c.tenantId, StaffId: c.staffId},
+		OpListBlocks,
+		&ListBlocksArgs{TenantId: c.tenantId, StaffId: c.staffId},
 		out,
 		func(err error) {
 			if err != nil {
 				done(nil, err)
 				return
 			}
-			rows := make([]WorkCalendarWeekly, 0, out.Len())
+			rows := make([]WorkCalendarBlock, 0, out.Len())
 			for i := 0; i < out.Len(); i++ {
-				rows = append(rows, *out.At(i).(*WorkCalendarWeekly))
+				rows = append(rows, *out.At(i).(*WorkCalendarBlock))
 			}
 			done(rows, nil)
 		},
@@ -60,19 +60,15 @@ func (c *ScheduleClient) Exceptions(from, to int64, done func([]WorkCalendarExce
 	)
 }
 
-// SaveWeeklyRow persiste (upsert) una fila de la plantilla semanal.
-func (c *ScheduleClient) SaveWeeklyRow(row WorkCalendarWeekly, done func(error)) {
+// SaveDayBlocks pisa todos los bloques semanales del weekday dado.
+func (c *ScheduleClient) SaveDayBlocks(dayOfWeek int, blocks []WorkCalendarBlock, done func(error)) {
 	c.caller.Call(
-		OpUpsertWeeklyCalendar,
-		&UpsertWeeklyCalendarArgs{
-			TenantId:    c.tenantId,
-			StaffId:     c.staffId,
-			DayOfWeek:   row.DayOfWeek,
-			WorkStart:   row.WorkStart,
-			WorkFinish:  row.WorkFinish,
-			BreakStart:  row.BreakStart,
-			BreakFinish: row.BreakFinish,
-			IsActive:    row.IsActive,
+		OpSaveDayBlocks,
+		&SaveDayBlocksArgs{
+			TenantId:  c.tenantId,
+			StaffId:   c.staffId,
+			DayOfWeek: int64(dayOfWeek),
+			Blocks:    blocks,
 		},
 		nil,
 		done,
