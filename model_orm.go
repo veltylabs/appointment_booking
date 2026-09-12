@@ -53,8 +53,6 @@ func (m *EmployeeServiceConfig) DecodeFields(r model.FieldReader) {
 
 type EmployeeServiceConfigList []*EmployeeServiceConfig
 
-func (s *EmployeeServiceConfigList) Schema() []model.Field { return nil }
-func (s *EmployeeServiceConfigList) Pointers() []any     { return nil }
 func (s *EmployeeServiceConfigList) Len() int             { return len(*s) }
 func (s *EmployeeServiceConfigList) At(i int) model.Fielder { return (*s)[i] }
 func (s *EmployeeServiceConfigList) Append() model.Fielder  { v := &EmployeeServiceConfig{}; *s = append(*s, v); return v }
@@ -139,8 +137,6 @@ func (m *WorkCalendarConfig) DecodeFields(r model.FieldReader) {
 
 type WorkCalendarConfigList []*WorkCalendarConfig
 
-func (s *WorkCalendarConfigList) Schema() []model.Field { return nil }
-func (s *WorkCalendarConfigList) Pointers() []any     { return nil }
 func (s *WorkCalendarConfigList) Len() int             { return len(*s) }
 func (s *WorkCalendarConfigList) At(i int) model.Fielder { return (*s)[i] }
 func (s *WorkCalendarConfigList) Append() model.Fielder  { v := &WorkCalendarConfig{}; *s = append(*s, v); return v }
@@ -226,8 +222,6 @@ func (m *WorkCalendarBlock) DecodeFields(r model.FieldReader) {
 
 type WorkCalendarBlockList []*WorkCalendarBlock
 
-func (s *WorkCalendarBlockList) Schema() []model.Field { return nil }
-func (s *WorkCalendarBlockList) Pointers() []any     { return nil }
 func (s *WorkCalendarBlockList) Len() int             { return len(*s) }
 func (s *WorkCalendarBlockList) At(i int) model.Fielder { return (*s)[i] }
 func (s *WorkCalendarBlockList) Append() model.Fielder  { v := &WorkCalendarBlock{}; *s = append(*s, v); return v }
@@ -319,8 +313,6 @@ func (m *WorkCalendarException) DecodeFields(r model.FieldReader) {
 
 type WorkCalendarExceptionList []*WorkCalendarException
 
-func (s *WorkCalendarExceptionList) Schema() []model.Field { return nil }
-func (s *WorkCalendarExceptionList) Pointers() []any     { return nil }
 func (s *WorkCalendarExceptionList) Len() int             { return len(*s) }
 func (s *WorkCalendarExceptionList) At(i int) model.Fielder { return (*s)[i] }
 func (s *WorkCalendarExceptionList) Append() model.Fielder  { v := &WorkCalendarException{}; *s = append(*s, v); return v }
@@ -454,8 +446,6 @@ func (m *Reservation) DecodeFields(r model.FieldReader) {
 
 type ReservationList []*Reservation
 
-func (s *ReservationList) Schema() []model.Field { return nil }
-func (s *ReservationList) Pointers() []any     { return nil }
 func (s *ReservationList) Len() int             { return len(*s) }
 func (s *ReservationList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ReservationList) Append() model.Fielder  { v := &Reservation{}; *s = append(*s, v); return v }
@@ -557,8 +547,6 @@ func (m *TimeSlot) DecodeFields(r model.FieldReader) {
 
 type TimeSlotList []*TimeSlot
 
-func (s *TimeSlotList) Schema() []model.Field { return nil }
-func (s *TimeSlotList) Pointers() []any     { return nil }
 func (s *TimeSlotList) Len() int             { return len(*s) }
 func (s *TimeSlotList) At(i int) model.Fielder { return (*s)[i] }
 func (s *TimeSlotList) Append() model.Fielder  { v := &TimeSlot{}; *s = append(*s, v); return v }
@@ -610,8 +598,6 @@ func (m *CreateReservationArgs) DecodeFields(r model.FieldReader) {
 
 type CreateReservationArgsList []*CreateReservationArgs
 
-func (s *CreateReservationArgsList) Schema() []model.Field { return nil }
-func (s *CreateReservationArgsList) Pointers() []any     { return nil }
 func (s *CreateReservationArgsList) Len() int             { return len(*s) }
 func (s *CreateReservationArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *CreateReservationArgsList) Append() model.Fielder  { v := &CreateReservationArgs{}; *s = append(*s, v); return v }
@@ -648,8 +634,6 @@ func (m *GetReservationArgs) DecodeFields(r model.FieldReader) {
 
 type GetReservationArgsList []*GetReservationArgs
 
-func (s *GetReservationArgsList) Schema() []model.Field { return nil }
-func (s *GetReservationArgsList) Pointers() []any     { return nil }
 func (s *GetReservationArgsList) Len() int             { return len(*s) }
 func (s *GetReservationArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *GetReservationArgsList) Append() model.Fielder  { v := &GetReservationArgs{}; *s = append(*s, v); return v }
@@ -692,8 +676,6 @@ func (m *ListReservationsByStaffArgs) DecodeFields(r model.FieldReader) {
 
 type ListReservationsByStaffArgsList []*ListReservationsByStaffArgs
 
-func (s *ListReservationsByStaffArgsList) Schema() []model.Field { return nil }
-func (s *ListReservationsByStaffArgsList) Pointers() []any     { return nil }
 func (s *ListReservationsByStaffArgsList) Len() int             { return len(*s) }
 func (s *ListReservationsByStaffArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ListReservationsByStaffArgsList) Append() model.Fielder  { v := &ListReservationsByStaffArgs{}; *s = append(*s, v); return v }
@@ -730,8 +712,6 @@ func (m *ListReservationsByClientArgs) DecodeFields(r model.FieldReader) {
 
 type ListReservationsByClientArgsList []*ListReservationsByClientArgs
 
-func (s *ListReservationsByClientArgsList) Schema() []model.Field { return nil }
-func (s *ListReservationsByClientArgsList) Pointers() []any     { return nil }
 func (s *ListReservationsByClientArgsList) Len() int             { return len(*s) }
 func (s *ListReservationsByClientArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ListReservationsByClientArgsList) Append() model.Fielder  { v := &ListReservationsByClientArgs{}; *s = append(*s, v); return v }
@@ -780,8 +760,6 @@ func (m *ChangeReservationStatusArgs) DecodeFields(r model.FieldReader) {
 
 type ChangeReservationStatusArgsList []*ChangeReservationStatusArgs
 
-func (s *ChangeReservationStatusArgsList) Schema() []model.Field { return nil }
-func (s *ChangeReservationStatusArgsList) Pointers() []any     { return nil }
 func (s *ChangeReservationStatusArgsList) Len() int             { return len(*s) }
 func (s *ChangeReservationStatusArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ChangeReservationStatusArgsList) Append() model.Fielder  { v := &ChangeReservationStatusArgs{}; *s = append(*s, v); return v }
@@ -818,8 +796,6 @@ func (m *ExpirePendingReservationsArgs) DecodeFields(r model.FieldReader) {
 
 type ExpirePendingReservationsArgsList []*ExpirePendingReservationsArgs
 
-func (s *ExpirePendingReservationsArgsList) Schema() []model.Field { return nil }
-func (s *ExpirePendingReservationsArgsList) Pointers() []any     { return nil }
 func (s *ExpirePendingReservationsArgsList) Len() int             { return len(*s) }
 func (s *ExpirePendingReservationsArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ExpirePendingReservationsArgsList) Append() model.Fielder  { v := &ExpirePendingReservationsArgs{}; *s = append(*s, v); return v }
@@ -862,8 +838,6 @@ func (m *UpsertCalendarConfigArgs) DecodeFields(r model.FieldReader) {
 
 type UpsertCalendarConfigArgsList []*UpsertCalendarConfigArgs
 
-func (s *UpsertCalendarConfigArgsList) Schema() []model.Field { return nil }
-func (s *UpsertCalendarConfigArgsList) Pointers() []any     { return nil }
 func (s *UpsertCalendarConfigArgsList) Len() int             { return len(*s) }
 func (s *UpsertCalendarConfigArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *UpsertCalendarConfigArgsList) Append() model.Fielder  { v := &UpsertCalendarConfigArgs{}; *s = append(*s, v); return v }
@@ -918,8 +892,6 @@ func (m *SaveDayBlocksArgs) DecodeFields(r model.FieldReader) {
 
 type SaveDayBlocksArgsList []*SaveDayBlocksArgs
 
-func (s *SaveDayBlocksArgsList) Schema() []model.Field { return nil }
-func (s *SaveDayBlocksArgsList) Pointers() []any     { return nil }
 func (s *SaveDayBlocksArgsList) Len() int             { return len(*s) }
 func (s *SaveDayBlocksArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *SaveDayBlocksArgsList) Append() model.Fielder  { v := &SaveDayBlocksArgs{}; *s = append(*s, v); return v }
@@ -974,8 +946,6 @@ func (m *SaveDateBlocksArgs) DecodeFields(r model.FieldReader) {
 
 type SaveDateBlocksArgsList []*SaveDateBlocksArgs
 
-func (s *SaveDateBlocksArgsList) Schema() []model.Field { return nil }
-func (s *SaveDateBlocksArgsList) Pointers() []any     { return nil }
 func (s *SaveDateBlocksArgsList) Len() int             { return len(*s) }
 func (s *SaveDateBlocksArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *SaveDateBlocksArgsList) Append() model.Fielder  { v := &SaveDateBlocksArgs{}; *s = append(*s, v); return v }
@@ -1033,8 +1003,6 @@ func (m *MarkWorkingDaysArgs) DecodeFields(r model.FieldReader) {
 
 type MarkWorkingDaysArgsList []*MarkWorkingDaysArgs
 
-func (s *MarkWorkingDaysArgsList) Schema() []model.Field { return nil }
-func (s *MarkWorkingDaysArgsList) Pointers() []any     { return nil }
 func (s *MarkWorkingDaysArgsList) Len() int             { return len(*s) }
 func (s *MarkWorkingDaysArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *MarkWorkingDaysArgsList) Append() model.Fielder  { v := &MarkWorkingDaysArgs{}; *s = append(*s, v); return v }
@@ -1086,8 +1054,6 @@ func (m *UnmarkWorkingDaysArgs) DecodeFields(r model.FieldReader) {
 
 type UnmarkWorkingDaysArgsList []*UnmarkWorkingDaysArgs
 
-func (s *UnmarkWorkingDaysArgsList) Schema() []model.Field { return nil }
-func (s *UnmarkWorkingDaysArgsList) Pointers() []any     { return nil }
 func (s *UnmarkWorkingDaysArgsList) Len() int             { return len(*s) }
 func (s *UnmarkWorkingDaysArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *UnmarkWorkingDaysArgsList) Append() model.Fielder  { v := &UnmarkWorkingDaysArgs{}; *s = append(*s, v); return v }
@@ -1124,8 +1090,6 @@ func (m *ListBlocksArgs) DecodeFields(r model.FieldReader) {
 
 type ListBlocksArgsList []*ListBlocksArgs
 
-func (s *ListBlocksArgsList) Schema() []model.Field { return nil }
-func (s *ListBlocksArgsList) Pointers() []any     { return nil }
 func (s *ListBlocksArgsList) Len() int             { return len(*s) }
 func (s *ListBlocksArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ListBlocksArgsList) Append() model.Fielder  { v := &ListBlocksArgs{}; *s = append(*s, v); return v }
@@ -1162,8 +1126,6 @@ func (m *GetDayBoundsArgs) DecodeFields(r model.FieldReader) {
 
 type GetDayBoundsArgsList []*GetDayBoundsArgs
 
-func (s *GetDayBoundsArgsList) Schema() []model.Field { return nil }
-func (s *GetDayBoundsArgsList) Pointers() []any     { return nil }
 func (s *GetDayBoundsArgsList) Len() int             { return len(*s) }
 func (s *GetDayBoundsArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *GetDayBoundsArgsList) Append() model.Fielder  { v := &GetDayBoundsArgs{}; *s = append(*s, v); return v }
@@ -1203,8 +1165,6 @@ func (m *ListConflictingReservationsArgs) DecodeFields(r model.FieldReader) {
 
 type ListConflictingReservationsArgsList []*ListConflictingReservationsArgs
 
-func (s *ListConflictingReservationsArgsList) Schema() []model.Field { return nil }
-func (s *ListConflictingReservationsArgsList) Pointers() []any     { return nil }
 func (s *ListConflictingReservationsArgsList) Len() int             { return len(*s) }
 func (s *ListConflictingReservationsArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ListConflictingReservationsArgsList) Append() model.Fielder  { v := &ListConflictingReservationsArgs{}; *s = append(*s, v); return v }
@@ -1244,8 +1204,6 @@ func (m *RecomputeConflictsArgs) DecodeFields(r model.FieldReader) {
 
 type RecomputeConflictsArgsList []*RecomputeConflictsArgs
 
-func (s *RecomputeConflictsArgsList) Schema() []model.Field { return nil }
-func (s *RecomputeConflictsArgsList) Pointers() []any     { return nil }
 func (s *RecomputeConflictsArgsList) Len() int             { return len(*s) }
 func (s *RecomputeConflictsArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *RecomputeConflictsArgsList) Append() model.Fielder  { v := &RecomputeConflictsArgs{}; *s = append(*s, v); return v }
@@ -1288,8 +1246,6 @@ func (m *ConflictingReservation) DecodeFields(r model.FieldReader) {
 
 type ConflictingReservationList []*ConflictingReservation
 
-func (s *ConflictingReservationList) Schema() []model.Field { return nil }
-func (s *ConflictingReservationList) Pointers() []any     { return nil }
 func (s *ConflictingReservationList) Len() int             { return len(*s) }
 func (s *ConflictingReservationList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ConflictingReservationList) Append() model.Fielder  { v := &ConflictingReservation{}; *s = append(*s, v); return v }
@@ -1329,8 +1285,6 @@ func (m *DayBoundsResult) DecodeFields(r model.FieldReader) {
 
 type DayBoundsResultList []*DayBoundsResult
 
-func (s *DayBoundsResultList) Schema() []model.Field { return nil }
-func (s *DayBoundsResultList) Pointers() []any     { return nil }
 func (s *DayBoundsResultList) Len() int             { return len(*s) }
 func (s *DayBoundsResultList) At(i int) model.Fielder { return (*s)[i] }
 func (s *DayBoundsResultList) Append() model.Fielder  { v := &DayBoundsResult{}; *s = append(*s, v); return v }
@@ -1382,8 +1336,6 @@ func (m *AddCalendarExceptionArgs) DecodeFields(r model.FieldReader) {
 
 type AddCalendarExceptionArgsList []*AddCalendarExceptionArgs
 
-func (s *AddCalendarExceptionArgsList) Schema() []model.Field { return nil }
-func (s *AddCalendarExceptionArgsList) Pointers() []any     { return nil }
 func (s *AddCalendarExceptionArgsList) Len() int             { return len(*s) }
 func (s *AddCalendarExceptionArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *AddCalendarExceptionArgsList) Append() model.Fielder  { v := &AddCalendarExceptionArgs{}; *s = append(*s, v); return v }
@@ -1420,8 +1372,6 @@ func (m *RemoveCalendarExceptionArgs) DecodeFields(r model.FieldReader) {
 
 type RemoveCalendarExceptionArgsList []*RemoveCalendarExceptionArgs
 
-func (s *RemoveCalendarExceptionArgsList) Schema() []model.Field { return nil }
-func (s *RemoveCalendarExceptionArgsList) Pointers() []any     { return nil }
 func (s *RemoveCalendarExceptionArgsList) Len() int             { return len(*s) }
 func (s *RemoveCalendarExceptionArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *RemoveCalendarExceptionArgsList) Append() model.Fielder  { v := &RemoveCalendarExceptionArgs{}; *s = append(*s, v); return v }
@@ -1467,8 +1417,6 @@ func (m *ListAvailabilityArgs) DecodeFields(r model.FieldReader) {
 
 type ListAvailabilityArgsList []*ListAvailabilityArgs
 
-func (s *ListAvailabilityArgsList) Schema() []model.Field { return nil }
-func (s *ListAvailabilityArgsList) Pointers() []any     { return nil }
 func (s *ListAvailabilityArgsList) Len() int             { return len(*s) }
 func (s *ListAvailabilityArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ListAvailabilityArgsList) Append() model.Fielder  { v := &ListAvailabilityArgs{}; *s = append(*s, v); return v }
@@ -1511,8 +1459,6 @@ func (m *ListExceptionsArgs) DecodeFields(r model.FieldReader) {
 
 type ListExceptionsArgsList []*ListExceptionsArgs
 
-func (s *ListExceptionsArgsList) Schema() []model.Field { return nil }
-func (s *ListExceptionsArgsList) Pointers() []any     { return nil }
 func (s *ListExceptionsArgsList) Len() int             { return len(*s) }
 func (s *ListExceptionsArgsList) At(i int) model.Fielder { return (*s)[i] }
 func (s *ListExceptionsArgsList) Append() model.Fielder  { v := &ListExceptionsArgs{}; *s = append(*s, v); return v }
