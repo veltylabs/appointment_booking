@@ -21,9 +21,9 @@ func (r *Reservation) Item() view.Item {
 	}
 }
 
-// Item implements view.Itemizer. LeadMain is the hour because the booking list
-// is read down a column of times; a list widget that leads with a time
-// (webtyp/components targethour) binds to it.
+// Item implementa view.Itemizer. LeadMain es la hora porque la lista de reservas
+// se lee hacia abajo en una columna de horas; un widget de lista que encabeza con una hora
+// (webtyp/components targethour) se vincula a este campo.
 func (r *ReservationForm) Item() view.Item {
 	return view.Item{
 		ID:          r.Id,
@@ -33,34 +33,33 @@ func (r *ReservationForm) Item() view.Item {
 	}
 }
 
-// FormConfig is the scope a booking form works inside, plus the one thing this
-// module cannot know: how to name a client.
+// FormConfig es el alcance en el que trabaja un formulario de reserva, más lo único que
+// este módulo no puede saber: cómo nombrar a un cliente.
 type FormConfig struct {
-	TenantId string // required
-	StaffId  string // required — the professional whose agenda is being booked
-	// ServiceConfigId is the employee_service_config the reservation points at.
-	// It is what fixes duration and price; required to save or to list slots.
+	TenantId string // requerido
+	StaffId  string // requerido — el profesional cuya agenda se está reservando
+	// ServiceConfigId es el employee_service_config al que apunta la reserva.
+	// Es lo que fija la duración y el precio; requerido para guardar o listar huecos.
 	ServiceConfigId string
-	// Timezone is the IANA zone the day/hour pair is read in, e.g.
-	// "America/Santiago". Required.
+	// Timezone es la zona IANA en la que se lee el par día/hora, p. ej.
+	// "America/Santiago". Requerido.
 	//
-	// KNOWN LIMITATION: the authoritative value lives in this module's own
-	// work_calendar_config.timezone, and there is no read op for it — a caller
-	// therefore supplies it. Adding get_calendar_config is deliberately out of
-	// this plan's scope; until it exists, an establishment whose professionals
-	// span two zones cannot be served by one FormConfig.
+	// LIMITACIÓN CONOCIDA: el valor autorizado vive en work_calendar_config.timezone
+	// de este módulo, y no existe operación de lectura para él — por lo tanto, el
+	// llamador lo proporciona. Agregar get_calendar_config está fuera del alcance
+	// de este plan.
 	Timezone string
-	// From and To bound the listing, as midnight-UTC seconds.
+	// From y To delimitan el listado, como segundos a medianoche UTC.
 	From, To int64
-	// ActorId is recorded as creator_user_id. Optional.
+	// ActorId se graba como creator_user_id. Opcional.
 	ActorId string
-	// LabelFor turns a client id into the name shown in the list. Optional: nil
-	// falls back to the raw id.
+	// LabelFor convierte un id de cliente en el nombre que se muestra en la lista. Opcional: nil
+	// recurre al id sin formato.
 	//
-	// It is a function, not a directory dependency, on purpose — this module
-	// resolves a client through the injected DirectoryReader on the SERVER, and
-	// must not acquire a second, caller-side dependency on any particular
-	// directory implementation.
+	// Es una función, no una dependencia de directorio, a propósito — este módulo
+	// resuelve un cliente a través del DirectoryReader inyectado en el SERVIDOR, y
+	// no debe adquirir una segunda dependencia en el lado del cliente sobre ninguna
+	// implementación particular de directorio.
 	LabelFor func(clientId string) string
 }
 
@@ -76,9 +75,9 @@ func NewView(caller router.Caller, tenantId, staffId string) view.Presenter {
 	)
 }
 
-// NewFormView builds a presenter that both LISTS a professional's reservations
-// and CREATES new ones — the surface a booking screen needs. NewView, above,
-// remains the list-only surface for a read-only consumer.
+// NewFormView construye un presenter que TANTO LISTA las reservas de un profesional
+// COMO CREA nuevas — la superficie que necesita una pantalla de reservas. NewView, arriba,
+// sigue siendo la superficie solo de lista para un consumidor de solo lectura.
 func NewFormView(caller router.Caller, cfg FormConfig) view.Presenter {
 	return view.New(
 		&reservationFormStore{caller: caller, cfg: cfg},
@@ -87,12 +86,12 @@ func NewFormView(caller router.Caller, cfg FormConfig) view.Presenter {
 	)
 }
 
-// FreeSlots returns the bookable slots of one day as "HH:MM" strings in
-// cfg.Timezone, ready for a list widget to render as empty rows.
+// FreeSlots devuelve los huecos reservables de un día como cadenas "HH:MM" en
+// cfg.Timezone, listos para que un widget de lista los renderice como filas vacías.
 //
-// day is "YYYY-MM-DD". Returns nil (no error) when the scope is incomplete —
-// no staff or no service config means there is nothing to compute, not a
-// failure.
+// day es "YYYY-MM-DD". Devuelve nil (sin error) cuando el alcance está incompleto —
+// sin staff o sin configuración de servicio significa que no hay nada que calcular, no un
+// fallo.
 func FreeSlots(caller router.Caller, cfg FormConfig, day string) ([]string, error) {
 	if cfg.StaffId == "" || cfg.ServiceConfigId == "" {
 		return nil, nil

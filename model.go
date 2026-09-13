@@ -111,22 +111,22 @@ var ReservationModel = model.Definition{
 	},
 }
 
-// ReservationFormModel is the FORM PROJECTION of a reservation: the six values a
-// person actually fills in or reads when booking at a counter. It is NOT a table
-// — it is never passed to migrate.Migrate, and `migrate/migrate.go` creates
-// exactly five tables, none of them this one.
+// ReservationFormModel es la PROYECCIÓN DE FORMULARIO de una reserva: los seis
+// valores que una persona realmente completa o lee al reservar en un mostrador.
+// NO es una tabla — nunca se pasa a migrate.Migrate, y `migrate/migrate.go` crea
+// exactamente cinco tablas, ninguna de ellas esta.
 //
-// It exists because ReservationModel's fields are base kinds (model.Text() and
-// friends) on purpose: it is a DB row, and webtyp/form skips any field whose
-// Type does not assert to input.Input. A form built on Reservation renders
-// nothing. The two types are kept apart rather than merged so that the audit
-// fields of a reservation — the snapshots, revision, status_before_conflict,
-// rescheduled_from_id — can never surface as editable inputs.
+// Existe porque los campos de ReservationModel usan tipos base (model.Text() y
+// similares) a propósito: es una fila de BD, y webtyp/form omite cualquier campo
+// cuyo Type no sea input.Input. Un formulario construido sobre Reservation no
+// renderizaría nada. Los dos tipos se mantienen separados en lugar de fusionarse
+// para que los campos de auditoría de una reserva (instantáneas, revisión,
+// status_before_conflict, rescheduled_from_id) nunca emerjan como entradas editables.
 //
-// Widget policy is BY ROLE, the same rule the transport models below follow:
-// input.X() only on what a person edits; a base kind on what is displayed and
-// never typed. status is therefore model.Text(): it is shown in the list and is
-// unreachable from the form, because status moves only through the FSM
+// La política de widgets es POR ROL, la misma regla que siguen los modelos de transporte:
+// input.X() solo en lo que una persona edita; un tipo base en lo que se muestra y
+// nunca se escribe. Por lo tanto, status es model.Text(): se muestra en la lista
+// y no es accesible desde el formulario, porque status solo cambia a través del FSM
 // (ChangeReservationStatus).
 var ReservationFormModel = model.Definition{
 	Name: "reservation_form",

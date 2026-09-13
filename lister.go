@@ -131,8 +131,8 @@ var (
 	_ view.Saver  = (*reservationFormStore)(nil)
 )
 
-// dayToUnix converts "YYYY-MM-DD" to midnight UTC in seconds — the encoding
-// work_calendar_block.specific_date and the From/To op args use. 0 on failure.
+// dayToUnix convierte "YYYY-MM-DD" a segundos de medianoche UTC — la codificación
+// que usan work_calendar_block.specific_date y los argumentos de op From/To. 0 en caso de fallo.
 func dayToUnix(day string) int64 {
 	nano, err := tinytime.ParseDate(day)
 	if err != nil {
@@ -141,7 +141,7 @@ func dayToUnix(day string) int64 {
 	return nano / 1000000000
 }
 
-// minutesOfDay converts "HH:MM" to minutes from midnight. -1 on failure.
+// minutesOfDay convierte "HH:MM" a minutos desde la medianoche. -1 en caso de fallo.
 func minutesOfDay(hour string) int {
 	min, err := tinytime.ParseTime(hour)
 	if err != nil {
