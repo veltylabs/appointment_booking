@@ -111,6 +111,35 @@ var ReservationModel = model.Definition{
 	},
 }
 
+// ReservationFormModel is the FORM PROJECTION of a reservation: the six values a
+// person actually fills in or reads when booking at a counter. It is NOT a table
+// — it is never passed to migrate.Migrate, and `migrate/migrate.go` creates
+// exactly five tables, none of them this one.
+//
+// It exists because ReservationModel's fields are base kinds (model.Text() and
+// friends) on purpose: it is a DB row, and webtyp/form skips any field whose
+// Type does not assert to input.Input. A form built on Reservation renders
+// nothing. The two types are kept apart rather than merged so that the audit
+// fields of a reservation — the snapshots, revision, status_before_conflict,
+// rescheduled_from_id — can never surface as editable inputs.
+//
+// Widget policy is BY ROLE, the same rule the transport models below follow:
+// input.X() only on what a person edits; a base kind on what is displayed and
+// never typed. status is therefore model.Text(): it is shown in the list and is
+// unreachable from the form, because status moves only through the FSM
+// (ChangeReservationStatus).
+var ReservationFormModel = model.Definition{
+	Name: "reservation_form",
+	Fields: model.Fields{
+		{Name: "id", Type: input.Text(), NotNull: true, DB: &model.FieldDB{PK: true}},
+		{Name: "client_id", Type: input.Text(), NotNull: true},
+		{Name: "day", Type: input.Date(), NotNull: true},
+		{Name: "hour", Type: input.Hour(), NotNull: true},
+		{Name: "notes", Type: input.Textarea()},
+		{Name: "status", Type: model.Text()},
+	},
+}
+
 // Las 12 Definitions de abajo son transport-only. Política de widgets POR ROL (no "lo que el
 // model_orm.go viejo tuviera" — ese archivo ponía widget en todo campo transport, un defecto que
 // esta migración corrige): input.X() SOLO en campos que un usuario edita en un form; kinds base

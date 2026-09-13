@@ -16,13 +16,15 @@ The `appointment-booking` module manages the complete lifecycle of a scheduled s
 ## 2. Core Entities
 
 - **`EmployeeServiceConfig`:** Maps a staff member to a service item, defining duration, buffer time, and price override. The source of truth for slot granularity.
-- **`Reservation`:** The appointment itself. Stores snapshots of staff, service, price, and currency at creation time for financial auditability — these never change even if the source data is later modified. Also tracks `StatusBeforeConflict` so a conflicted appointment can be restored to exactly the state it had before the conflict.
+- **`Reservation`:** The appointment itself (persisted DB row). Stores snapshots of staff, service, price, and currency at creation time for financial auditability — these never change even if the source data is later modified. Also tracks `StatusBeforeConflict` so a conflicted appointment can be restored to exactly the state it had before the conflict.
+- **`ReservationForm` (`ReservationFormModel`):** The form projection of a reservation distinct from `Reservation`. `Reservation` carries 22 fields (snapshots, revision, audit) with base kinds; `ReservationForm` exposes the 6 counter-facing fields (`id`, `client_id`, `day`, `hour`, `notes`, `status`) using `input.*` widgets so UI form generators can build create forms without exposing internal or audit fields.
 - **`WorkCalendarConfig`:** One row per staff member. Single source of truth for the IANA timezone of the staff calendar. Must exist before blocks can be saved.
 - **`WorkCalendarBlock`:** One row per block of working time. A day may hold several — "morning 09:00–13:00, afternoon 15:00–19:00" is two rows, and the lunch **break is the gap between them** (there is deliberately no break column). `specific_date == 0` means the block is WEEKLY (applies to `day_of_week`); `specific_date > 0` means the block is DATED (applies to that date only and **opens** the day even if no weekly block covers that weekday — how an irregular professional marks the days they work). Does not carry timezone — inherits it from `WorkCalendarConfig`.
 - **`WorkCalendarException`:** One-off overrides for a specific date: `HOLIDAY` (no availability), `SPECIAL_HOURS` (narrows a day that a block covers), or `BLOCKED` (interval subtracted from available windows).
 
-This module owns and migrates the schema for all five entities above (unlike e.g. `work_schedule`,
-which only reads read-only tables owned elsewhere) — see §7.
+This module owns the schema for all five entities above (unlike e.g. `work_schedule`,
+which only reads read-only tables owned elsewhere). Schema migration is performed via the
+`migrate` subpackage (`migrate.Migrate`) as a deploy-time step — see §7.
 
 ## 3. Finite State Machine (FSM)
 
@@ -164,14 +166,12 @@ choice, not this module's.
 ### View
 
 `NewView(caller router.Caller, tenantId, staffId string) view.Presenter` builds a **list/select-only**
-`view.Presenter` over `Reservation`, scoped to one staff member's schedule (backed by
-`list_reservations_by_staff` — there is no unscoped "list all reservations for a tenant" operation,
-so the view needs the staff id at construction time; this is the one deliberate deviation from the
-bare `NewView(caller router.Caller)` shape used by simpler modules like `item_catalog`). It exposes no
-`Saver`/`Deleter` capability: reservations are never edited as a whole record (they mutate only
-through `ChangeReservationStatus`'s FSM-gated transitions) and are never hard-deleted, so
-`view.WithSaveOp`/`view.WithDeleteOp` are intentionally omitted — a bare `Presenter` (list + select)
-is the correct, complete shape here, not a gap.
+`view.Presenter` over `Reservation`, scoped to one staff member's schedule.
+
+`NewFormView(caller router.Caller, cfg FormConfig) view.Presenter` builds a **form-capable presenter**
+(List + Save) over `ReservationForm`. `FormConfig` takes `Timezone` explicitly because the authoritative
+timezone lives in `work_calendar_config.timezone` on the server and no client read op currently exists
+for it (known limitation: multi-timezone establishment scoping).
 
 **No second `view.Presenter` for calendar configuration, but an editor face exists.** `WorkCalendarConfig`
 (one row per staff), `WorkCalendarWeekly` (at most 7 rows per staff), and `WorkCalendarException` (a

@@ -93,6 +93,10 @@ func New(db *orm.DB, deps Deps) (*Module, error)
 ### Composition Root (how to wire this module)
 
 ```go
+// Schema creation is a deploy-time step (see subpackage migrate):
+// err := migrate.Migrate(conn, ddlCompiler)
+
+// New / NewRepository assumes the database schema already exists.
 scheduling, _ := appointmentbooking.New(db, appointmentbooking.Deps{
     Staff:     staffmodule.New(db),        // implements StaffReader
     Catalog:   catalogmodule.New(db),      // implements CatalogReader
@@ -149,6 +153,31 @@ cl.RemoveException(exceptionID, func(err error) { /* … */ })
 
 A schedule mutation publishes `appointment.schedule.changed` (with the affected range and conflict
 count) only when it actually put reservations in conflict.
+
+## NewFormView — the booking-screen face
+
+`NewFormView(caller router.Caller, cfg FormConfig) view.Presenter` builds a presenter that both
+lists a professional's reservations and creates new ones. `NewView` remains the list-only surface for
+read-only consumers.
+
+```go
+formView := appointmentbooking.NewFormView(caller, appointmentbooking.FormConfig{
+    TenantId:        tenantId,
+    StaffId:         staffId,
+    ServiceConfigId: serviceConfigId,
+    Timezone:        "America/Santiago",
+    From:            fromUnixSec,
+    To:              toUnixSec,
+    ActorId:         actorId,
+    LabelFor: func(clientId string) string {
+        // Optional seam: translate clientId to a display name in the list
+        return directoryClientName(clientId)
+    },
+})
+```
+
+`FreeSlots(caller, cfg, day)` returns bookable slots for a date (e.g. `"2026-09-08"`) as `"HH:MM"`
+strings in the configured timezone.
 
 ## Service interface
 

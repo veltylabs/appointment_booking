@@ -522,6 +522,87 @@ func ReadAllReservation(qb *orm.QB) (ReservationList, error) {
 	return results, err
 }
 
+type ReservationForm struct {
+	Id string
+	ClientId string
+	Day string
+	Hour string
+	Notes string
+	Status string
+}
+
+func (m *ReservationForm) ModelName() string { return "reservation_form" }
+
+func (m *ReservationForm) Schema() []model.Field { return ReservationFormModel.Fields }
+
+func (m *ReservationForm) Pointers() []any { return []any{&m.Id, &m.ClientId, &m.Day, &m.Hour, &m.Notes, &m.Status} }
+
+func (m *ReservationForm) IsNil() bool { return m == nil }
+
+func (m *ReservationForm) EncodeFields(w model.FieldWriter) {
+	w.String("id", m.Id)
+	w.String("client_id", m.ClientId)
+	w.String("day", m.Day)
+	w.String("hour", m.Hour)
+	w.String("notes", m.Notes)
+	w.String("status", m.Status)
+}
+
+func (m *ReservationForm) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("id"); ok { m.Id = v }
+	if v, ok := r.String("client_id"); ok { m.ClientId = v }
+	if v, ok := r.String("day"); ok { m.Day = v }
+	if v, ok := r.String("hour"); ok { m.Hour = v }
+	if v, ok := r.String("notes"); ok { m.Notes = v }
+	if v, ok := r.String("status"); ok { m.Status = v }
+}
+
+type ReservationFormList []*ReservationForm
+
+func (s *ReservationFormList) Len() int             { return len(*s) }
+func (s *ReservationFormList) At(i int) model.Fielder { return (*s)[i] }
+func (s *ReservationFormList) Append() model.Fielder  { v := &ReservationForm{}; *s = append(*s, v); return v }
+func (s *ReservationFormList) IsNil() bool          { return s == nil }
+func (s *ReservationFormList) EncodeFields(_ model.FieldWriter) {}
+func (s *ReservationFormList) DecodeFields(_ model.FieldReader) {}
+
+func (m *ReservationForm) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+var ReservationForm_ = struct {
+	Id string
+	ClientId string
+	Day string
+	Hour string
+	Notes string
+	Status string
+}{
+	Id: "id",
+	ClientId: "client_id",
+	Day: "day",
+	Hour: "hour",
+	Notes: "notes",
+	Status: "status",
+}
+
+func ReadOneReservationForm(qb *orm.QB, model *ReservationForm) (*ReservationForm, error) {
+	err := qb.ReadOne()
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func ReadAllReservationForm(qb *orm.QB) (ReservationFormList, error) {
+	var results ReservationFormList
+	err := qb.ReadAll(
+		func() model.Model { return &ReservationForm{} },
+		func(m model.Model) { results = append(results, m.(*ReservationForm)) },
+	)
+	return results, err
+}
+
 type TimeSlot struct {
 	StartUtc int64
 	EndUtc int64
