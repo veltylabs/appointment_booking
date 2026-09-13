@@ -2,6 +2,8 @@
 PLAN: "refactor: deploy-time migrations and a form-capable booking surface"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 13457215306184396512
 ---
 
 > This plan is dispatched via the CodeJob workflow. See skill: **agents-workflow**.
