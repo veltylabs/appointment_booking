@@ -1,7 +1,6 @@
 package appointmentbooking
 
 import (
-	"webtyp.com/ddl"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/orm"
@@ -19,23 +18,9 @@ type Repository struct {
 	ids model.IDGenerator
 }
 
-// NewRepository crea un nuevo Repository y migra sus 5 tablas propias cuando el backend
-// soporta DDL (no-op contra storage/mem, usado por las pruebas propias de este módulo).
+// NewRepository crea un nuevo Repository sobre un *orm.DB ya conectado; el
+// esquema se asume existente — ver el subpaquete migrate.
 func NewRepository(db *orm.DB, ids model.IDGenerator) (*Repository, error) {
-	tables := []model.Model{
-		&EmployeeServiceConfig{},
-		&WorkCalendarConfig{},
-		&WorkCalendarBlock{},
-		&WorkCalendarException{},
-		&Reservation{},
-	}
-	if ddlCompiler, ok := db.RawConn().(ddl.Compiler); ok {
-		for _, t := range tables {
-			if err := ddl.New(db.RawConn(), ddlCompiler).CreateTable(t); err != nil {
-				return nil, err
-			}
-		}
-	}
 	return &Repository{db: db, ids: ids}, nil
 }
 

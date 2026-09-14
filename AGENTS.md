@@ -87,6 +87,7 @@ reflection-free and TinyGo-sized. A module targets `wasm`/TinyGo first, so it fo
   `testing`, `sort`, `context` (stdlib, when it's genuinely cancellation/deadlines, not the
   transport-level `webtyp/context`), etc. When in doubt: if `webtyp/fmt` (or another package in
   the whitelist above) already covers it, use that; if it doesn't, plain stdlib is fine.
+- **Idioma del repositorio:** Toda la documentación del repositorio (archivos markdown, comentarios en código, etc.) debe estar escrita en español.
 - **No Go `map[K]V` anywhere**, test code included — and **no exceptions for "private state"**: a
   map inside a closure or unexported field ships TinyGo's map runtime in the wasm binary exactly the
   same. Use `fmt.KeyValue{Key, Value string}` for a string→string pair, or a small slice-of-structs

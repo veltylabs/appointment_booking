@@ -1,97 +1,79 @@
-# appointment-booking Architecture
+# Arquitectura de appointment-booking
 
-> **Status note:** this document describes the current shape of the module after the reusable-module
-> harness adoption (`router.OpModule`, `Deps.IDs model.IDGenerator`, `events.Publisher`,
-> `ddl.CreateTable`, `storage/mem` tests) and the schedule-editor addition.
-> `AGENTS.md` (this repo's root) is the authority on the whitelist/blacklist this module holds to.
+> **Nota de estado:** este documento describe la estructura actual del módulo tras la adopción
+> del harness de módulos reutilizables (`router.OpModule`, `Deps.IDs model.IDGenerator`, `events.Publisher`,
+> `ddl.CreateTable`, pruebas con `storage/mem`) y la adición del editor de horarios.
+> `AGENTS.md` (en la raíz de este repositorio) es la autoridad sobre la lista blanca/negra que este módulo respeta.
 
-## 1. Domain Scope
+## 1. Alcance del Dominio
 
-The `appointment-booking` module manages the complete lifecycle of a scheduled service appointment. It is responsible for:
-- Configuring which services each staff member offers (duration, price, buffer time).
-- Defining staff availability via **blocks** (weekly and dated) and one-off exceptions (holidays, special hours, blocked intervals), constrained by the establishment's usable window.
-- Calculating free time slots and creating reservations with atomic conflict prevention.
-- Enforcing reservation state transitions via a Finite State Machine (FSM), including a `CONFLICTED` state for appointments the current schedule no longer covers.
+El módulo `appointment-booking` gestiona el ciclo de vida completo de una cita de servicio agendada. Es responsable de:
+- Configurar qué servicios ofrece cada miembro del personal (duración, precio, tiempo de amortiguación o buffer).
+- Definir la disponibilidad del personal mediante **bloques** (semanales y datados) y excepciones puntuales (feriados, horarios especiales, intervalos bloqueados), delimitados por la ventana utilizable del establecimiento.
+- Calcular huecos de tiempo libres y crear reservas con prevención atómica de conflictos.
+- Aplicar las transiciones de estado de las reservas mediante una Máquina de Estados Finitos (FSM), incluyendo un estado `CONFLICTED` para citas que el horario actual ya no cubre.
 
-## 2. Core Entities
+## 2. Entidades Principales
 
-- **`EmployeeServiceConfig`:** Maps a staff member to a service item, defining duration, buffer time, and price override. The source of truth for slot granularity.
-- **`Reservation`:** The appointment itself. Stores snapshots of staff, service, price, and currency at creation time for financial auditability — these never change even if the source data is later modified. Also tracks `StatusBeforeConflict` so a conflicted appointment can be restored to exactly the state it had before the conflict.
-- **`WorkCalendarConfig`:** One row per staff member. Single source of truth for the IANA timezone of the staff calendar. Must exist before blocks can be saved.
-- **`WorkCalendarBlock`:** One row per block of working time. A day may hold several — "morning 09:00–13:00, afternoon 15:00–19:00" is two rows, and the lunch **break is the gap between them** (there is deliberately no break column). `specific_date == 0` means the block is WEEKLY (applies to `day_of_week`); `specific_date > 0` means the block is DATED (applies to that date only and **opens** the day even if no weekly block covers that weekday — how an irregular professional marks the days they work). Does not carry timezone — inherits it from `WorkCalendarConfig`.
-- **`WorkCalendarException`:** One-off overrides for a specific date: `HOLIDAY` (no availability), `SPECIAL_HOURS` (narrows a day that a block covers), or `BLOCKED` (interval subtracted from available windows).
+- **`EmployeeServiceConfig`:** Mapea a un miembro del personal con un ítem de servicio, definiendo duración, tiempo de amortiguación (buffer) y anulación de precio. Es la fuente de verdad para la granularidad de los huecos.
+- **`Reservation`:** La cita en sí (fila persistida en BD). Almacena instantáneas (snapshots) de personal, servicio, precio y moneda al momento de la creación para auditabilidad financiera — estos nunca cambian incluso si los datos de origen se modifican posteriormente. También rastrea `StatusBeforeConflict` para que una cita en conflicto pueda ser restaurada exactamente al estado que tenía antes del conflicto.
+- **`ReservationForm` (`ReservationFormModel`):** La proyección de formulario de una reserva distinta de `Reservation`. `Reservation` contiene 22 campos (instantáneas, revisión, auditoría) con tipos base; `ReservationForm` expone los 6 campos visibles al mostrador (`id`, `client_id`, `day`, `hour`, `notes`, `status`) utilizando widgets `input.*` para que los generadores de formularios UI puedan construir formularios de creación sin exponer campos internos o de auditoría.
+- **`WorkCalendarConfig`:** Una fila por miembro del personal. Única fuente de verdad para la zona horaria IANA del calendario del personal. Debe existir antes de que se puedan guardar bloques.
+- **`WorkCalendarBlock`:** Una fila por bloque de tiempo de trabajo. Un día puede contener varios — "mañana 09:00–13:00, tarde 15:00–19:00" son dos filas, y el descanso para almorzar es la **brecha entre ellos** (deliberadamente no hay columna de descanso). `specific_date == 0` significa que el bloque es SEMANAL (aplica a `day_of_week`); `specific_date > 0` significa que el bloque es DATADO (aplica solo a esa fecha y **abre** el día incluso si ningún bloque semanal cubre ese día de la semana — cómo un profesional irregular marca los días que trabaja). No contiene zona horaria — la hereda de `WorkCalendarConfig`.
+- **`WorkCalendarException`:** Anulaciones puntuales para una fecha específica: `HOLIDAY` (sin disponibilidad), `SPECIAL_HOURS` (estrecha un día que cubre un bloque), o `BLOCKED` (intervalo restado de las ventanas disponibles).
 
-This module owns and migrates the schema for all five entities above (unlike e.g. `work_schedule`,
-which only reads read-only tables owned elsewhere) — see §7.
+Este módulo posee el esquema para las cinco entidades anteriores (a diferencia de p. ej. `work_schedule`,
+que solo lee tablas de solo lectura pertenecientes a otros lugares). La migración del esquema se realiza a través del
+subpaquete `migrate` (`migrate.Migrate`) como un paso en tiempo de despliegue — ver §7.
 
-## 3. Finite State Machine (FSM)
+## 3. Máquina de Estados Finitos (FSM)
 
-Reservation status transitions are enforced in code — there is no `reservation_status` DB table.
+Las transiciones de estado de las reservas se aplican en código — no hay tabla de BD `reservation_status`.
 
-See: [FSM Diagram](diagrams/fsm.md)
+Ver: [Diagrama FSM](diagrams/fsm.md)
 
-Key decisions:
-- `RESCHEDULED` is a distinct terminal state (not `CANCELLED`) to preserve audit trail clarity in analytics.
-- `EXPIRED` is triggered exclusively by an external scheduler via the `expire_pending_reservations` operation — the module does not run background goroutines.
-- `CONFLICTED` is **not** terminal: a recomputation enters it from `PENDING`/`CONFIRMED` when the current schedule (professional's blocks or the establishment's window) no longer covers the appointment, and leaves it — restoring exactly what `StatusBeforeConflict` recorded (§8.5 of the plan) — when the schedule covers it again. Why a day is closed is the establishment's business: this module only reasons about "does the instant still fit", never about the reason (the neutrality is inherited from `time.DayBounds`).
+Decisiones clave:
+- `RESCHEDULED` es un estado terminal distinto (no `CANCELLED`) para preservar la claridad de la traza de auditoría en analítica.
+- `EXPIRED` es activado exclusivamente por un programador externo a través de la operación `expire_pending_reservations` — el módulo no ejecuta goroutines en segundo plano.
+- `CONFLICTED` **no** es terminal: un recomputo entra a este estado desde `PENDING`/`CONFIRMED` cuando el horario actual (bloques del profesional o ventana del establecimiento) ya no cubre la cita, y sale de él — restaurando exactamente lo que registró `StatusBeforeConflict` — cuando el horario la vuelve a cubrir. Por qué un día está cerrado es asunto del establecimiento: este módulo solo razona sobre "¿todavía encaja el instante?", nunca sobre la razón (la neutralidad se hereda de `time.DayBounds`).
 
-## 4. Architectural Patterns
+## 4. Patrones Arquitectónicos
 
-1. **Dependency Injection:** the module receives external readers (`StaffReader`,
-   `CatalogReader`, `DirectoryReader`), an optional `BoundsReader` (the establishment's usable
-   daily window; nil = unbounded, correct for an app with no institution above the professional)
-   and one `events.Publisher` via `Deps` at construction (`New(db, deps)`). No global state, no
-   direct imports from other modules.
+1. **Inyección de Dependencias:** el módulo recibe lectores externos (`StaffReader`,
+   `CatalogReader`, `DirectoryReader`), un `BoundsReader` opcional (la ventana diaria utilizable del establecimiento; nil = sin límites, correcto para una aplicación sin institución por encima del profesional)
+   y un `events.Publisher` a través de `Deps` en la construcción (`New(db, deps)`). Sin estado global, sin importaciones directas de otros módulos.
 
-2. **Direct ORM access (no store interfaces):** the module holds `*orm.DB` directly (through an
-   internal `*Repository`) and calls ORM functions from `model_orm.go`. There is no intermediate
-   `ReservationStore`, `CalendarStore`, or `ConfigStore` **interface** — `Repository` is a plain
-   struct, not an abstraction boundary a test could swap for a mock. This keeps the internal boundary
-   thin and lets the module's own tests exercise the real `github.com/webtyp/orm` query builder
-   against `github.com/webtyp/storage/mem` — the in-memory reference backend — catching real
-   constraint and concurrency bugs (optimistic-lock conflicts, uniqueness violations) instead of
-   hiding them behind mocks, with no concrete database driver in the module's dependency graph at
-   all. Only cross-module interfaces (`StaffReader`, `CatalogReader`, `DirectoryReader`) and the
-   injected `events.Publisher` are mockable.
+2. **Acceso directo a ORM (sin interfaces de almacenamiento):** el módulo mantiene `*orm.DB` directamente (a través de un
+   `*Repository` interno) y llama a funciones de ORM de `model_orm.go`. No hay interfaz intermedia `ReservationStore`, `CalendarStore` o `ConfigStore` — `Repository` es una estructura simple, no un límite de abstracción que una prueba pueda cambiar por un mock. Esto mantiene el límite interno delgado y permite que las propias pruebas del módulo ejerciten el generador de consultas real de `github.com/webtyp/orm` contra `github.com/webtyp/storage/mem` — el backend de referencia en memoria — detectando errores reales de restricciones y concurrencia (conflictos de bloqueo optimista, violaciones de unicidad) en lugar de ocultarlos detrás de mocks, sin ningún controlador concreto de base de datos en el grafo de dependencias del módulo. Solo las interfaces entre módulos (`StaffReader`, `CatalogReader`, `DirectoryReader`) y el `events.Publisher` inyectado son mockeables.
 
-3. **Soft References (no physical FK):** `client_id`, `staff_id`, `service_id`, `creator_user_id`, and `payment_id` reference entities in other modules by ID only. Cross-module existence is validated at the application layer via injected readers, not via DB constraints.
+3. **Referencias Blandas (sin FK física):** `client_id`, `staff_id`, `service_id`, `creator_user_id` y `payment_id` referencian entidades en otros módulos solo por ID. La existencia entre módulos se valida en la capa de aplicación a través de lectores inyectados, no mediante restricciones de BD.
 
-4. **Snapshotting:** Price, currency, duration, staff ID, and service ID are snapshotted at reservation creation. Downstream changes to catalog or staff data do not alter existing reservations.
+4. **Instantáneas (Snapshotting):** Precio, moneda, duración, ID de personal e ID de servicio se guardan en instantáneas al crear la reserva. Los cambios posteriores en el catálogo o datos del personal no alteran las reservas existentes.
 
-5. **Local Integer Time + IANA Timezone (Single Source of Truth):** Working hours in `WorkCalendarBlock` are stored as local integer minutes from midnight (e.g., `540 = 09:00`). The IANA timezone is stored exclusively in `WorkCalendarConfig` (one row per staff) — blocks and exceptions do not carry timezone fields. This prevents per-row timezone inconsistency by construction. The `ListAvailability` algorithm loads `WorkCalendarConfig` first to obtain the timezone, then converts local boundaries to Unix UTC using `webtyp.com/time` (`LocalMinutesToUnixUTC`). This design ensures recurring schedules remain correct across DST transitions.
+5. **Tiempo Entero Local + Zona Horaria IANA (Única Fuente de Verdad):** Las horas de trabajo en `WorkCalendarBlock` se almacenan como minutos enteros locales desde la medianoche (p. ej., `540 = 09:00`). La zona horaria IANA se almacena exclusivamente en `WorkCalendarConfig` (una fila por personal) — los bloques y excepciones no llevan campos de zona horaria. Esto evita la inconsistencia de zonas horarias por fila por construcción. El algoritmo `ListAvailability` carga primero `WorkCalendarConfig` para obtener la zona horaria, luego convierte los límites locales a Unix UTC utilizando `webtyp.com/time` (`LocalMinutesToUnixUTC`). Este diseño garantiza que los horarios recurrentes se mantengan correctos a través de las transiciones de horario de verano (DST).
 
-6. **Optimistic Concurrency:** `Reservation.revision` is incremented on each status update. `UpdateReservationStatus` enforces `WHERE revision = N` — a mismatch returns `ErrConflict`, preventing silent overwrites.
+6. **Concurrencia Optimista:** `Reservation.revision` se incrementa en cada actualización de estado. `UpdateReservationStatus` aplica `WHERE revision = N` — un desacuerdo devuelve `ErrConflict`, evitando sobreescrituras silenciosas.
 
-7. **Atomic Reschedule:** Rescheduling is not a status — it is a transactional operation: create new reservation + mark original as `RESCHEDULED` within a single DB transaction.
+7. **Reprogramación Atómica:** Reprogramar no es un estado — es una operación transaccional: crear una nueva reserva + marcar la original como `RESCHEDULED` dentro de una sola transacción de BD.
 
-8. **Stale data is recomputed, never reverted:** a schedule change (professional's edit, or the establishment's via `RecomputeConflicts`) re-evaluates all future reservations in the affected range against the CURRENT schedule and bounds. `CONFLICTED` is marked and cleared only by that single resolution rule, shared with `ListAvailability` (`availableRanges`) — never toggled by the event that fired, so two independent causes cannot hide the second one.
+8. **Los datos desactualizados se recomputan, nunca se revierten:** un cambio de horario (edición del profesional o del establecimiento mediante `RecomputeConflicts`) reevalúa todas las reservas futuras en el rango afectado contra el horario y límites ACTUALES. `CONFLICTED` se marca y limpia únicamente por esa regla de resolución única, compartida con `ListAvailability` (`availableRanges`) — nunca se altera por el evento que se disparó, por lo que dos causas independientes no pueden ocultar la segunda.
 
-## 5. Identity Contract & RBAC
+## 5. Contrato de Identidad y RBAC
 
-This module does **not** implement authorization or role-based access control. It operates under the following contract:
+Este módulo **no** implementa autorización ni control de acceso basado en roles (RBAC). Opera bajo el siguiente contrato:
 
-- `actorID` is a plain string — already authenticated and authorized by the caller.
-- The transport adapter or middleware layer is responsible for verifying that the authenticated user has permission to perform the operation **before** the op handler runs (`router.Route.Requires(resource, action)` is where that gate is declared — see §7's Ops table).
-- This module stores `actorID` as an audit field (`creator_user_id`, `updated_by`) only.
-- **RBAC belongs to a separate IAM module.** Changes to roles or permissions require no changes to this module.
+- `actorID` es una cadena simple — ya autenticada y autorizada por el llamador.
+- El adaptador de transporte o capa de middleware es responsable de verificar que el usuario autenticado tenga permiso para realizar la operación **antes** de que se ejecute el manejador de la op (`router.Route.Requires(resource, action)` es donde se declara ese filtro).
+- Este módulo almacena `actorID` únicamente como campo de auditoría (`creator_user_id`, `updated_by`).
+- **El RBAC pertenece a un módulo IAM separado.** Los cambios en roles o permisos no requieren cambios en este módulo.
 
-## 6. Event Publishing & Inter-Module Communication
+## 6. Publicación de Eventos y Comunicación entre Módulos
 
-This module communicates outbound via the injected `github.com/webtyp/events` `events.Publisher` —
-**not** a self-declared interface. Before the harness migration this module declared its own local
-`EventPublisher interface { Publish(ctx *tinyctx.Context, event string, payload any) error }`, which
-duplicated the ecosystem's `events.Publisher` contract and additionally depended on
-`github.com/webtyp/context` (not on this module's import whitelist — see `AGENTS.md`). After the
-migration, `Deps.Publisher` is `events.Publisher` directly:
+Este módulo se comunica hacia afuera a través del `events.Publisher` inyectado de `github.com/webtyp/events`.
 
-```go
-type Publisher interface { Publish(e Event) } // github.com/webtyp/events
-type Event struct { Topic string; Payload model.Encodable }
-```
+Tras cada mutación exitosa de estado, el módulo publica un evento de dominio con un payload tipado:
 
-After each successful state mutation, the module publishes a domain event with a typed payload:
-
-| Operation | Event constant |
+| Operación | Constante de evento |
 |---|---|
 | `CreateReservation` | `appointment.reservation.created` |
 | `ChangeStatus` CONFIRM | `appointment.reservation.confirmed` |
@@ -99,158 +81,97 @@ After each successful state mutation, the module publishes a domain event with a
 | `ChangeStatus` COMPLETE | `appointment.reservation.completed` |
 | `ChangeStatus` NO_SHOW | `appointment.reservation.no_show` |
 | `ChangeStatus` EXPIRE | `appointment.reservation.expired` |
-| Reschedule (original) | `appointment.reservation.rescheduled` |
-| A professional's schedule edit that conflicts ≥1 reservation | `appointment.schedule.changed` (once per staff) **+** `appointment.reservation.conflicted` (once per conflicted reservation) |
-| An establishment-wide recompute (`RecomputeConflicts`) that conflicts ≥1 | `appointment.schedule.changed` (once per affected staff) |
+| Reprogramación (original) | `appointment.reservation.rescheduled` |
+| Edición de agenda de un profesional que genera conflicto en ≥1 reserva | `appointment.schedule.changed` (una vez por personal) **+** `appointment.reservation.conflicted` (una vez por reserva en conflicto) |
+| Recomputo a nivel de establecimiento (`RecomputeConflicts`) que genera conflicto en ≥1 | `appointment.schedule.changed` (una vez por personal afectado) |
 
-The `appointment.schedule.changed` event carries a **`ScheduleChangedPayload{TenantId, StaffId,
-FromDate, ToDate, ConflictCount}`** — the range that changed (so a consumer recomputes a bounded
-range instead of everything) and how many reservations the change put in conflict. Per CU-19,
-**nothing is published when the change conflicts nobody** — the payload is never "empty news". It
-implements both `model.Encodable` (required by `events.Event.Payload`) and `model.Decodable`, so a
-wire-crossing broker (`webtyp/sse`) can serialize it; an in-process broker delivers the concrete
-pointer without encoding. Consumers (e.g. a notifier reaching the patient, or a screen that
-recomputes free slots) subscribe and act when the event's `StaffId`/range matches their scope.
+El evento `appointment.schedule.changed` lleva un **`ScheduleChangedPayload{TenantId, StaffId, FromDate, ToDate, ConflictCount}`** — el rango que cambió (para que un consumidor recompute un rango acotado en lugar de todo) y cuántas reservas puso en conflicto el cambio. Según CU-19, **no se publica nada cuando el cambio no genera conflictos en nadie** — el payload nunca es "noticia vacía".
 
-`appointment.reservation.conflicted` is per-reservation **only** when the change came from the
-professional's own edit, where the count is small and a patient-facing notifier needs the
-individual record. The establishment-wide case (a holiday hitting hundreds of appointments) never
-floods the broker: consumers read `ListConflictingReservations`, which is the administrator's
-worklist.
+`appointment.reservation.conflicted` se emite por reserva **únicamente** cuando el cambio provino de la edición del propio profesional, donde la cantidad es pequeña y un notificador orientado al paciente necesita el registro individual. El caso a nivel de establecimiento (un feriado que afecta a cientos de citas) nunca inunda el broker: los consumidores leen `ListConflictingReservations`, que es la lista de trabajo del administrador.
 
-**Rules:**
-- Event publishing is **fire-and-forget** — `events.Publisher.Publish` has no error return; a
-  broker-side failure is the broker's concern, never the module's.
-- Passing `nil` as `Deps.Publisher` safely disables events (useful in tests or CLI tools).
-- The concrete broker (in-process, `github.com/webtyp/sse`, a queue adapter) is decided by the
-  composition root, never by this module.
-- **The module does NOT subscribe** to the establishment's calendar. `RecomputeConflicts` is the
-  exported recomputation; the application — which legitimately knows both modules — subscribes to
-  `business.calendar.changed` and calls it. No `Subscriber` dependency exists here (§8.4 of the
-  plan).
+**Reglas:**
+- La publicación de eventos es de tipo **dispara y olvida (fire-and-forget)** — `events.Publisher.Publish` no devuelve error; un fallo del lado del broker es asunto del broker, nunca del módulo.
+- Pasar `nil` como `Deps.Publisher` deshabilita de forma segura la emisión de eventos (útil en pruebas o herramientas CLI).
+- El broker concreto (en proceso, `github.com/webtyp/sse`, una cola) es decidido por la raíz de composición, nunca por este módulo.
+- **El módulo NO se suscribe** al calendario del establecimiento. `RecomputeConflicts` es la recomputación exportada; la aplicación —que legítimamente conoce ambos módulos— se suscribe a `business.calendar.changed` y lo llama. No existe dependencia de `Subscriber` aquí.
 
-## 7. Transport, Identity, View — Composition Root
+## 7. Transporte, Identidad, Vista — Raíz de Composición
 
-The module implements `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`)
-instead of `mcp.ToolProvider` — it never imports `tinywasm/mcp`. All 19 operations (8 reservation +
-11 calendar) are registered by a single `*Module`; the transport adapter that harvests them (`mcp`
-today, any future `router.OpRegistry`-satisfying transport tomorrow) is the composition root's
-choice, not this module's.
+El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`). Las 19 operaciones (8 de reservas + 11 de calendario) son registradas por un único `*Module`.
 
-### Ops (via `MountOps`)
+### Ops (vía `MountOps`)
 
-| Op | Action | Resource | Description |
+| Op | Acción | Recurso | Descripción |
 |---|---|---|---|
-| `create_reservation` | `c` | `reservation` | Creates a new reservation (atomic reschedule if `RescheduledFromId` is set) |
-| `get_reservation` | `r` | `reservation` | Gets a reservation by ID |
-| `list_reservations_by_staff` | `r` | `reservation` | Lists reservations by staff ID and date range |
-| `list_reservations_by_client` | `r` | `reservation` | Lists reservations by client ID |
-| `change_reservation_status` | `u` | `reservation` | Changes a reservation status via FSM event |
-| `expire_pending_reservations` | `u` | `reservation` | Expires unconfirmed pending reservations (called by an external scheduler) |
-| `list_conflicting_reservations` | `r` | `reservation` | The administrator worklist: future reservations the current schedule no longer covers |
-| `recompute_conflicts` | `u` | `reservation` | Re-evaluates every future reservation in a range; marks/clears `CONFLICTED`; idempotent — the trigger for establishment-wide changes |
-| `upsert_calendar_config` | `u` | `calendar` | Sets IANA timezone for a staff member |
-| `save_day_blocks` | `u` | `calendar` | Replaces EVERY weekly block of a weekday — the whole-day edit |
-| `save_date_blocks` | `u` | `calendar` | Replaces the dated blocks of ONE date (a marked day diverging from its common window) |
-| `mark_working_days` | `u` | `calendar` | Marks dates as worked with one common window (the irregular professional's gesture) |
-| `unmark_working_days` | `d` | `calendar` | Deletes the dated blocks of those dates — the day returns to the weekly template or to unworked |
-| `list_blocks` | `r` | `calendar` | Lists every block of a staff member (weekly + dated; for the schedule editor) |
-| `get_day_bounds` | `r` | `calendar` | Proxies `Deps.Bounds` so the editor bounds its own controls through this module |
-| `add_calendar_exception` | `c` | `calendar` | Adds a calendar exception for a specific date |
-| `remove_calendar_exception` | `d` | `calendar` | Removes a calendar exception |
-| `list_availability` | `r` | `calendar` | Lists available time slots for a staff member |
-| `list_exceptions` | `r` | `calendar` | Lists calendar exceptions in a date range (for the schedule editor) |
+| `create_reservation` | `c` | `reservation` | Crea una nueva reserva (reprogramación atómica si `RescheduledFromId` está configurado) |
+| `get_reservation` | `r` | `reservation` | Obtiene una reserva por ID |
+| `list_reservations_by_staff` | `r` | `reservation` | Lista reservas por ID de personal y rango de fechas |
+| `list_reservations_by_client` | `r` | `reservation` | Lista reservas por ID de cliente |
+| `change_reservation_status` | `u` | `reservation` | Cambia el estado de una reserva mediante un evento FSM |
+| `expire_pending_reservations` | `u` | `reservation` | Expira reservas pendientes no confirmadas (llamado por un programador externo) |
+| `list_conflicting_reservations` | `r` | `reservation` | La lista de trabajo del administrador: reservas futuras que el horario actual ya no cubre |
+| `recompute_conflicts` | `u` | `reservation` | Reevalúa cada reserva futura en un rango; marca/limpia `CONFLICTED`; idempotente — el disparador para cambios a nivel de establecimiento |
+| `upsert_calendar_config` | `u` | `calendar` | Configura la zona horaria IANA para un miembro del personal |
+| `save_day_blocks` | `u` | `calendar` | Reemplaza CADA bloque semanal de un día de la semana — la edición de día completo |
+| `save_date_blocks` | `u` | `calendar` | Reemplaza los bloques datados de UNA fecha (un día marcado que diverge de su ventana común) |
+| `mark_working_days` | `u` | `calendar` | Marca fechas como trabajadas con una ventana común |
+| `unmark_working_days` | `d` | `calendar` | Elimina los bloques datados de esas fechas — el día vuelve a la plantilla semanal o a no trabajado |
+| `list_blocks` | `r` | `calendar` | Lista todos los bloques de un miembro del personal (semanales + datados; para el editor de horarios) |
+| `get_day_bounds` | `r` | `calendar` | Sirve de proxy para `Deps.Bounds` de modo que el editor limite sus propios controles a través de este módulo |
+| `add_calendar_exception` | `c` | `calendar` | Agrega una excepción de calendario para una fecha específica |
+| `remove_calendar_exception` | `d` | `calendar` | Elimina una excepción de calendario |
+| `list_availability` | `r` | `calendar` | Lista horarios disponibles para un miembro del personal |
+| `list_exceptions` | `r` | `calendar` | Lista excepciones de calendario en un rango de fechas (para el editor de horarios) |
 
-### View
+### Vista
 
-`NewView(caller router.Caller, tenantId, staffId string) view.Presenter` builds a **list/select-only**
-`view.Presenter` over `Reservation`, scoped to one staff member's schedule (backed by
-`list_reservations_by_staff` — there is no unscoped "list all reservations for a tenant" operation,
-so the view needs the staff id at construction time; this is the one deliberate deviation from the
-bare `NewView(caller router.Caller)` shape used by simpler modules like `item_catalog`). It exposes no
-`Saver`/`Deleter` capability: reservations are never edited as a whole record (they mutate only
-through `ChangeReservationStatus`'s FSM-gated transitions) and are never hard-deleted, so
-`view.WithSaveOp`/`view.WithDeleteOp` are intentionally omitted — a bare `Presenter` (list + select)
-is the correct, complete shape here, not a gap.
+`NewView(caller router.Caller, tenantId, staffId string) view.Presenter` construye un `view.Presenter` **solo de lista/selección** sobre `Reservation`, delimitado al horario de un miembro del personal.
 
-**No second `view.Presenter` for calendar configuration, but an editor face exists.** `WorkCalendarConfig`
-(one row per staff), `WorkCalendarWeekly` (at most 7 rows per staff), and `WorkCalendarException` (a
-handful of one-off rows) are narrow configuration data, not a browsable list a user scrolls through
-the way they browse a catalog or a reservation list — there is no natural "list op" a calendar view
-would page over, and the `upsert_*`/`add_*`/`remove_*` ops cover every calendar mutation a UI needs
-to drive directly. A `view.Presenter` list UI would be manufacturing a list for data that isn't
-list-shaped; instead, this module exposes the schedule editor's face as a **caller-side typed client**:
+`NewFormView(caller router.Caller, cfg FormConfig) view.Presenter` construye un **presenter capaz de formularios** (Lista + Guardado) sobre `ReservationForm`. `FormConfig` recibe `Timezone` explícitamente porque la zona horaria autorizada vive en `work_calendar_config.timezone` en el servidor y actualmente no existe op de lectura para el cliente (limitación conocida).
 
-- `list_blocks` + `list_exceptions` — the raw reads a `scheduleeditor` needs.
-- `NewScheduleClient(caller, tenantId, staffId)` — a caller-side typed client (`Blocks`,
-  `SaveDayBlocks`, `Exceptions`, `AddException`, `RemoveException`) over those ops plus the existing
-  write ops. The app (e.g. `app-demo`) adapts it to a UI component's callbacks; this module never
-  imports a renderer.
+**Sin segundo `view.Presenter` para la configuración del calendario, pero existe una interfaz para el editor.** `WorkCalendarConfig` (una fila por personal), `WorkCalendarWeekly` (a lo sumo 7 filas por personal) y `WorkCalendarException` (unas pocas filas puntuales) son datos de configuración reducidos. En su lugar, este módulo expone la interfaz del editor de horarios como un **cliente tipado del lado del llamador**:
 
-So a schedule editor screen is a **small, separate addition** — delivered here as `ScheduleClient`,
-consumed by whatever UI the composition root chooses.
+- `list_blocks` + `list_exceptions` — las lecturas directas que necesita un `scheduleeditor`.
+- `NewScheduleClient(caller, tenantId, staffId)` — cliente tipado del lado del llamador (`Blocks`, `SaveDayBlocks`, `Exceptions`, `AddException`, `RemoveException`) sobre esas ops más las ops de escritura existentes.
 
-### Composition Root Example
+### Ejemplo de Raíz de Composición
 
 ```go
-staffSvc     := staffmodule.New(db, staffmodule.Deps{IDs: idGen})            // implements StaffReader
-directorySvc := directorymodule.New(db, directorymodule.Deps{IDs: idGen})   // implements DirectoryReader
+staffSvc     := staffmodule.New(db, staffmodule.Deps{IDs: idGen})            // implementa StaffReader
+directorySvc := directorymodule.New(db, directorymodule.Deps{IDs: idGen})   // implementa DirectoryReader
 
-// item_catalog implements the CatalogReader interface (ServiceExists) — see
-// github.com/veltylabs/item_catalog.
 catalogSvc, _ := itemcatalog.New(db, itemcatalog.Deps{
     IDs:       idGen,       // model.IDGenerator
-    Publisher: eventBroker, // events.Publisher, nil disables publishing
+    Publisher: eventBroker, // events.Publisher, nil deshabilita la publicación
 })
 
-// No module imports another directly — `appointment_booking` declares `StaffReader`,
-// `CatalogReader`, `DirectoryReader` and the `BoundsReader` port here (§6.1 of the plan); the
-// siblings satisfy them structurally with no import back into this package. The value that crosses
-// the establishment boundary is `tinytime.DayBounds` (`webtyp.com/time`), imported by both sides
-// already — so an appointment-booking app is never forced to adopt one particular model of "the
-// establishment".
 scheduling, _ := appointmentbooking.New(db, appointmentbooking.Deps{
     Staff:     staffSvc,
-    Catalog:   catalogSvc,   // *itemcatalog.Module satisfies CatalogReader
+    Catalog:   catalogSvc,   // *itemcatalog.Module satisface CatalogReader
     Directory: directorySvc,
-    IDs:       idGen,        // model.IDGenerator — unixid.NewUnixID() (or any generator) injected here, never constructed inside the module
-    Publisher: eventBroker,  // events.Publisher, nil disables publishing
-    Bounds:    calendarSvc,  // *business_calendar.Module satisfies BoundsReader; nil = unbounded (a freelancer)
+    IDs:       idGen,        // model.IDGenerator
+    Publisher: eventBroker,  // events.Publisher, nil deshabilita la publicación
+    Bounds:    calendarSvc,  // *business_calendar.Module satisface BoundsReader; nil = sin límites
 })
 
-scheduling.MountOps(opRegistry)               // router.OpRegistry — mcp.HarvestOps(scheduling, ...) today
+scheduling.MountOps(opRegistry)               // router.OpRegistry
 reservationsView := scheduling.NewView(caller, tenantId, staffId) // router.Caller -> view.Presenter
 ```
 
-No module imports another directly — `appointment_booking` defines `StaffReader`, `CatalogReader`,
-and `DirectoryReader`; the sibling modules satisfy them structurally with no import back into this
-package.
+Ningún módulo importa a otro directamente — `appointment_booking` define `StaffReader`, `CatalogReader` y `DirectoryReader`; los módulos hermanos los satisfacen estructuralmente sin importar de vuelta este paquete.
 
-## 8. Availability Calculation
+## 8. Cálculo de Disponibilidad
 
-Free slots are derived at query time from the intersection of:
-- The establishment's usable window (`BoundsReader.GetDayBounds`, resolved once to
-  `tinytime.Unbounded()` when `Deps.Bounds` is nil). A closed building closes everyone before any
-  professional is consulted.
-- Per day, **dated blocks first** (they OPEN their day whether or not the weekly template covers the
-  weekday), then active **weekly blocks** for that weekday — each clamped to the establishment's
-  window.
-- One-off exceptions applied over those windows: `HOLIDAY` kills the day, `SPECIAL_HOURS` narrows it
-  to a single window, `BLOCKED` subtracts an interval from the day's windows.
-- Existing non-terminal reservations (block occupied intervals including buffer time).
+Los horarios libres se derivan en tiempo de consulta de la intersección de:
+- La ventana utilizable del establecimiento (`BoundsReader.GetDayBounds`, resuelta una vez a `tinytime.Unbounded()` cuando `Deps.Bounds` es nil). Un edificio cerrado cierra a todos antes de consultar a cualquier profesional.
+- Por día, **bloques datados primero** (ABREN su día independientemente de si la plantilla semanal cubre el día de la semana), luego **bloques semanales** activos para ese día de la semana — cada uno recortado a la ventana del establecimiento.
+- Excepciones puntuales aplicadas sobre esas ventanas: `HOLIDAY` anula el día, `SPECIAL_HOURS` lo estrecha a una sola ventana, `BLOCKED` resta un intervalo de las ventanas del día.
+- Reservas no terminales existentes (bloquean intervalos ocupados incluyendo tiempo de amortiguación o buffer).
 
-The per-day windows are produced by one unexported rule (`availableRanges`) shared by
-`ListAvailability`, `ListConflictingReservations` and the conflict recomputation — the "does this
-instant fit" test is never implemented twice.
+Prioridad de excepciones: `HOLIDAY` > `SPECIAL_HOURS` > `BLOCKED`.
 
-Exception priority: `HOLIDAY` > `SPECIAL_HOURS` > `BLOCKED`.
+## 9. Documentos Relacionados
 
-
-Also see: [Composition Root Sequence Diagram](diagrams/sequence.md)
-
-## 9. Related Documents
-
-- [Database Diagram](diagrams/database.md)
-- [FSM Diagram](diagrams/fsm.md)
-- [Sequence Diagrams](diagrams/sequence.md) — ListAvailability, CreateReservation, ChangeReservationStatus, ExpirePendingReservations
-- [Test Coverage Backlog](PLAN_TESTS_BACKUP.md) — independent, longer-lived list of missing test cases (UC-01…UC-20), not part of the harness migration
+- [Diagrama de Base de Datos](diagrams/database.md)
+- [Diagrama FSM](diagrams/fsm.md)
+- [Diagramas de Secuencia](diagrams/sequence.md)

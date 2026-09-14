@@ -16,6 +16,8 @@ var (
 	ErrBlocksOverlap          = fmt.Err("appointment_booking: two blocks of the same day overlap")
 	ErrBlockOutsideBusinessHours = fmt.Err("appointment_booking: block falls outside the establishment's opening hours")
 	ErrBlockOnClosedDay          = fmt.Err("appointment_booking: the establishment is closed on that date")
+	ErrNoServiceConfig           = fmt.Err("appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured")
+	ErrIncompleteSlot            = fmt.Err("appointment_booking: a booking needs both a day and an hour")
 )
 
 // Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).
