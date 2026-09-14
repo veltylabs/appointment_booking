@@ -21,7 +21,7 @@ var EmployeeServiceConfigModel = model.Definition{
 		{Name: "service_id", Type: input.Text(), NotNull: true},
 		{Name: "duration_min", Type: input.Number()},
 		{Name: "buffer_min", Type: input.Number()},
-		{Name: "price_override", Type: input.Number()},
+		{Name: "price_override", Type: input.Decimal()},
 		{Name: "payment_required", Type: input.Checkbox()},
 		{Name: "is_active", Type: input.Checkbox()},
 	},
@@ -201,7 +201,7 @@ var CreateEmployeeServiceConfigArgsModel = model.Definition{
 		{Name: "service_id", Type: input.Text()},
 		{Name: "duration_min", Type: input.Number()},
 		{Name: "buffer_min", Type: input.Number()},
-		{Name: "price_override", Type: input.Number()},
+		{Name: "price_override", Type: input.Decimal()},
 		{Name: "payment_required", Type: input.Checkbox()},
 	},
 }

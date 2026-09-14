@@ -48,6 +48,30 @@ func TestCreateEmployeeServiceConfig(t *testing.T) {
 	if read.DurationMin != 30 || read.BufferMin != 10 || read.PriceOverride != 5000 || !read.PaymentRequired || !read.IsActive {
 		t.Fatalf("mismatch in read config values: %+v", read)
 	}
+
+	fractionalCfg := ab.EmployeeServiceConfig{
+		TenantId:        "t1",
+		StaffId:         "s1",
+		ServiceId:       "srv2",
+		DurationMin:     30,
+		BufferMin:       10,
+		PriceOverride:   12990.50,
+		PaymentRequired: true,
+		IsActive:        true,
+	}
+
+	createdFrac, err := m.CreateEmployeeServiceConfig(fractionalCfg)
+	if err != nil {
+		t.Fatalf("CreateEmployeeServiceConfig fractional: %v", err)
+	}
+
+	readFrac, err := m.GetEmployeeServiceConfig(createdFrac.Id)
+	if err != nil {
+		t.Fatalf("GetEmployeeServiceConfig fractional: %v", err)
+	}
+	if readFrac.PriceOverride != 12990.50 {
+		t.Fatalf("expected PriceOverride to survive fractional round-trip as 12990.50, got %f", readFrac.PriceOverride)
+	}
 }
 
 func TestListEmployeeServiceConfigByStaff_ScopedToTenantAndStaff(t *testing.T) {

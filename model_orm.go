@@ -14,7 +14,7 @@ type EmployeeServiceConfig struct {
 	ServiceId string
 	DurationMin int64
 	BufferMin int64
-	PriceOverride int64
+	PriceOverride float64
 	PaymentRequired bool
 	IsActive bool
 }
@@ -34,7 +34,7 @@ func (m *EmployeeServiceConfig) EncodeFields(w model.FieldWriter) {
 	w.String("service_id", m.ServiceId)
 	w.Int("duration_min", m.DurationMin)
 	w.Int("buffer_min", m.BufferMin)
-	w.Int("price_override", m.PriceOverride)
+	w.Float("price_override", m.PriceOverride)
 	w.Bool("payment_required", m.PaymentRequired)
 	w.Bool("is_active", m.IsActive)
 }
@@ -46,7 +46,7 @@ func (m *EmployeeServiceConfig) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("service_id"); ok { m.ServiceId = v }
 	if v, ok := r.Int("duration_min"); ok { m.DurationMin = v }
 	if v, ok := r.Int("buffer_min"); ok { m.BufferMin = v }
-	if v, ok := r.Int("price_override"); ok { m.PriceOverride = v }
+	if v, ok := r.Float("price_override"); ok { m.PriceOverride = v }
 	if v, ok := r.Bool("payment_required"); ok { m.PaymentRequired = v }
 	if v, ok := r.Bool("is_active"); ok { m.IsActive = v }
 }
@@ -774,7 +774,7 @@ type CreateEmployeeServiceConfigArgs struct {
 	ServiceId string
 	DurationMin int64
 	BufferMin int64
-	PriceOverride int64
+	PriceOverride float64
 	PaymentRequired bool
 }
 
@@ -792,7 +792,7 @@ func (m *CreateEmployeeServiceConfigArgs) EncodeFields(w model.FieldWriter) {
 	w.String("service_id", m.ServiceId)
 	w.Int("duration_min", m.DurationMin)
 	w.Int("buffer_min", m.BufferMin)
-	w.Int("price_override", m.PriceOverride)
+	w.Float("price_override", m.PriceOverride)
 	w.Bool("payment_required", m.PaymentRequired)
 }
 
@@ -802,7 +802,7 @@ func (m *CreateEmployeeServiceConfigArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("service_id"); ok { m.ServiceId = v }
 	if v, ok := r.Int("duration_min"); ok { m.DurationMin = v }
 	if v, ok := r.Int("buffer_min"); ok { m.BufferMin = v }
-	if v, ok := r.Int("price_override"); ok { m.PriceOverride = v }
+	if v, ok := r.Float("price_override"); ok { m.PriceOverride = v }
 	if v, ok := r.Bool("payment_required"); ok { m.PaymentRequired = v }
 }
 
