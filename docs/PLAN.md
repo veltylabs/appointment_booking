@@ -2,8 +2,9 @@
 PLAN: "feat: a public surface for EmployeeServiceConfig — service methods, ops, and a form"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 15053971493192888139
+PR: https://github.com/veltylabs/appointment_booking/pull/12
 ---
 
 > This plan is dispatched via the CodeJob workflow. See skill: **agents-workflow**.
