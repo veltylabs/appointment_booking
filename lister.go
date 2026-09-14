@@ -131,6 +131,57 @@ var (
 	_ view.Saver  = (*reservationFormStore)(nil)
 )
 
+type employeeServiceConfigLister struct {
+	caller   router.Caller
+	tenantId string
+	staffId  string
+}
+
+func (l employeeServiceConfigLister) List() ([]model.Model, error) {
+	out := &EmployeeServiceConfigList{}
+	ch := make(chan error, 1)
+	l.caller.Call(
+		OpListEmployeeServiceConfigsByStaff,
+		&ListEmployeeServiceConfigsByStaffArgs{TenantId: l.tenantId, StaffId: l.staffId},
+		out,
+		func(err error) { ch <- err },
+	)
+	if err := <-ch; err != nil {
+		return nil, err
+	}
+	rows := make([]model.Model, 0, out.Len())
+	for i := 0; i < out.Len(); i++ {
+		rows = append(rows, out.At(i).(*EmployeeServiceConfig))
+	}
+	return rows, nil
+}
+
+func (l employeeServiceConfigLister) Save(recs ...model.Model) error {
+	for _, rec := range recs {
+		cfg, ok := rec.(*EmployeeServiceConfig)
+		if !ok {
+			return fmt.Err("appointment_booking: save: expected *EmployeeServiceConfig")
+		}
+		cfg.TenantId = l.tenantId
+		cfg.StaffId = l.staffId
+		op := OpCreateEmployeeServiceConfig
+		if cfg.Id != "" {
+			op = OpUpdateEmployeeServiceConfig
+		}
+		ch := make(chan error, 1)
+		l.caller.Call(op, cfg, nil, func(err error) { ch <- err })
+		if err := <-ch; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var (
+	_ view.Lister = employeeServiceConfigLister{}
+	_ view.Saver  = employeeServiceConfigLister{}
+)
+
 // dayToUnix convierte "YYYY-MM-DD" a segundos de medianoche UTC — la codificación
 // que usan work_calendar_block.specific_date y los argumentos de op From/To. 0 en caso de fallo.
 func dayToUnix(day string) int64 {

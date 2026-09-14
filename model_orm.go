@@ -14,7 +14,7 @@ type EmployeeServiceConfig struct {
 	ServiceId string
 	DurationMin int64
 	BufferMin int64
-	PriceOverride float64
+	PriceOverride int64
 	PaymentRequired bool
 	IsActive bool
 }
@@ -28,13 +28,13 @@ func (m *EmployeeServiceConfig) Pointers() []any { return []any{&m.Id, &m.Tenant
 func (m *EmployeeServiceConfig) IsNil() bool { return m == nil }
 
 func (m *EmployeeServiceConfig) EncodeFields(w model.FieldWriter) {
-	w.String("id", m.Id)
+	if m.Id != "" { w.String("id", m.Id) }
 	w.String("tenant_id", m.TenantId)
 	w.String("staff_id", m.StaffId)
 	w.String("service_id", m.ServiceId)
 	w.Int("duration_min", m.DurationMin)
 	w.Int("buffer_min", m.BufferMin)
-	w.Float("price_override", m.PriceOverride)
+	w.Int("price_override", m.PriceOverride)
 	w.Bool("payment_required", m.PaymentRequired)
 	w.Bool("is_active", m.IsActive)
 }
@@ -46,7 +46,7 @@ func (m *EmployeeServiceConfig) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("service_id"); ok { m.ServiceId = v }
 	if v, ok := r.Int("duration_min"); ok { m.DurationMin = v }
 	if v, ok := r.Int("buffer_min"); ok { m.BufferMin = v }
-	if v, ok := r.Float("price_override"); ok { m.PriceOverride = v }
+	if v, ok := r.Int("price_override"); ok { m.PriceOverride = v }
 	if v, ok := r.Bool("payment_required"); ok { m.PaymentRequired = v }
 	if v, ok := r.Bool("is_active"); ok { m.IsActive = v }
 }
@@ -765,6 +765,126 @@ func (s *ListReservationsByStaffArgsList) EncodeFields(_ model.FieldWriter) {}
 func (s *ListReservationsByStaffArgsList) DecodeFields(_ model.FieldReader) {}
 
 func (m *ListReservationsByStaffArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type CreateEmployeeServiceConfigArgs struct {
+	TenantId string
+	StaffId string
+	ServiceId string
+	DurationMin int64
+	BufferMin int64
+	PriceOverride int64
+	PaymentRequired bool
+}
+
+func (m *CreateEmployeeServiceConfigArgs) ModelName() string { return "create_employee_service_config_args" }
+
+func (m *CreateEmployeeServiceConfigArgs) Schema() []model.Field { return CreateEmployeeServiceConfigArgsModel.Fields }
+
+func (m *CreateEmployeeServiceConfigArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId, &m.ServiceId, &m.DurationMin, &m.BufferMin, &m.PriceOverride, &m.PaymentRequired} }
+
+func (m *CreateEmployeeServiceConfigArgs) IsNil() bool { return m == nil }
+
+func (m *CreateEmployeeServiceConfigArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+	w.String("service_id", m.ServiceId)
+	w.Int("duration_min", m.DurationMin)
+	w.Int("buffer_min", m.BufferMin)
+	w.Int("price_override", m.PriceOverride)
+	w.Bool("payment_required", m.PaymentRequired)
+}
+
+func (m *CreateEmployeeServiceConfigArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+	if v, ok := r.String("service_id"); ok { m.ServiceId = v }
+	if v, ok := r.Int("duration_min"); ok { m.DurationMin = v }
+	if v, ok := r.Int("buffer_min"); ok { m.BufferMin = v }
+	if v, ok := r.Int("price_override"); ok { m.PriceOverride = v }
+	if v, ok := r.Bool("payment_required"); ok { m.PaymentRequired = v }
+}
+
+type CreateEmployeeServiceConfigArgsList []*CreateEmployeeServiceConfigArgs
+
+func (s *CreateEmployeeServiceConfigArgsList) Len() int             { return len(*s) }
+func (s *CreateEmployeeServiceConfigArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *CreateEmployeeServiceConfigArgsList) Append() model.Fielder  { v := &CreateEmployeeServiceConfigArgs{}; *s = append(*s, v); return v }
+func (s *CreateEmployeeServiceConfigArgsList) IsNil() bool          { return s == nil }
+func (s *CreateEmployeeServiceConfigArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *CreateEmployeeServiceConfigArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *CreateEmployeeServiceConfigArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type GetEmployeeServiceConfigArgs struct {
+	Id string
+}
+
+func (m *GetEmployeeServiceConfigArgs) ModelName() string { return "get_employee_service_config_args" }
+
+func (m *GetEmployeeServiceConfigArgs) Schema() []model.Field { return GetEmployeeServiceConfigArgsModel.Fields }
+
+func (m *GetEmployeeServiceConfigArgs) Pointers() []any { return []any{&m.Id} }
+
+func (m *GetEmployeeServiceConfigArgs) IsNil() bool { return m == nil }
+
+func (m *GetEmployeeServiceConfigArgs) EncodeFields(w model.FieldWriter) {
+	w.String("id", m.Id)
+}
+
+func (m *GetEmployeeServiceConfigArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("id"); ok { m.Id = v }
+}
+
+type GetEmployeeServiceConfigArgsList []*GetEmployeeServiceConfigArgs
+
+func (s *GetEmployeeServiceConfigArgsList) Len() int             { return len(*s) }
+func (s *GetEmployeeServiceConfigArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *GetEmployeeServiceConfigArgsList) Append() model.Fielder  { v := &GetEmployeeServiceConfigArgs{}; *s = append(*s, v); return v }
+func (s *GetEmployeeServiceConfigArgsList) IsNil() bool          { return s == nil }
+func (s *GetEmployeeServiceConfigArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *GetEmployeeServiceConfigArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *GetEmployeeServiceConfigArgs) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+type ListEmployeeServiceConfigsByStaffArgs struct {
+	TenantId string
+	StaffId string
+}
+
+func (m *ListEmployeeServiceConfigsByStaffArgs) ModelName() string { return "list_employee_service_configs_by_staff_args" }
+
+func (m *ListEmployeeServiceConfigsByStaffArgs) Schema() []model.Field { return ListEmployeeServiceConfigsByStaffArgsModel.Fields }
+
+func (m *ListEmployeeServiceConfigsByStaffArgs) Pointers() []any { return []any{&m.TenantId, &m.StaffId} }
+
+func (m *ListEmployeeServiceConfigsByStaffArgs) IsNil() bool { return m == nil }
+
+func (m *ListEmployeeServiceConfigsByStaffArgs) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("staff_id", m.StaffId)
+}
+
+func (m *ListEmployeeServiceConfigsByStaffArgs) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("staff_id"); ok { m.StaffId = v }
+}
+
+type ListEmployeeServiceConfigsByStaffArgsList []*ListEmployeeServiceConfigsByStaffArgs
+
+func (s *ListEmployeeServiceConfigsByStaffArgsList) Len() int             { return len(*s) }
+func (s *ListEmployeeServiceConfigsByStaffArgsList) At(i int) model.Fielder { return (*s)[i] }
+func (s *ListEmployeeServiceConfigsByStaffArgsList) Append() model.Fielder  { v := &ListEmployeeServiceConfigsByStaffArgs{}; *s = append(*s, v); return v }
+func (s *ListEmployeeServiceConfigsByStaffArgsList) IsNil() bool          { return s == nil }
+func (s *ListEmployeeServiceConfigsByStaffArgsList) EncodeFields(_ model.FieldWriter) {}
+func (s *ListEmployeeServiceConfigsByStaffArgsList) DecodeFields(_ model.FieldReader) {}
+
+func (m *ListEmployeeServiceConfigsByStaffArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 

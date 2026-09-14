@@ -15,7 +15,7 @@ El módulo `appointment-booking` gestiona el ciclo de vida completo de una cita 
 
 ## 2. Entidades Principales
 
-- **`EmployeeServiceConfig`:** Mapea a un miembro del personal con un ítem de servicio, definiendo duración, tiempo de amortiguación (buffer) y anulación de precio. Es la fuente de verdad para la granularidad de los huecos.
+- **`EmployeeServiceConfig` (`EmployeeServiceConfigModel`):** Mapea a un miembro del personal con un ítem de servicio, definiendo duración, tiempo de amortiguación (buffer) y anulación de precio. Es la fuente de verdad para la granularidad de los huecos. A diferencia de `Reservation`, esta tabla no contiene campos de auditoría ni instantáneas internas no editables; cada columna excepto `id` y `tenant_id` es legítimamente editable por un usuario, por lo que lleva widgets `input.*` directamente en `EmployeeServiceConfigModel` sin requerir un tipo separado de proyección de formulario.
 - **`Reservation`:** La cita en sí (fila persistida en BD). Almacena instantáneas (snapshots) de personal, servicio, precio y moneda al momento de la creación para auditabilidad financiera — estos nunca cambian incluso si los datos de origen se modifican posteriormente. También rastrea `StatusBeforeConflict` para que una cita en conflicto pueda ser restaurada exactamente al estado que tenía antes del conflicto.
 - **`ReservationForm` (`ReservationFormModel`):** La proyección de formulario de una reserva distinta de `Reservation`. `Reservation` contiene 22 campos (instantáneas, revisión, auditoría) con tipos base; `ReservationForm` expone los 6 campos visibles al mostrador (`id`, `client_id`, `day`, `hour`, `notes`, `status`) utilizando widgets `input.*` para que los generadores de formularios UI puedan construir formularios de creación sin exponer campos internos o de auditoría.
 - **`WorkCalendarConfig`:** Una fila por miembro del personal. Única fuente de verdad para la zona horaria IANA del calendario del personal. Debe existir antes de que se puedan guardar bloques.
@@ -97,12 +97,16 @@ El evento `appointment.schedule.changed` lleva un **`ScheduleChangedPayload{Tena
 
 ## 7. Transporte, Identidad, Vista — Raíz de Composición
 
-El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`). Las 19 operaciones (8 de reservas + 11 de calendario) son registradas por un único `*Module`.
+El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`). Las 23 operaciones (8 de reservas + 11 de calendario + 4 de configuración de servicios) son registradas por un único `*Module`.
 
 ### Ops (vía `MountOps`)
 
 | Op | Acción | Recurso | Descripción |
 |---|---|---|---|
+| `create_employee_service_config` | `c` | `employee_service_config` | Registra que un profesional realiza un servicio con su duración y anulación de precio |
+| `get_employee_service_config` | `r` | `employee_service_config` | Lee una configuración de servicio por ID |
+| `list_employee_service_configs_by_staff` | `r` | `employee_service_config` | Lista todos los servicios que realiza un profesional (activos e inactivos) |
+| `update_employee_service_config` | `u` | `employee_service_config` | Actualiza la configuración completa de servicio de un profesional |
 | `create_reservation` | `c` | `reservation` | Crea una nueva reserva (reprogramación atómica si `RescheduledFromId` está configurado) |
 | `get_reservation` | `r` | `reservation` | Obtiene una reserva por ID |
 | `list_reservations_by_staff` | `r` | `reservation` | Lista reservas por ID de personal y rango de fechas |
@@ -126,6 +130,8 @@ El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg ro
 ### Vista
 
 `NewView(caller router.Caller, tenantId, staffId string) view.Presenter` construye un `view.Presenter` **solo de lista/selección** sobre `Reservation`, delimitado al horario de un miembro del personal.
+
+`NewEmployeeServiceConfigView(caller router.Caller, tenantId, staffId string) view.Presenter` construye un `view.Presenter` (Lista + Guardado) acotado a un profesional sobre `EmployeeServiceConfig`.
 
 `NewFormView(caller router.Caller, cfg FormConfig) view.Presenter` construye un **presenter capaz de formularios** (Lista + Guardado) sobre `ReservationForm`. `FormConfig` recibe `Timezone` explícitamente porque la zona horaria autorizada vive en `work_calendar_config.timezone` en el servidor y actualmente no existe op de lectura para el cliente (limitación conocida).
 
