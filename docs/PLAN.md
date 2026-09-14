@@ -2,6 +2,8 @@
 PLAN: "fix: price_override lost fractional precision — input.Number() is int-only"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 10033203086755818248
 ---
 
 > This plan is dispatched via the CodeJob workflow. See skill: **agents-workflow**.
