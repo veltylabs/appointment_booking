@@ -467,7 +467,8 @@ untouched.
   way `NewView`/`NewFormView` are documented.
 - `docs/ARCHITECTURE.md`: record decision 3.1 (no separate form projection for
   this table, and why) so the reasoning outlives this plan.
-- **Do not delete `docs/PLAN.md`.** Keep `docs/PLAN.md` in the repository for reference.
+- Do **not** link any permanent document to `docs/PLAN.md` — it is deleted
+  when this lands.
 
 ## 5. Stages table
 
@@ -478,7 +479,7 @@ untouched.
 | 3 | Ops | `ops.go` | 4 ops, each Resource+Action; no delete op |
 | 4 | View | `view.go`, `lister.go` | presenter has exactly List+Save |
 | 5 | Tests | `tests/employee_service_config_test.go` | 6 cases green |
-| 6 | Docs | `README.md`, `docs/ARCHITECTURE.md`, `docs/PLAN.md` | ops table updated, decision recorded |
+| 6 | Docs | `README.md`, `docs/ARCHITECTURE.md` | ops table updated, decision recorded |
 
 ## 6. Acceptance criteria
 
