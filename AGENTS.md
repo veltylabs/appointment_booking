@@ -1,169 +1,167 @@
-# AGENTS.md — veltylabs/modules (canonical template)
+# AGENTS.md — veltylabs/modules (plantilla canónica)
 
-Working notes for AI agents operating on any `veltylabs/<module>` repo. Every module gets its own
-copy of this file at its root, adjusted only in the "Domain-specific notes" section at the bottom —
-the rules above that line are **verbatim across every module**, do not fork them. If a rule here
-turns out to be wrong for a module, the fix belongs here (and replicates outward), not as a local
-exception in one module's copy.
+Notas de trabajo para agentes IA que operan en cualquier repositorio `veltylabs/<module>`. Cada módulo recibe su propia
+copia de este archivo en su raíz, ajustada únicamente en la sección "Notas específicas del dominio" al final —
+las reglas sobre esa línea son **textuales en todos los módulos**, no las modifiques ni ramifiques. Si una regla aquí
+resulta ser errónea para un módulo, la corrección pertenece aquí (y se replica hacia afuera), no como una excepción local
+en la copia de un módulo.
 
-Master plan (cross-repo status, whitelist rationale, dispatch order):
+Plan maestro (estado entre repositorios, justificación de lista blanca, orden de despacho):
 [`app-releases/docs/REUSABLE_MODULES_MASTER_PLAN.md`](https://github.com/webtyp/app/blob/main/docs/REUSABLE_MODULES_MASTER_PLAN.md).
-Reference implementation (the pattern every module replicates): `github.com/veltylabs/item_catalog`.
+Implementación de referencia (el patrón que cada módulo replica): `github.com/veltylabs/item_catalog`.
 
-## Mission of a `veltylabs/modules/*` repo
+## Misión de un repositorio `veltylabs/modules/*`
 
-A **domain module**: business logic for one bounded concern (catalog, scheduling, payouts, …),
-published as an independent Go library, importable by any app in the Velty ecosystem. It is a piece
-of lego — it must assemble under a transport, a database, an ID generator, an encoding and a
-renderer it has never seen, chosen by whichever app composes it.
+Un **módulo de dominio**: lógica de negocio para un dominio acotado (catálogo, programación/agendamiento, pagos, …),
+publicado como una librería Go independiente, importable por cualquier aplicación en el ecosistema Velty. Es una pieza
+de lego — debe ensamblarse bajo un transporte, una base de datos, un generador de IDs, una codificación y un
+renderizador que nunca ha visto, elegidos por cualquiera que sea la aplicación que lo componga.
 
-## The whitelist — what a module may import
+## La lista blanca — lo que un módulo puede importar
 
-A module's **non-test** Go files may import, from `github.com/webtyp/*`:
+Los archivos Go de un módulo que **no sean de prueba** pueden importar, desde `github.com/webtyp/*`:
 
-| Package | Role | Why it's a port, not a concrete dependency |
+| Paquete | Rol | Por qué es un puerto y no una dependencia concreta |
 |---|---|---|
-| `model` | `Model`/`Fielder`/`Encodable`/`Decodable`/`IDGenerator`/`Definition` | Schema + codec *interfaces*; concrete encoders (`json`, `jsvalue`) live outside |
-| `router` | `OpModule`/`OpRegistry`/`Context`/`Caller` | Transport-agnostic; a module implements `OpModule`, never a concrete server |
-| `view` | `Presenter`, `view.New(...)` | UI contract; the renderer (`layout/crudview` or any other) is injected by the app |
-| `events` | `Publisher`/`Subscriber`/`Event` | Pub/sub contract; the broker (in-proc, `sse`, a queue) is injected |
-| `orm` | `*orm.DB`, query builder (`Create`/`Update`/`Delete`/`Query`) | Ergonomic layer over `storage.Conn` — the equivalent of `database/sql`, backend-agnostic by construction |
-| `storage` | `Conn`/`Condition`/`Query` (mostly transitive, via `orm`'s re-exports in `reexport.go`) | The actual storage **port** — `orm` never redefines it |
-| `ddl` | `CreateTable`/`Sync` (runtime schema) | Sibling of `orm` over `storage.Conn` — still backend-agnostic |
-| `form/input` | `input.Text()`, `input.Number()`, … (`Kind` with a UI widget) | Only when a `model.Definition` field needs a widget for a form; still just a `Kind`, no renderer |
-| `fmt` | string/number/error handling, `Err(...)` | The ecosystem's stdlib replacement — see the stdlib section below |
-| `time` | date/time helpers | The ecosystem's `time` replacement (isomorphic, wasm-safe) |
+| `model` | `Model`/`Fielder`/`Encodable`/`Decodable`/`IDGenerator`/`Definition` | *Interfaces* de esquema + codec; los codificadores concretos (`json`, `jsvalue`) viven fuera |
+| `router` | `OpModule`/`OpRegistry`/`Context`/`Caller` | Agnóstico del transporte; un módulo implementa `OpModule`, nunca un servidor concreto |
+| `view` | `Presenter`, `view.New(...)` | Contrato de UI; el renderizador (`layout/crudview` o cualquier otro) es inyectado por la aplicación |
+| `events` | `Publisher`/`Subscriber`/`Event` | Contrato de pub/sub; el broker (en proceso, `sse`, una cola) es inyectado |
+| `orm` | `*orm.DB`, constructor de consultas (`Create`/`Update`/`Delete`/`Query`) | Capa ergonómica sobre `storage.Conn` — el equivalente de `database/sql`, agnóstico del backend por construcción |
+| `storage` | `Conn`/`Condition`/`Query` (mayormente transitivo, vía las re-exportaciones de `orm` en `reexport.go`) | El **puerto** de almacenamiento real — `orm` nunca lo redefine |
+| `ddl` | `CreateTable`/`Sync` (esquema en tiempo de ejecución) | Hermano de `orm` sobre `storage.Conn` — sigue siendo agnóstico del backend |
+| `form/input` | `input.Text()`, `input.Number()`, … (`Kind` con un widget de UI) | Solo cuando un campo de `model.Definition` necesita un widget para un formulario; sigue siendo solo un `Kind`, sin renderizador |
+| `fmt` | manejo de cadenas/números/errores, `Err(...)` | El reemplazo de stdlib del ecosistema — ver la sección de stdlib a continuación |
+| `time` | ayudantes de fecha/hora | El reemplazo de `time` del ecosistema (isomórfico, seguro para wasm) |
 
-**"Port" vs "concrete implementation" is the whole test.** `orm`/`storage`/`ddl` are agnostic — they
-work unchanged against `sqlt`, `postgres`, `mem`, or a future `indexdb` backend, selected by whoever
-calls `orm.New(conn)`. A module importing them does **not** know or care which backend is behind the
-`storage.Conn` it receives. That is different from importing `webtyp/sqlite` (a driver) or
-`webtyp/mcp` (a transport) directly — those name one implementation, foreclosing all the others.
+**"Puerto" vs "implementación concreta" es toda la prueba.** `orm`/`storage`/`ddl` son agnósticos — funcionan
+sin cambios contra backends `sqlt`, `postgres`, `mem` o un futuro backend `indexdb`, seleccionados por quien
+llame a `orm.New(conn)`. Un módulo que los importa **no** sabe ni le importa qué backend está detrás del
+`storage.Conn` que recibe. Eso es diferente a importar `webtyp/sqlite` (un controlador) o
+`webtyp/mcp` (un transporte) directamente — esos nombran una implementación, descartando todas las demás.
 
-## The blacklist — what a module may never import, in any file, tests included
+## La lista negra — lo que un módulo nunca puede importar, en ningún archivo, incluidas las pruebas
 
-- **Any concrete storage backend**: `webtyp/sqlite`, `webtyp/sqlt`, `webtyp/postgres`,
-  `webtyp/indexdb`, or any `database/sql` driver. A module's own tests exercise
-  `storage/mem` (`github.com/webtyp/storage/mem`) via `orm.New(mem.New())` — the in-memory
-  reference backend built for exactly this. **Not even in `_test.go` files** — a concrete driver
-  pulled in "just for tests" is still a dependency the module ships, and it is exactly the coupling
-  this whitelist exists to prevent. Backend integration tests belong to the composition-root app
-  repo, never to the module.
-- **A concrete transport**: `webtyp/mcp`, `webtyp/server`/`httpd`, or anything importing
-  `net/http`. A module speaks `router.OpModule`; the app decides which transport harvests it.
-- **A concrete ID generator**: `webtyp/unixid`. Accept `model.IDGenerator` via `Deps` instead —
-  never construct one inside the module.
-- **A concrete encoder**: `webtyp/json`, `webtyp/jsvalue`. A module's models implement
-  `model.Encodable`/`Decodable` (generated by `ormc`); which concrete `FieldWriter`/`FieldReader`
-  walks them (JSON text, JS values, a future binary codec) is the app's choice, made at the transport
-  boundary, never inside the module.
-- **A concrete renderer**: `webtyp/layout` (or any other UI kit). A module builds its
-  `view.Presenter` with `view.New(caller, ...)` — `view`+`model`+`router` only. The app picks the
-  renderer that draws that `Presenter`.
-- **A self-declared port that duplicates an ecosystem contract**: no local `EventPublisher`,
-  `UIAdapter`, `IDGenerator`, or `CatalogService`-as-transport-shim interface that intersects
-  `events.Publisher`/`view.Presenter`/`model.IDGenerator`/`router.OpModule`. If a boundary needs a
-  contract this list doesn't name, that is a defect **upstream** (in `model`/`router`/`view`/`events`/
-  `orm`), fixed there and consumed here — never patched locally. A module may still declare its own
-  narrow cross-module reader interfaces (`CatalogReader`, `StaffReader`, …) for **domain** data it
-  needs from a sibling module — that pattern stays (see Cross-module wiring below).
-- **No `internal/` package that forks or vendors an ecosystem repo.** If an upstream package is
-  missing a function, the fix is a `docs/PLAN.md` against *that* repo, published upstream — never a
-  local copy with a `replace` directive in `go.mod`. A `replace` pointing at a local path is always a
-  defect to close, not a workaround to keep.
+- **Cualquier backend de almacenamiento concreto**: `webtyp/sqlite`, `webtyp/sqlt`, `webtyp/postgres`,
+  `webtyp/indexdb`, o cualquier controlador `database/sql`. Las propias pruebas del módulo ejercitan
+  `storage/mem` (`github.com/webtyp/storage/mem`) vía `orm.New(mem.New())` — el backend de referencia en memoria
+  construido exactamente para esto. **Ni siquiera en archivos `_test.go`** — un controlador concreto
+  incorporado "solo para pruebas" sigue siendo una dependencia que el módulo envía, y es exactamente el acoplamiento
+  que esta lista blanca existe para prevenir. Las pruebas de integración de backend pertenecen al repositorio de la aplicación (raíz de composición), nunca al módulo.
+- **Un transporte concreto**: `webtyp/mcp`, `webtyp/server`/`httpd`, o cualquier cosa que importe
+  `net/http`. Un módulo habla `router.OpModule`; la aplicación decide qué transporte lo cosecha.
+- **Un generador de ID concreto**: `webtyp/unixid`. En su lugar, acepta `model.IDGenerator` vía `Deps` —
+  nunca construyas uno dentro del módulo.
+- **Un codificador concreto**: `webtyp/json`, `webtyp/jsvalue`. Los modelos de un módulo implementan
+  `model.Encodable`/`Decodable` (generados por `ormc`); qué `FieldWriter`/`FieldReader` concreto
+  los recorre (texto JSON, valores JS, un futuro codec binario) es elección de la aplicación, hecha en el límite
+  del transporte, nunca dentro del módulo.
+- **Un renderizador concreto**: `webtyp/layout` (o cualquier otro kit de UI). Un módulo construye su
+  `view.Presenter` con `view.New(caller, ...)` — solo `view`+`model`+`router`. La aplicación elige el
+  renderizador que dibuja ese `Presenter`.
+- **Un puerto autodeclarado que duplica un contrato del ecosistema**: ninguna interfaz local `EventPublisher`,
+  `UIAdapter`, `IDGenerator` o `CatalogService`-como-shim-de-transporte que se cruce con
+  `events.Publisher`/`view.Presenter`/`model.IDGenerator`/`router.OpModule`. Si un límite necesita un
+  contrato que esta lista no nombra, eso es un defecto **aguas arriba** (en `model`/`router`/`view`/`events`/
+  `orm`), corregido allí y consumido aquí — nunca parcheado localmente. Un módulo aún puede declarar sus propias
+  interfaces de lector estrechas entre módulos (`CatalogReader`, `StaffReader`, …) para datos de **dominio** que
+  necesita de un módulo hermano — ese patrón se mantiene (ver Cableado entre módulos a continuación).
+- **Ningún paquete `internal/` que bifurque o venda un repositorio del ecosistema.** Si a un paquete aguas arriba le
+  falta una función, la solución es un `docs/PLAN.md` contra *ese* repositorio, publicado aguas arriba — nunca una
+  copia local con una directiva `replace` en `go.mod`. Un `replace` apuntando a una ruta local siempre es un
+  defecto a cerrar, no una solución alternativa a mantener.
 
-## The stdlib boundary
+## El límite de stdlib
 
-`github.com/webtyp/fmt` **is** the stdlib replacement for this ecosystem: nothing in it, and
-nothing built on it, imports `fmt`, `strings`, `strconv`, or `errors` — `webtyp/fmt` already
-provides string manipulation, number conversion, and error construction (`fmt.Err(...)`),
-reflection-free and TinyGo-sized. A module targets `wasm`/TinyGo first, so it follows the same rule:
+`github.com/webtyp/fmt` **es** el reemplazo de stdlib para este ecosistema: nada en él, y
+nada construido sobre él, importa `fmt`, `strings`, `strconv` o `errors` — `webtyp/fmt` ya
+proporciona manipulación de cadenas, conversión de números y construcción de errores (`fmt.Err(...)`),
+libre de reflexión y de tamaño TinyGo. Un módulo apunta a `wasm`/TinyGo primero, por lo que sigue la misma regla:
 
-- **Banned, use the webtyp replacement instead:** `errors`, `strings`, `strconv`, stdlib `fmt` →
-  `github.com/webtyp/fmt`. `encoding/json` → `model.Encodable`/`Decodable` (the module never
-  chooses the concrete encoder). `database/sql` → `orm`/`storage`. `net/http` → `router`. `time` →
+- **Prohibido, usa el reemplazo de webtyp en su lugar:** `errors`, `strings`, `strconv`, stdlib `fmt` →
+  `github.com/webtyp/fmt`. `encoding/json` → `model.Encodable`/`Decodable` (el módulo nunca
+  elige el codificador concreto). `database/sql` → `orm`/`storage`. `net/http` → `router`. `time` →
   `github.com/webtyp/time`.
-- **Fine to use directly:** anything that isn't a contract this ecosystem already replaces —
-  `testing`, `sort`, `context` (stdlib, when it's genuinely cancellation/deadlines, not the
-  transport-level `webtyp/context`), etc. When in doubt: if `webtyp/fmt` (or another package in
-  the whitelist above) already covers it, use that; if it doesn't, plain stdlib is fine.
+- **Aceptable para usar directamente:** cualquier cosa que no sea un contrato que este ecosistema ya reemplace —
+  `testing`, `sort`, `context` (stdlib, cuando es genuinamente cancelación/plazos límite, no el
+  `webtyp/context` a nivel de transporte), etc. En caso de duda: si `webtyp/fmt` (u otro paquete en
+  la lista blanca anterior) ya lo cubre, úsalo; si no lo hace, stdlib puro está bien.
 - **Idioma del repositorio:** Toda la documentación del repositorio (archivos markdown, comentarios en código, etc.) debe estar escrita en español.
-- **No Go `map[K]V` anywhere**, test code included — and **no exceptions for "private state"**: a
-  map inside a closure or unexported field ships TinyGo's map runtime in the wasm binary exactly the
-  same. Use `fmt.KeyValue{Key, Value string}` for a string→string pair, or a small slice-of-structs
-  scanned linearly for anything else (the `byID []*X` linear-scan cache in `item_catalog/view.go` is
-  the reference) — module collections (a tenant's items, a schema's fields) are always small enough
-  that a linear scan costs nothing measurable.
-- **No `reflect`.** Struct introspection is a build-time (`ormc`) concern; the module consumes
-  generated `Schema()`/`Pointers()`/`EncodeFields`/`DecodeFields`, it never inspects itself at
-  runtime.
+- **Sin `map[K]V` de Go en ninguna parte**, código de prueba incluido — y **sin excepciones para "estado privado"**: un
+  mapa dentro de un cierre o campo no exportado envía el entorno de ejecución de mapas de TinyGo en el binario wasm
+  exactamente igual. Usa `fmt.KeyValue{Key, Value string}` para un par cadena→cadena, o una pequeña rebanada (slice) de estructuras
+  escaneada linealmente para cualquier otra cosa (el caché de escaneo lineal `byID []*X` en `item_catalog/view.go` es
+  la referencia) — las colecciones de módulos (los elementos de un inquilino, los campos de un esquema) son siempre lo suficientemente pequeñas
+  como para que un escaneo lineal no cueste nada medible.
+- **Sin `reflect`.** La introspección de estructuras es una preocupación en tiempo de compilación (`ormc`); el módulo consume
+  `Schema()`/`Pointers()`/`EncodeFields`/`DecodeFields` generados, nunca se inspecciona a sí mismo en
+  tiempo de ejecución.
 
-## Model definitions — constraints, enums, widget policy
+## Definiciones de modelo — restricciones, enumeraciones, política de widgets
 
-- **Constraints are declared in the `Definition`, and validation runs before every write.** Required
-  fields carry `NotNull: true`; formats carry a `Permitted` floor (e.g. ISO-4217 currency:
-  `Permitted{Letters: true, Minimum: 3, Maximum: 3}`; an `"HH:MM"` column: digits + `':'`, exactly
-  5). Every create/update path calls the generated `Validate(action)` (or
-  `model.ValidateFields`) **before** `db.Create`/`db.Update` — fail-closed: data that was never
-  validated never reaches the DB. Manual `if x == ""` checks may exist as defense in depth but never
-  replace the declared constraint.
-- **Enum-valued columns: the string literals live ONLY in exported constants** (`ItemTypeService`,
-  `PayoutStatusPending`, …) — never inline at a call site, never documented solely in a
-  `// "a" | "b"` comment. A value that must be *remembered* is a hole in the harness. A
-  user-editable enum field additionally gets a closed-options widget: a package-local custom widget
-  wrapping `input.Radio()`/`input.Select()` + `SetOptions(fmt.KeyValue{Key: TheConstant, ...})` —
-  the `form/input/gender.go` pattern. Adding an enum value = one new constant + one option line,
-  greppable. (Known upstream gap: `input.Base.Validate` does not yet enforce membership in
-  `Options`; that is a `webtyp/form` defect being fixed upstream — never patch it locally.)
-- **Widgets are assigned by ROLE, never copied from an older generated file**: `input.X()` ONLY on
-  fields a user edits in a form. Base kinds (`model.X()`) on ids, `tenant_id`, timestamps, and every
-  **output-only** result/response model — output is never rendered as an editable form, and a widget
-  there makes `form.New` produce editable inputs for data the user must not touch. Dropping a widget
-  from a genuinely form-bound field silently renders an empty form — so the rule cuts both ways.
-- **Intra-module foreign keys are declared** (`Ref: &OtherModel` + `DB: &model.FieldDB{RefColumn:
-  "id"}` — drives DDL constraint generation; the Go type stays the plain scalar). Cross-module
-  references stay soft (a plain string id/SKU) — modules never import each other.
+- **Las restricciones se declaran en la `Definition`, y la validación se ejecuta antes de cada escritura.** Los campos requeridos
+  llevan `NotNull: true`; los formatos llevan un piso `Permitted` (p. ej., moneda ISO-4217:
+  `Permitted{Letters: true, Minimum: 3, Maximum: 3}`; una columna `"HH:MM"`: dígitos + `':'`, exactamente
+  5). Cada ruta de creación/actualización llama al `Validate(action)` generado (o
+  `model.ValidateFields`) **antes** de `db.Create`/`db.Update` — con fallo cerrado: los datos que nunca fueron
+  validados nunca llegan a la BD. Las comprobaciones manuales `if x == ""` pueden existir como defensa en profundidad, pero nunca
+  reemplazan la restricción declarada.
+- **Columnas con valor de enumeración: los literales de cadena viven SOLO en constantes exportadas** (`ItemTypeService`,
+  `PayoutStatusPending`, …) — nunca en línea en un punto de llamada, nunca documentados únicamente en un
+  comentario `// "a" | "b"`. Un valor que debe *recordarse* es un agujero en el arnés. Un
+  campo de enumeración editable por el usuario obtiene adicionalmente un widget de opciones cerradas: un widget personalizado local del paquete
+  que envuelve `input.Radio()`/`input.Select()` + `SetOptions(fmt.KeyValue{Key: TheConstant, ...})` —
+  el patrón `form/input/gender.go`. Agregar un valor de enumeración = una nueva constante + una línea de opción,
+  buscable con grep. (Brecha conocida aguas arriba: `input.Base.Validate` aún no exige la pertenencia en
+  `Options`; ese es un defecto de `webtyp/form` que se está corrigiendo aguas arriba — nunca lo parches localmente).
+- **Los widgets se asignan por ROL, nunca se copian de un archivo generado anterior**: `input.X()` SOLO en
+  campos que un usuario edita en un formulario. Tipos base (`model.X()`) en ids, `tenant_id`, marcas de tiempo y cada
+  modelo de resultado/respuesta **solo de salida** — la salida nunca se renderiza como un formulario editable, y un widget
+  allí hace que `form.New` produce entradas editables para datos que el usuario no debe tocar. Omitir un widget
+  de un campo genuinamente vinculado a un formulario renderiza silenciosamente un formulario vacío — así que la regla corta en ambos sentidos.
+- **Las claves foráneas intramódulo están declaradas** (`Ref: &OtherModel` + `DB: &model.FieldDB{RefColumn:
+  "id"}` — impulsa la generación de restricciones DDL; el tipo Go se mantiene como escalar plano). Las referencias
+  entre módulos se mantienen blandas (un ID/SKU de cadena plana) — los módulos nunca se importan entre sí.
 
-## Op handlers — decode → validate → respond
+## Controladores de ops — decodificar → validar → responder
 
-- Handler shape, in order: `ctx.Decode(&args)` (error ⇒ 400) → `args.Validate(action)` (error ⇒
-  400) → service method → encode/status.
-- **Status convention** (never collapse everything into 500 — a misuse that produces a generic 500
-  is the "runtime mystery" the harness forbids): `400` decode/validation/invalid precondition ·
-  `403` RBAC denial (the router writes it) · `404` not-found (`ErrNotFound`-class sentinels) ·
-  `409` conflict (`ErrAlreadyExists`, slot taken, revision mismatch) · `500` genuine internal
-  errors only. Sentinels are always distinguished from real errors before mapping — and a real DB
-  error is **never** swallowed into a not-found (`err == orm.ErrNotFound` maps to the domain
-  sentinel; anything else propagates as the internal error it is).
-- **`.Requires(resource, action)` declares every action the op can actually perform.**
-  `model.Action` is a bitmask: an upsert that creates on the not-found branch and updates otherwise
-  requires `model.Create|model.Update` — declaring only one lets a partially-granted principal do
-  the other (closed-by-default violation).
-- **A no-args op declares `.Accepts(nil)`** ("nil means 'no args'", per `router.Route`) — never an
-  invented empty args Definition/struct.
+- Forma del controlador, en orden: `ctx.Decode(&args)` (error ⇒ 400) → `args.Validate(action)` (error ⇒
+  400) → método de servicio → codificar/estado.
+- **Convención de estado** (nunca colapsar todo a 500 — un uso indebido que produce un 500 genérico
+  es el "misterio en tiempo de ejecución" que el arnés prohíbe): `400` decodificación/validación/precondición inválida ·
+  `403` denegación de RBAC (el enrutador lo escribe) · `404` no encontrado (centinelas de la clase `ErrNotFound`) ·
+  `409` conflicto (`ErrAlreadyExists`, espacio tomado, desajuste de revisión) · `500` solo errores internos genuinos. Los centinelas siempre se distinguen de los errores reales antes del mapeo — y un error de BD real
+  **nunca** se traga en un no encontrado (`err == orm.ErrNotFound` se mapea al
+  centinela de dominio; cualquier otra cosa se propaga como el error interno que es).
+- **`.Requires(resource, action)` declara cada acción que la op realmente puede realizar.**
+  `model.Action` es una máscara de bits: un upsert que crea en la rama de no encontrado y actualiza en caso contrario
+  requiere `model.Create|model.Update` — declarar solo una permite que un principal parcialmente autorizado realice
+  la otra (violación de cerrado por defecto).
+- **Una op sin argumentos declara `.Accepts(nil)`** ("nil significa 'sin argumentos'", según `router.Route`) — nunca una
+  estructura/definición de argumentos vacía inventada.
 
-## Multi-tenancy — scoping is enforced in the condition, not the pre-read
+## Multi-inquilino (Multi-tenancy) — el alcance se aplica en la condición, no en la lectura previa
 
-- Every tenant-scoped table carries `tenant_id` (`NotNull: true`), and **every UPDATE/DELETE
-  condition includes the tenant column** — `orm.Eq(X_.Id, id)` alone is a cross-tenant write
-  waiting to happen; the read-then-write pattern (fetch with tenant check, then mutate by id only)
-  is a TOCTOU window, not a defense. Never mutate what you could not read: if the tenant-scoped
-  fetch fails, return the error — no "stub delete" fallbacks.
-- A module that is deliberately **not** tenant-scoped states so in its "Domain-specific notes" and
-  `docs/ARCHITECTURE.md`, as an explicit signed-off decision — never by silent omission.
+- Cada tabla con alcance de inquilino lleva `tenant_id` (`NotNull: true`), y **cada condición de UPDATE/DELETE
+  incluye la columna de inquilino** — `orm.Eq(X_.Id, id)` solo es una escritura entre inquilinos
+  esperando suceder; el patrón leer-luego-escribir (obtener con verificación de inquilino, luego mutar solo por ID)
+  es una ventana TOCTOU, no una defensa. Nunca mutes lo que no pudiste leer: si la búsqueda con alcance de inquilino
+  falla, devuelve el error — sin alternativas de "eliminación simulada".
+- Un módulo que deliberadamente **no** tiene alcance de inquilino lo establece en sus "Notas específicas del dominio" y
+  `docs/ARCHITECTURE.md`, como una decisión explícita firmada — nunca por omisión silenciosa.
 
-## Identity, persistence, transport, view, events — the shape every module takes
+## Identidad, persistencia, transporte, vista, eventos — la forma que toma cada módulo
 
-- **Identity**: `Deps.IDs model.IDGenerator`, required. The module calls `m.ids.NewID()`; it never
-  constructs a generator.
-- **Persistence**: `New(db *orm.DB, deps Deps)` receives an already-connected `*orm.DB` (backed by
-  whatever `storage.Conn` the app chose) and owns its own schema migration via
-  `github.com/webtyp/ddl`, replacing the removed `orm.DB.CreateTable`. `ddl.New` takes **two**
-  arguments — `ddl.New(conn storage.Conn, ddlCompiler ddl.Compiler)` — and `ddl.Compiler` is a
-  capability only SQL backends (`sqlt`, `postgres`) implement; the in-memory test backend
-  (`storage/mem`) does not, because it creates tables lazily on first `Exec` and needs no DDL at all.
-  So the module type-asserts for the capability instead of assuming it (the same idiom
-  `storage.TxExecutor` already uses for optional transactions):
+- **Identidad**: `Deps.IDs model.IDGenerator`, requerido. El módulo llama a `m.ids.NewID()`; nunca
+  construye un generador.
+- **Persistencia**: `New(db *orm.DB, deps Deps)` recibe un `*orm.DB` ya conectado (respaldado por
+  cualquiera que sea el `storage.Conn` que eligió la aplicación) y posee su propia migración de esquema vía
+  `github.com/webtyp/ddl`, reemplazando el eliminado `orm.DB.CreateTable`. `ddl.New` toma **dos**
+  argumentos — `ddl.New(conn storage.Conn, ddlCompiler ddl.Compiler)` — y `ddl.Compiler` es una
+  capacidad que solo los backends SQL (`sqlt`, `postgres`) implementan; el backend de pruebas en memoria
+  (`storage/mem`) no lo hace, porque crea tablas perezosamente en el primer `Exec` y no necesita DDL en absoluto.
+  Por lo tanto, el módulo hace una aserción de tipo para la capacidad en lugar de asumirla (el mismo idioma
+  que `storage.TxExecutor` ya usa para transacciones opcionales):
   ```go
   if ddlCompiler, ok := db.RawConn().(ddl.Compiler); ok {
       if err := ddl.New(db.RawConn(), ddlCompiler).CreateTable(&CatalogItem{}); err != nil {
@@ -171,121 +169,116 @@ reflection-free and TinyGo-sized. A module targets `wasm`/TinyGo first, so it fo
       }
   }
   ```
-  Against `storage/mem` (module tests) this is a no-op — nothing to create. Against a real SQL
-  backend it migrates the schema, exactly like the old `orm.DB.CreateTable` did. The module never
-  receives a raw connection string or picks a driver.
-- **Transport**: the module implements `router.OpModule` — `ModelName() string` +
-  `MountOps(reg router.OpRegistry)`, registering each operation with `.Requires(resource, action)`
-  and `.Accepts(&ArgsType{})`. It never implements `router.APIModule`/`Router`, and never sees
+  Contra `storage/mem` (pruebas del módulo) esto es una operación nula (no-op) — nada que crear. Contra un backend SQL real
+  migra el esquema, exactamente como lo hacía el antiguo `orm.DB.CreateTable`. El módulo nunca
+  recibe una cadena de conexión sin procesar ni elige un controlador.
+- **Transporte**: el módulo implementa `router.OpModule` — `ModelName() string` +
+  `MountOps(reg router.OpRegistry)`, registrando cada operación con `.Requires(resource, action)`
+  y `.Accepts(&ArgsType{})`. Nunca implementa `router.APIModule`/`Router`, y nunca ve
   `mcp.Tool`/`mcp.ToolProvider`.
-- **View**: `NewView(caller router.Caller) view.Presenter`, built with `view.New(...)` — importing
-  only `view`+`model`+`router`. The app supplies both the `router.Caller` and the renderer that draws
-  the resulting `Presenter`.
-- **Events**: `Deps.Publisher events.Publisher`, optional — `nil` disables publishing silently. The
-  module publishes `events.Event{Topic: ..., Payload: &typedRecord}` after every successful mutation,
-  never a bare `map` or `any` payload.
-- **Cross-module wiring**: when module A needs data from module B, A declares the narrow interface it
-  needs (`CatalogReader`, `StaffReader`, …) in its own package; B's `*Module` satisfies it structurally
-  (no import of A). The composition root wires concrete instances together. Modules never import each
-  other.
+- **Vista**: `NewView(caller router.Caller) view.Presenter`, construido con `view.New(...)` — importando
+  solo `view`+`model`+`router`. La aplicación proporciona tanto el `router.Caller` como el renderizador que dibuja
+  el `Presenter` resultante.
+- **Eventos**: `Deps.Publisher events.Publisher`, opcional — `nil` deshabilita la publicación silenciosamente. El
+  módulo publica `events.Event{Topic: ..., Payload: &typedRecord}` después de cada mutación exitosa,
+  nunca un payload `map` o `any` desnudo.
+- **Cableado entre módulos**: cuando el módulo A necesita datos del módulo B, A declara la interfaz estrecha que
+  necesita (`CatalogReader`, `StaffReader`, …) en su propio paquete; el `*Module` de B la satisface estructuralmente
+  (sin importación de A). La raíz de composición conecta instancias concretas. Los módulos nunca se importan entre sí.
 
-## Testing
+## Pruebas
 
-- Runner: `gotest`, never `go test` directly (once installed via
+- Ejecutor: `gotest`, nunca `go test` directamente (una vez instalado vía
   `go install github.com/webtyp/devflow/cmd/gotest@latest`).
-- A module's own tests build its `*orm.DB` over `storage/mem` (`orm.New(mem.New())`), drive
-  `MountOps` against `router/mock` (satisfies `router.OpRegistry`), and exercise the `view.Presenter`
-  against `view/conformance`'s `FakeCaller` or a hand-rolled fake `router.Caller` — never a concrete
-  DB, transport, or renderer.
-- Tests live in `tests/` (package `tests`, external — exercises only the exported API), per the
-  ecosystem convention. `tests/` is a plain directory **inside the root module** — **never a nested
-  Go module**: no `tests/go.mod`, no `replace` back to the parent (a local-path `replace` is always
-  a defect, see the blacklist). Test-only deps resolve via one `go mod tidy` at the module root.
-- Conformance suites live in their own same-named file (`tests/conformance_test.go`) — test files
-  stay small and modular, never one giant file.
-- Every tenant-scoped module includes **tenant-isolation tests** (tenant A cannot read/update/
-  delete tenant B's rows through any service method or op) — in the module's own suite, not
-  deferred to a backlog.
-- Tests assert on results — a test that calls methods and discards every return
-  (`_ = m.Validate(0)`) inflates coverage while proving nothing; coverage earned that way does not
-  count. Prefer roundtrips (encode→decode field-by-field equality) and behavior assertions.
-- A module whose Definitions carry form widgets includes the widget-regression test: `form.New(id,
-  &GeneratedArgs{})` yields exactly the expected inputs — catches a regeneration that silently
-  loses widgets.
-- Compile-time contract checks belong next to the implementation: `var _ router.OpModule =
+- Las propias pruebas de un módulo construyen su `*orm.DB` sobre `storage/mem` (`orm.New(mem.New())`), ejecutan
+  `MountOps` contra `router/mock` (satisface `router.OpRegistry`), y ejercitan el `view.Presenter`
+  contra el `FakeCaller` de `view/conformance` o un `router.Caller` simulado hecho a mano — nunca una BD, transporte o renderizador concreto.
+- Las pruebas viven en `tests/` (paquete `tests`, externo — ejercita solo la API exportada), según la
+  convención del ecosistema. `tests/` es un directorio plano **dentro del módulo raíz** — **nunca un módulo Go anidado**: sin `tests/go.mod`, sin `replace` apuntando de vuelta al padre (un `replace` de ruta local siempre es un defecto, ver la lista negra). Las dependencias solo de prueba se resuelven mediante un `go mod tidy` en la raíz del módulo.
+- Las suites de conformidad viven en su propio archivo con el mismo nombre (`tests/conformance_test.go`) — los archivos de prueba
+  se mantienen pequeños y modulares, nunca un solo archivo gigante.
+- Cada módulo con alcance de inquilino incluye **pruebas de aislamiento de inquilinos** (el inquilino A no puede leer/actualizar/
+  eliminar filas del inquilino B a través de ningún método de servicio u op) — en la propia suite del módulo, no
+  diferido a una lista de pendientes.
+- Las pruebas hacen aserciones sobre resultados — una prueba que llama a métodos y descuarta cada retorno
+  (`_ = m.Validate(0)`) infla la cobertura mientras no prueba nada; la cobertura obtenida de esa manera no
+  cuenta. Prefiere viajes de ida y vuelta (codificar→decodificar igualdad campo por campo) y aserciones de comportamiento.
+- Un módulo cuyas Definiciones llevan widgets de formulario incluye la prueba de regresión de widgets: `form.New(id,
+  &GeneratedArgs{})` rinde exactamente las entradas esperadas — detecta una regeneración que silenciosamente
+  pierde widgets.
+- Las verificaciones de contrato en tiempo de compilación pertenecen al lado de la implementación: `var _ router.OpModule =
   (*Module)(nil)`.
 
-## Publishing / dispatch
+## Publicación / despacho
 
-Changes to a `veltylabs/modules/*` repo go through the CodeJob workflow (see skill
-**agents-workflow**): write a self-contained `docs/PLAN.md` with frontmatter (`PLAN`/`TAG`/
-`EXECUTOR`/`REVIEWER`), the human dispatches it (`codejob`), an executor agent opens a PR, an
-optional reviewer agent judges it, and closing the loop (`codejob 'msg'` or merging the PR) calls
-`gopush` internally . A planning/authoring agent **writes** the plan; it
-never runs `codejob` or `gopush` itself — dispatch and close are the human's call.
+Los cambios a un repositorio `veltylabs/modules/*` pasan por el flujo de trabajo CodeJob (ver skill
+**agents-workflow**): escribe un `docs/PLAN.md` autocontenido con encabezado (`PLAN`/`TAG`/
+`EXECUTOR`/`REVIEWER`), el humano lo despacha (`codejob`), un agente ejecutor abre un PR, un
+agente revisor opcional lo juzga, y cerrar el ciclo (`codejob 'msg'` o fusionar el PR) llama a
+`gopush` internamente. Un agente de planificación/autoría **escribe** el plan;
+nunca ejecuta `codejob` o `gopush` él mismo — el despacho y el cierre son decisión del humano.
 
-## Documentation a module must carry
+## Documentación que debe llevar un módulo
 
-| File | Purpose |
+| Archivo | Propósito |
 |---|---|
-| `AGENTS.md` | This file, copied verbatim + a "Domain-specific notes" section below the line |
-| `docs/ARCHITECTURE.md` | Domain scope, entities, the patterns above applied to this module, Ops table, composition-root example |
-| `docs/PLAN.md` | Present while a change is in flight — self-contained (nunca borrar este archivo) |
-| `docs/diagrams/database.md` | Mermaid ERD |
-| `README.md` | Quick start, Ops table, key files |
+| `AGENTS.md` | Este archivo, copiado textualmente + una sección de "Notas específicas del dominio" debajo de la línea |
+| `docs/ARCHITECTURE.md` | Alcance del dominio, entidades, los patrones anteriores aplicados a este módulo, tabla de Ops, ejemplo de raíz de composición |
+| `docs/PLAN.md` | Presente mientras hay un cambio en curso — autocontenido (nunca borrar este archivo) |
+| `docs/diagrams/database.md` | ERD de Mermaid |
+| `README.md` | Inicio rápido, tabla de Ops, archivos clave |
 
 ---
 
-## Domain-specific notes (edit per module — nothing above this line)
+## Notas específicas del dominio (editar por módulo — nada por encima de esta línea)
 
-`appointment_booking` is the most complex module in the batch: 5 owned entities, a
-reservation-status FSM enforced in code, snapshotting, optimistic concurrency, and a
-timezone-aware availability algorithm. As of this doc-only pass (2026-07-17) its code has **not**
-yet adopted the harness — see `docs/PLAN.md` for the full migration. Facts specific to this module:
+`appointment_booking` es el módulo más complejo del lote: 5 entidades propias, una FSM de estado
+de reserva aplicada en código, instantáneas (snapshotting), concurrencia optimista y un algoritmo
+de disponibilidad consciente de la zona horaria. A partir de este pase de solo documentación (17-07-2026), su código **aún no**
+ha adoptado el arnés — ver `docs/PLAN.md` para la migración completa. Hechos específicos de este módulo:
 
-- **FSM (`fsm.go`)**: `Reservation.Status` transitions (`PENDING → CONFIRMED/CANCELLED/EXPIRED/
-  RESCHEDULED`, `CONFIRMED → CANCELLED/COMPLETED/NO_SHOW/RESCHEDULED`) are enforced entirely in code
-  via `Transition(current, event string) (string, error)` — there is no `reservation_status` DB
-  table. `RESCHEDULED` is a distinct terminal state (not `CANCELLED`) to preserve audit-trail
-  clarity. `EXPIRED` is triggered exclusively by an external scheduler calling
-  `expire_pending_reservations` — the module never runs background goroutines. `fsm.go` itself uses a
-  `map[string]map[string]string` for the transition table; this predates the harness rectification
-  and is a pre-existing, narrow violation of the "no map" stdlib-boundary rule not addressed by
-  `docs/PLAN.md` (that plan is scoped to infrastructure ports — db/transport/ids/view/events/ddl —
-  not to rewriting already-correct, already-tested business logic). Flagged here for visibility; a
-  future, separate plan may replace it with a linear-scan slice if this rule is ever enforced
-  retroactively.
-- **Snapshotting**: `Reservation` freezes `StaffIDSnapshot`, `ServiceIDSnapshot`,
-  `DurationMinSnapshot`, `PriceSnapshot`, and `CurrencySnapshot` at creation time. Downstream changes
-  to `EmployeeServiceConfig`, staff, or catalog data never retroactively alter an existing
-  reservation — this is the financial/audit source of truth for what was actually booked.
-- **Irregular column names — do not "fix" these**: the DB columns are `staff_idsnapshot` and
-  `service_idsnapshot` (no underscore between `id` and `snapshot` — a historical quirk of an older
-  snake_case converter, already live in production). `docs/PLAN.md` Stage 1 preserves these exactly
-  as `Field.Name` in the `model.Definition` migration. Renaming them to `staff_id_snapshot`/
-  `service_id_snapshot` would force a destructive column rename in every deployed database — never
-  do this as a side effect of the harness migration.
-- **Optimistic concurrency**: `Reservation.Revision` is incremented on every status update.
-  `UpdateReservationStatusTx` (and the payment-carrying branch of `ChangeReservationStatus`) enforce
-  `WHERE revision = N` before writing — a mismatch returns `ErrConflict` rather than silently
-  overwriting a concurrent change. This pattern is unrelated to the harness migration and stays as-is.
-- **3 cross-module reader interfaces this module DEFINES itself — correct pattern, stays**:
-  `StaffReader{StaffExists}`, `CatalogReader{ServiceExists}`, `DirectoryReader{ClientExists}`. This is
-  the "Cross-module wiring" pattern from the rules above, not a self-declared infrastructure port —
-  it is domain data this module needs from sibling modules (staff, item_catalog, directory), and each
-  sibling's `*Module` satisfies the interface structurally with no import back into
-  `appointment_booking`. `item_catalog.Module.ServiceExists` exists solely to satisfy this module's
-  `CatalogReader`. Only the **fourth** interface this module declares today — `EventPublisher` — is
-  the actual violation (it duplicates `events.Publisher`); see `docs/PLAN.md` Stage 2.
-- **`internal/tinytime` shim — NOT yet fixed.** As of this doc-only pass, `internal/tinytime/` still
-  exists in this repo and `go.mod` still has `replace github.com/webtyp/time => ./internal/tinytime`
-  pinned to `webtyp/time v0.4.0`. The prerequisite (`Weekday`/`MidnightUTC`/`LocalMinutesToUnixUTC`
-  in the real `github.com/webtyp/time`) has been published at `v0.5.0` (confirmed: these three
-  functions exist in the upstream package today) — removing the shim is unblocked. See `docs/PLAN.md`
-  Stage 0.
-- **`webtyp/context` (`tinyctx`) is imported today by `service.go` and every test file** — it is
-  **not** on the whitelist above (the Five Contracts list is exhaustive: "model + router + view +
-  events + orm + ddl — and nothing else from webtyp/\* in non-test code"). Its only use in this
-  module is threading an unused `ctx *tinyctx.Context` parameter through `SchedulingService` purely
-  to forward it into the self-declared `EventPublisher.Publish(ctx, ...)` call — `docs/PLAN.md`
-  Stage 2 removes both together.
+- **FSM (`fsm.go`)**: Las transiciones de `Reservation.Status` (`PENDING → CONFIRMED/CANCELLED/EXPIRED/
+  RESCHEDULED`, `CONFIRMED → CANCELLED/COMPLETED/NO_SHOW/RESCHEDULED`) se aplican enteramente en código
+  vía `Transition(current, event string) (string, error)` — no hay tabla de BD `reservation_status`.
+  `RESCHEDULED` es un estado terminal distinto (no `CANCELLED`) para preservar la claridad de la traza de auditoría.
+  `EXPIRED` es activado exclusivamente por un programador externo llamando a
+  `expire_pending_reservations` — el módulo nunca ejecuta goroutines en segundo plano. `fsm.go` en sí usa un
+  `map[string]map[string]string` para la tabla de transiciones; esto precede a la rectificación del arnés
+  y es una violación estrecha y preexistente de la regla de límite de stdlib "sin mapas" no abordada por
+  `docs/PLAN.md` (ese plan está acotado a puertos de infraestructura — db/transporte/ids/vista/eventos/ddl —
+  no a reescribir lógica de negocio ya correcta y probada). Señalado aquí para visibilidad; un
+  plan futuro e independiente puede reemplazarlo con un escaneo lineal si esta regla se aplica
+  retroactivamente.
+- **Instantáneas (Snapshotting)**: `Reservation` congela `StaffIDSnapshot`, `ServiceIDSnapshot`,
+  `DurationMinSnapshot`, `PriceSnapshot` y `CurrencySnapshot` al momento de la creación. Cambios posteriores
+  a `EmployeeServiceConfig`, personal o datos de catálogo nunca alteran retroactivamente una reserva existente
+  — esta es la fuente de verdad financiera/de auditoría de lo que realmente se reservó.
+- **Nombres de columna irregulares — no "corregir" estos**: las columnas de BD son `staff_idsnapshot` y
+  `service_idsnapshot` (sin guión bajo entre `id` y `snapshot` — una peculiaridad histórica de un convertidor de
+  snake_case antiguo, ya en vivo en producción). La Etapa 1 de `docs/PLAN.md` preserva estos exactamente
+  como `Field.Name` en la migración de `model.Definition`. Renombrarlos a `staff_id_snapshot`/
+  `service_id_snapshot` forzaría un renombrado destructivo de columna en cada base de datos desplegada — nunca
+  hagas esto como efecto secundario de la migración del arnés.
+- **Concurrencia optimista**: `Reservation.Revision` se incrementa en cada actualización de estado.
+  `UpdateReservationStatusTx` (y la rama que lleva pago de `ChangeReservationStatus`) aplican
+  `WHERE revision = N` antes de escribir — un desacuerdo devuelve `ErrConflict` en lugar de sobreescribir
+  silenciosamente un cambio concurrente. Este patrón no está relacionado con la migración del arnés y se mantiene como está.
+- **3 interfaces de lector entre módulos que este módulo DEFINE por sí mismo — patrón correcto, se mantiene**:
+  `StaffReader{StaffExists}`, `CatalogReader{ServiceExists}`, `DirectoryReader{ClientExists}`. Este es
+  el patrón "Cableado entre módulos" de las reglas anteriores, no un puerto de infraestructura autodeclarado —
+  son datos de dominio que este módulo necesita de módulos hermanos (staff, item_catalog, directory), y cada
+  `*Module` hermano satisface la interfaz estructuralmente sin importar de vuelta
+  `appointment_booking`. `item_catalog.Module.ServiceExists` existe únicamente para satisfacer el
+  `CatalogReader` de este módulo. Solo la **cuarta** interfaz que este módulo declara hoy — `EventPublisher` — es
+  la violación real (duplica `events.Publisher`); ver Etapa 2 de `docs/PLAN.md`.
+- **Shim `internal/tinytime` — AÚN NO corregido.** A partir de este pase de solo documentación, `internal/tinytime/` aún
+  existe en este repositorio y `go.mod` aún tiene `replace github.com/webtyp/time => ./internal/tinytime`
+  fijado en `webtyp/time v0.4.0`. El prerrequisito (`Weekday`/`MidnightUTC`/`LocalMinutesToUnixUTC`
+  en el `github.com/webtyp/time` real) ha sido publicado en `v0.5.0` (confirmado: estas tres
+  funciones existen en el paquete aguas arriba hoy) — eliminar el shim está desbloqueado. Ver Etapa 0 de `docs/PLAN.md`.
+- **`webtyp/context` (`tinyctx`) es importado hoy por `service.go` y cada archivo de prueba** — **no**
+  está en la lista blanca anterior (la lista de los Cinco Contratos es exhaustiva: "model + router + view +
+  events + orm + ddl — y nada más de webtyp/\* en código que no sea de prueba"). Su único uso en este
+  módulo es pasar un parámetro no utilizado `ctx *tinyctx.Context` a través de `SchedulingService` puramente
+  para reenviarlo a la llamada `EventPublisher.Publish(ctx, ...)` autodeclarada — la Etapa 2 de `docs/PLAN.md`
+  elimina ambos juntos.
