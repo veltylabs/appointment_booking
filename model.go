@@ -5,18 +5,25 @@ import (
 	"webtyp.com/model"
 )
 
+// EmployeeServiceConfigModel: que servicios realiza un profesional, durante cuanto
+// tiempo y a que precio. La política de widgets es POR ROL, la misma regla que cada
+// modelo de transporte a continuación: input.X() en cada campo que edita una persona.
+// A diferencia de Reservation, esta tabla NO lleva campos solo de auditoría para proteger de
+// convertirse en editable en un formulario — cada columna excepto id/tenant_id es legítimamente
+// orientada al usuario, por lo que los widgets van directamente en el modelo persistido; no hay
+// proyección de formulario separada.
 var EmployeeServiceConfigModel = model.Definition{
 	Name: "employee_service_config",
 	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "staff_id", Type: model.Text(), NotNull: true},
-		{Name: "service_id", Type: model.Text(), NotNull: true},
-		{Name: "duration_min", Type: model.Int()},
-		{Name: "buffer_min", Type: model.Int()},
-		{Name: "price_override", Type: model.Float()},
-		{Name: "payment_required", Type: model.Bool()},
-		{Name: "is_active", Type: model.Bool()},
+		{Name: "staff_id", Type: input.Text(), NotNull: true},
+		{Name: "service_id", Type: input.Text(), NotNull: true},
+		{Name: "duration_min", Type: input.Number()},
+		{Name: "buffer_min", Type: input.Number()},
+		{Name: "price_override", Type: input.Number()},
+		{Name: "payment_required", Type: input.Checkbox()},
+		{Name: "is_active", Type: input.Checkbox()},
 	},
 }
 
@@ -183,6 +190,34 @@ var ListReservationsByStaffArgsModel = model.Definition{
 		{Name: "staff_id", Type: input.Text()},
 		{Name: "from", Type: input.Number()},
 		{Name: "to", Type: input.Number()},
+	},
+}
+
+var CreateEmployeeServiceConfigArgsModel = model.Definition{
+	Name: "create_employee_service_config_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "service_id", Type: input.Text()},
+		{Name: "duration_min", Type: input.Number()},
+		{Name: "buffer_min", Type: input.Number()},
+		{Name: "price_override", Type: input.Number()},
+		{Name: "payment_required", Type: input.Checkbox()},
+	},
+}
+
+var GetEmployeeServiceConfigArgsModel = model.Definition{
+	Name: "get_employee_service_config_args",
+	Fields: model.Fields{
+		{Name: "id", Type: model.Text()}, // machine-supplied — never a form input
+	},
+}
+
+var ListEmployeeServiceConfigsByStaffArgsModel = model.Definition{
+	Name: "list_employee_service_configs_by_staff_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
 	},
 }
 

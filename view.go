@@ -7,9 +7,27 @@ import (
 )
 
 const (
-	titleReservations = "Reservas"
-	titleBooking      = "Reserva"
+	titleReservations          = "Reservas"
+	titleBooking               = "Reserva"
+	titleEmployeeServiceConfig = "Services"
 )
+
+// Item implements view.Itemizer.
+func (c *EmployeeServiceConfig) Item() view.Item {
+	return view.Item{ID: c.Id, Label: c.ServiceId, Description: c.StaffId}
+}
+
+// NewEmployeeServiceConfigView builds a Presenter scoped to one professional —
+// same shape as NewView(caller, tenantId, staffId) above: there is no
+// "list every service config in the tenant" op, on purpose, mirroring why
+// NewView itself is staff-scoped.
+func NewEmployeeServiceConfigView(caller router.Caller, tenantId, staffId string) view.Presenter {
+	return view.New(
+		employeeServiceConfigLister{caller: caller, tenantId: tenantId, staffId: staffId},
+		&EmployeeServiceConfig{},
+		view.WithTitle(titleEmployeeServiceConfig),
+	)
+}
 
 // Item implementa view.Itemizer — el ÚNICO código específico de view que carga este registro. El
 // Presenter indexa las filas por ID a partir de esto durante Reload; no hay lookup manual byId/WithFill.

@@ -120,13 +120,15 @@ broker.Subscribe(businesscalendar.EventCalendarChanged, func(ev events.Event) {
 })
 ```
 
-### Operaciones disponibles (19 en total)
+### Operaciones disponibles (23 en total)
 
 `create_reservation`, `get_reservation`, `list_reservations_by_staff`, `list_reservations_by_client`,
 `change_reservation_status`, `expire_pending_reservations`, `list_conflicting_reservations`,
 `recompute_conflicts`, `upsert_calendar_config`, `save_day_blocks`, `save_date_blocks`,
 `mark_working_days`, `unmark_working_days`, `list_blocks`, `get_day_bounds`, `add_calendar_exception`,
-`remove_calendar_exception`, `list_availability`, `list_exceptions`
+`remove_calendar_exception`, `list_availability`, `list_exceptions`,
+`create_employee_service_config`, `get_employee_service_config`,
+`list_employee_service_configs_by_staff`, `update_employee_service_config`
 
 > `expire_pending_reservations` es el **único disparador para el evento FSM EXPIRE**; debe ser llamado por un
 > programador externo — el módulo no tiene procesos en segundo plano internos.
@@ -151,6 +153,15 @@ cl.RemoveException(exceptionID, func(err error) { /* … */ })
 
 Una mutación de agenda publica `appointment.schedule.changed` (con el rango afectado y recuento de conflictos)
 únicamente cuando realmente puso reservas en conflicto.
+
+## NewEmployeeServiceConfigView — la cara para gestionar servicios por profesional
+
+`NewEmployeeServiceConfigView(caller router.Caller, tenantId, staffId string) view.Presenter` construye un presenter
+acotado a un profesional para listar y guardar la configuración de sus servicios (`employee_service_config`).
+
+```go
+configView := appointmentbooking.NewEmployeeServiceConfigView(caller, tenantId, staffId)
+```
 
 ## NewFormView — la cara para pantallas de reserva
 

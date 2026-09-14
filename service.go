@@ -119,6 +119,12 @@ type BoundsReader interface {
 }
 
 type SchedulingService interface {
+	// Configuración de servicio de empleado
+	CreateEmployeeServiceConfig(cfg EmployeeServiceConfig) (EmployeeServiceConfig, error)
+	GetEmployeeServiceConfig(id string) (EmployeeServiceConfig, error)
+	ListEmployeeServiceConfigByStaff(tenantId, staffId string) ([]EmployeeServiceConfig, error)
+	UpdateEmployeeServiceConfig(cfg EmployeeServiceConfig) error
+
 	// Gestión de calendario
 	UpsertCalendarConfig(cfg WorkCalendarConfig) error
 	SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error
@@ -211,6 +217,35 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 }
 
 var _ SchedulingService = (*Module)(nil)
+
+// CreateEmployeeServiceConfig registers that a professional performs a
+// service, with its own duration/price override.
+func (m *Module) CreateEmployeeServiceConfig(cfg EmployeeServiceConfig) (EmployeeServiceConfig, error) {
+	if cfg.Id == "" {
+		cfg.Id = m.ids.NewID()
+	}
+	if err := m.repo.InsertEmployeeServiceConfig(cfg); err != nil {
+		return EmployeeServiceConfig{}, err
+	}
+	return cfg, nil
+}
+
+// GetEmployeeServiceConfig reads one by id.
+func (m *Module) GetEmployeeServiceConfig(id string) (EmployeeServiceConfig, error) {
+	return m.repo.GetEmployeeServiceConfig(id)
+}
+
+// ListEmployeeServiceConfigByStaff lists every service a professional
+// performs, active or not — the editing screen needs to show and reactivate
+// a disabled one, not just the active set.
+func (m *Module) ListEmployeeServiceConfigByStaff(tenantId, staffId string) ([]EmployeeServiceConfig, error) {
+	return m.repo.ListEmployeeServiceConfigByStaff(tenantId, staffId)
+}
+
+// UpdateEmployeeServiceConfig writes the full record.
+func (m *Module) UpdateEmployeeServiceConfig(cfg EmployeeServiceConfig) error {
+	return m.repo.UpdateEmployeeServiceConfig(cfg)
+}
 
 func (m *Module) UpsertCalendarConfig(cfg WorkCalendarConfig) error {
 	return m.repo.UpsertCalendarConfig(cfg)
@@ -785,7 +820,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			StaffIdsnapshot:         empSvcCfg.StaffId,
 			ServiceIdsnapshot:       empSvcCfg.ServiceId,
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           empSvcCfg.PriceOverride,
+			PriceSnapshot:           float64(empSvcCfg.PriceOverride),
 			CurrencySnapshot:        "CLP", // default
 			ReservationDate:         targetDay,
 			ReservationTime:         cmd.SlotStartUtc,

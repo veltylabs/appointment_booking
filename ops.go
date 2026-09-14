@@ -26,6 +26,10 @@ const (
 	OpListExceptions             = "list_exceptions"
 	OpListConflictingReservations = "list_conflicting_reservations"
 	OpRecomputeConflicts         = "recompute_conflicts"
+	OpCreateEmployeeServiceConfig      = "create_employee_service_config"
+	OpGetEmployeeServiceConfig         = "get_employee_service_config"
+	OpListEmployeeServiceConfigsByStaff = "list_employee_service_configs_by_staff"
+	OpUpdateEmployeeServiceConfig      = "update_employee_service_config"
 )
 
 func (m *Module) ModelName() string { return "appointment_booking" }
@@ -53,6 +57,10 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpListExceptions, m.opListExceptions).Requires("calendar", model.Read).Accepts(&ListExceptionsArgs{})
 	reg.Operation(OpListConflictingReservations, m.opListConflictingReservations).Requires("reservation", model.Read).Accepts(&ListConflictingReservationsArgs{})
 	reg.Operation(OpRecomputeConflicts, m.opRecomputeConflicts).Requires("reservation", model.Update).Accepts(&RecomputeConflictsArgs{})
+	reg.Operation(OpCreateEmployeeServiceConfig, m.opCreateEmployeeServiceConfig).Requires("employee_service_config", model.Create).Accepts(&CreateEmployeeServiceConfigArgs{})
+	reg.Operation(OpGetEmployeeServiceConfig, m.opGetEmployeeServiceConfig).Requires("employee_service_config", model.Read).Accepts(&GetEmployeeServiceConfigArgs{})
+	reg.Operation(OpListEmployeeServiceConfigsByStaff, m.opListEmployeeServiceConfigsByStaff).Requires("employee_service_config", model.Read).Accepts(&ListEmployeeServiceConfigsByStaffArgs{})
+	reg.Operation(OpUpdateEmployeeServiceConfig, m.opUpdateEmployeeServiceConfig).Requires("employee_service_config", model.Update).Accepts(&EmployeeServiceConfig{})
 }
 
 var _ router.OperationModule = (*Module)(nil)
@@ -200,6 +208,75 @@ func (m *Module) opExpirePendingReservations(ctx router.Context) {
 		return
 	}
 	ctx.Write([]byte(fmt.Convert(count).String()))
+}
+
+func (m *Module) opCreateEmployeeServiceConfig(ctx router.Context) {
+	var args CreateEmployeeServiceConfigArgs
+	if err := ctx.Decode(&args); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	cfg, err := m.CreateEmployeeServiceConfig(EmployeeServiceConfig{
+		TenantId: args.TenantId, StaffId: args.StaffId, ServiceId: args.ServiceId,
+		DurationMin: args.DurationMin, BufferMin: args.BufferMin,
+		PriceOverride: args.PriceOverride, PaymentRequired: args.PaymentRequired, IsActive: true,
+	})
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	if err := ctx.Encode(&cfg); err != nil {
+		ctx.WriteStatus(500)
+	}
+}
+
+func (m *Module) opGetEmployeeServiceConfig(ctx router.Context) {
+	var args GetEmployeeServiceConfigArgs
+	if err := ctx.Decode(&args); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	cfg, err := m.GetEmployeeServiceConfig(args.Id)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	if err := ctx.Encode(&cfg); err != nil {
+		ctx.WriteStatus(500)
+	}
+}
+
+func (m *Module) opListEmployeeServiceConfigsByStaff(ctx router.Context) {
+	var args ListEmployeeServiceConfigsByStaffArgs
+	if err := ctx.Decode(&args); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	rows, err := m.ListEmployeeServiceConfigByStaff(args.TenantId, args.StaffId)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	list := make(EmployeeServiceConfigList, len(rows))
+	for i := range rows {
+		list[i] = &rows[i]
+	}
+	if err := ctx.Encode(&list); err != nil {
+		ctx.WriteStatus(500)
+	}
+}
+
+func (m *Module) opUpdateEmployeeServiceConfig(ctx router.Context) {
+	var cfg EmployeeServiceConfig
+	if err := ctx.Decode(&cfg); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	if err := m.UpdateEmployeeServiceConfig(cfg); err != nil {
+		writeError(ctx, err)
+		return
+	}
+	ctx.WriteStatus(200)
 }
 
 func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
