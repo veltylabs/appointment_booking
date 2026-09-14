@@ -820,7 +820,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			StaffIdsnapshot:         empSvcCfg.StaffId,
 			ServiceIdsnapshot:       empSvcCfg.ServiceId,
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           float64(empSvcCfg.PriceOverride),
+			PriceSnapshot:           empSvcCfg.PriceOverride,
 			CurrencySnapshot:        "CLP", // default
 			ReservationDate:         targetDay,
 			ReservationTime:         cmd.SlotStartUtc,
