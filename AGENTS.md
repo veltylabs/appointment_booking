@@ -230,7 +230,7 @@ never runs `codejob` or `gopush` itself — dispatch and close are the human's c
 |---|---|
 | `AGENTS.md` | This file, copied verbatim + a "Domain-specific notes" section below the line |
 | `docs/ARCHITECTURE.md` | Domain scope, entities, the patterns above applied to this module, Ops table, composition-root example |
-| `docs/PLAN.md` | Present only while a change is in flight — self-contained, deleted once merged (never left around "for reference") |
+| `docs/PLAN.md` | Present while a change is in flight — self-contained (nunca borrar este archivo) |
 | `docs/diagrams/database.md` | Mermaid ERD |
 | `README.md` | Quick start, Ops table, key files |
 
