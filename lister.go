@@ -11,29 +11,33 @@ import (
 // reservationLister adapts router.Caller + the staff-scoped list op to
 // view.Lister. view.NewCallerLister is unusable here — it sends nil args,
 // and this list is scoped to (tenantId, staffId).
+//
+// The result arrives asynchronously through done, which is always non-nil:
+// List never blocks waiting for the transport (see view.Lister's contract).
 type reservationLister struct {
 	caller   router.Caller
 	tenantId string
 	staffId  string
 }
 
-func (l reservationLister) List() ([]model.Model, error) {
+func (l reservationLister) List(done func([]model.Model, error)) {
 	out := &ReservationList{}
-	ch := make(chan error, 1)
 	l.caller.Call(
 		OpListReservationsByStaff,
 		&ListReservationsByStaffArgs{TenantId: l.tenantId, StaffId: l.staffId},
 		out,
-		func(err error) { ch <- err },
+		func(err error) {
+			if err != nil {
+				done(nil, err)
+				return
+			}
+			rows := make([]model.Model, 0, out.Len())
+			for i := 0; i < out.Len(); i++ {
+				rows = append(rows, out.At(i).(*Reservation))
+			}
+			done(rows, nil)
+		},
 	)
-	if err := <-ch; err != nil {
-		return nil, err
-	}
-	rows := make([]model.Model, 0, out.Len())
-	for i := 0; i < out.Len(); i++ {
-		rows = append(rows, out.At(i).(*Reservation))
-	}
-	return rows, nil
 }
 
 var _ view.Lister = reservationLister{}
@@ -43,12 +47,12 @@ type reservationFormStore struct {
 	cfg    FormConfig
 }
 
-func (s *reservationFormStore) List() ([]model.Model, error) {
+func (s *reservationFormStore) List(done func([]model.Model, error)) {
 	if s.cfg.StaffId == "" {
-		return nil, nil
+		done(nil, nil)
+		return
 	}
 	out := &ReservationList{}
-	ch := make(chan error, 1)
 	s.caller.Call(
 		OpListReservationsByStaff,
 		&ListReservationsByStaffArgs{
@@ -58,54 +62,73 @@ func (s *reservationFormStore) List() ([]model.Model, error) {
 			To:       s.cfg.To,
 		},
 		out,
-		func(err error) { ch <- err },
-	)
-	if err := <-ch; err != nil {
-		return nil, err
-	}
-	rows := make([]model.Model, 0, out.Len())
-	for i := 0; i < out.Len(); i++ {
-		r := out.At(i).(*Reservation)
-		clientId := r.ClientId
-		if s.cfg.LabelFor != nil {
-			if lbl := s.cfg.LabelFor(r.ClientId); lbl != "" {
-				clientId = lbl
+		func(err error) {
+			if err != nil {
+				done(nil, err)
+				return
 			}
-		}
-		rows = append(rows, &ReservationForm{
-			Id:       r.Id,
-			ClientId: clientId,
-			Day:      r.LocalStringDate,
-			Hour:     r.LocalStringTime,
-			Notes:    r.Notes,
-			Status:   r.Status,
-		})
-	}
-	return rows, nil
+			rows := make([]model.Model, 0, out.Len())
+			for i := 0; i < out.Len(); i++ {
+				r := out.At(i).(*Reservation)
+				clientId := r.ClientId
+				if s.cfg.LabelFor != nil {
+					if lbl := s.cfg.LabelFor(r.ClientId); lbl != "" {
+						clientId = lbl
+					}
+				}
+				rows = append(rows, &ReservationForm{
+					Id:       r.Id,
+					ClientId: clientId,
+					Day:      r.LocalStringDate,
+					Hour:     r.LocalStringTime,
+					Notes:    r.Notes,
+					Status:   r.Status,
+				})
+			}
+			done(rows, nil)
+		},
+	)
 }
 
-func (s *reservationFormStore) Save(recs ...model.Model) error {
+// Save crea cada reserva en orden, una llamada por registro, encadenada
+// mediante el callback del transporte — nunca bloquea (ver view.Saver). La
+// validación por registro corre justo antes de su llamada, igual que el
+// comportamiento original secuencial: un fallo en el registro i aborta el
+// resto y viaja por done.
+func (s *reservationFormStore) Save(recs []model.Model, done func(error)) {
+	if done == nil {
+		done = func(error) {}
+	}
 	if len(recs) == 0 {
-		return fmt.Err("appointment_booking: save: empty records")
+		done(fmt.Err("appointment_booking: save: empty records"))
+		return
 	}
 	if s.cfg.ServiceConfigId == "" {
-		return ErrNoServiceConfig
+		done(ErrNoServiceConfig)
+		return
 	}
-	for _, rec := range recs {
-		r, ok := rec.(*ReservationForm)
+	var create func(i int)
+	create = func(i int) {
+		if i == len(recs) {
+			done(nil)
+			return
+		}
+		r, ok := recs[i].(*ReservationForm)
 		if !ok {
-			return fmt.Err("appointment_booking: save: expected *ReservationForm")
+			done(fmt.Err("appointment_booking: save: expected *ReservationForm"))
+			return
 		}
 		d := dayToUnix(r.Day)
 		m := minutesOfDay(r.Hour)
 		if d == 0 || m < 0 {
-			return ErrIncompleteSlot
+			done(ErrIncompleteSlot)
+			return
 		}
 		slot := LocalIntToUnixUTC(d, m, s.cfg.Timezone)
 		if slot == 0 {
-			return ErrIncompleteSlot
+			done(ErrIncompleteSlot)
+			return
 		}
-		ch := make(chan error, 1)
 		s.caller.Call(
 			OpCreateReservation,
 			&CreateReservationArgs{
@@ -117,13 +140,16 @@ func (s *reservationFormStore) Save(recs ...model.Model) error {
 				Notes:                   r.Notes,
 			},
 			&Reservation{},
-			func(err error) { ch <- err },
+			func(err error) {
+				if err != nil {
+					done(err)
+					return
+				}
+				create(i + 1)
+			},
 		)
-		if err := <-ch; err != nil {
-			return err
-		}
 	}
-	return nil
+	create(0)
 }
 
 var (
@@ -137,30 +163,42 @@ type employeeServiceConfigLister struct {
 	staffId  string
 }
 
-func (l employeeServiceConfigLister) List() ([]model.Model, error) {
+func (l employeeServiceConfigLister) List(done func([]model.Model, error)) {
 	out := &EmployeeServiceConfigList{}
-	ch := make(chan error, 1)
 	l.caller.Call(
 		OpListEmployeeServiceConfigsByStaff,
 		&ListEmployeeServiceConfigsByStaffArgs{TenantId: l.tenantId, StaffId: l.staffId},
 		out,
-		func(err error) { ch <- err },
+		func(err error) {
+			if err != nil {
+				done(nil, err)
+				return
+			}
+			rows := make([]model.Model, 0, out.Len())
+			for i := 0; i < out.Len(); i++ {
+				rows = append(rows, out.At(i).(*EmployeeServiceConfig))
+			}
+			done(rows, nil)
+		},
 	)
-	if err := <-ch; err != nil {
-		return nil, err
-	}
-	rows := make([]model.Model, 0, out.Len())
-	for i := 0; i < out.Len(); i++ {
-		rows = append(rows, out.At(i).(*EmployeeServiceConfig))
-	}
-	return rows, nil
 }
 
-func (l employeeServiceConfigLister) Save(recs ...model.Model) error {
-	for _, rec := range recs {
-		cfg, ok := rec.(*EmployeeServiceConfig)
+// Save crea o actualiza cada configuración en orden, encadenada mediante el
+// callback del transporte — nunca bloquea (ver view.Saver).
+func (l employeeServiceConfigLister) Save(recs []model.Model, done func(error)) {
+	if done == nil {
+		done = func(error) {}
+	}
+	var saveNext func(i int)
+	saveNext = func(i int) {
+		if i == len(recs) {
+			done(nil)
+			return
+		}
+		cfg, ok := recs[i].(*EmployeeServiceConfig)
 		if !ok {
-			return fmt.Err("appointment_booking: save: expected *EmployeeServiceConfig")
+			done(fmt.Err("appointment_booking: save: expected *EmployeeServiceConfig"))
+			return
 		}
 		cfg.TenantId = l.tenantId
 		cfg.StaffId = l.staffId
@@ -168,13 +206,15 @@ func (l employeeServiceConfigLister) Save(recs ...model.Model) error {
 		if cfg.Id != "" {
 			op = OpUpdateEmployeeServiceConfig
 		}
-		ch := make(chan error, 1)
-		l.caller.Call(op, cfg, nil, func(err error) { ch <- err })
-		if err := <-ch; err != nil {
-			return err
-		}
+		l.caller.Call(op, cfg, nil, func(err error) {
+			if err != nil {
+				done(err)
+				return
+			}
+			saveNext(i + 1)
+		})
 	}
-	return nil
+	saveNext(0)
 }
 
 var (

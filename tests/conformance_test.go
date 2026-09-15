@@ -43,9 +43,10 @@ func TestViewConformance(t *testing.T) {
 	}
 
 	// 2. Reload / list projection test
-	err := pres.Reload()
-	if err != nil {
-		t.Fatalf("Reload failed: %v", err)
+	var rerr error
+	pres.Reload(func(err error) { rerr = err })
+	if rerr != nil {
+		t.Fatalf("Reload failed: %v", rerr)
 	}
 
 	items := pres.Items()

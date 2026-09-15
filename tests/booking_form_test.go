@@ -123,8 +123,10 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 	}
 
 	pv := ab.NewFormView(caller, formCfg)
-	if err := pv.Reload(); err != nil {
-		t.Fatalf("Reload failed: %v", err)
+	var rerr error
+	pv.Reload(func(err error) { rerr = err })
+	if rerr != nil {
+		t.Fatalf("Reload failed: %v", rerr)
 	}
 
 	items := pv.Items()
@@ -158,8 +160,10 @@ func TestFormView_ListEmptyWithoutStaff(t *testing.T) {
 	}
 
 	pv := ab.NewFormView(caller, formCfg)
-	if err := pv.Reload(); err != nil {
-		t.Fatalf("Reload failed: %v", err)
+	var rerr error
+	pv.Reload(func(err error) { rerr = err })
+	if rerr != nil {
+		t.Fatalf("Reload failed: %v", rerr)
 	}
 
 	items := pv.Items()
@@ -195,14 +199,17 @@ func TestFormView_SaveCreatesReservation(t *testing.T) {
 		Notes:    "Test save",
 	}
 
-	err := saver.Save(rec)
-	if err != nil {
-		t.Fatalf("Save failed: %v", err)
+	var serr error
+	saver.Save([]model.Model{rec}, func(err error) { serr = err })
+	if serr != nil {
+		t.Fatalf("Save failed: %v", serr)
 	}
 
 	// Verify creation by listing
-	if err := pv.Reload(); err != nil {
-		t.Fatalf("Reload failed: %v", err)
+	var rerr error
+	pv.Reload(func(err error) { rerr = err })
+	if rerr != nil {
+		t.Fatalf("Reload failed: %v", rerr)
 	}
 	items := pv.Items()
 	if len(items) != 1 {
@@ -230,9 +237,10 @@ func TestFormView_SaveWithoutServiceConfig(t *testing.T) {
 		Hour:     "09:00",
 	}
 
-	err := saver.Save(rec)
-	if !errors.Is(err, ab.ErrNoServiceConfig) && err != ab.ErrNoServiceConfig {
-		t.Fatalf("expected ErrNoServiceConfig, got %v", err)
+	var serr error
+	saver.Save([]model.Model{rec}, func(err error) { serr = err })
+	if !errors.Is(serr, ab.ErrNoServiceConfig) && serr != ab.ErrNoServiceConfig {
+		t.Fatalf("expected ErrNoServiceConfig, got %v", serr)
 	}
 }
 
@@ -256,9 +264,10 @@ func TestFormView_SaveWithoutHour(t *testing.T) {
 		Hour:     "", // missing hour
 	}
 
-	err := saver.Save(rec)
-	if !errors.Is(err, ab.ErrIncompleteSlot) && err != ab.ErrIncompleteSlot {
-		t.Fatalf("expected ErrIncompleteSlot, got %v", err)
+	var serr error
+	saver.Save([]model.Model{rec}, func(err error) { serr = err })
+	if !errors.Is(serr, ab.ErrIncompleteSlot) && serr != ab.ErrIncompleteSlot {
+		t.Fatalf("expected ErrIncompleteSlot, got %v", serr)
 	}
 }
 
