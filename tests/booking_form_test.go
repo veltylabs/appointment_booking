@@ -7,6 +7,7 @@ import (
 	"webtyp.com/json"
 	"webtyp.com/model"
 	"webtyp.com/orm"
+	"webtyp.com/router"
 	"webtyp.com/router/mock"
 	"webtyp.com/storage/mem"
 	tinytime "webtyp.com/time"
@@ -14,6 +15,20 @@ import (
 
 	ab "github.com/veltylabs/appointment_booking"
 )
+
+// qualifyingRegistry wraps a router.OperationRegistry and prefixes every
+// registered name with ab.ModelName — the same transformation
+// mcp.HarvestOps/loopback.New apply in production. ab's own caller.Call
+// sites (lister.go, schedule_client.go, view.go) always send the qualified
+// name via qualifiedOp, so a mock.Router this test mounts directly must
+// register the SAME qualified path, or the two sides never match.
+type qualifyingRegistry struct {
+	router.OperationRegistry
+}
+
+func (q qualifyingRegistry) Operation(name string, h router.HandlerFunc) router.Route {
+	return q.OperationRegistry.Operation(ab.ModelName+"."+name, h)
+}
 
 type loopbackCaller struct {
 	reg *mock.Router
@@ -58,7 +73,7 @@ func setupBookingFormTestEnv(t *testing.T) (*mock.Router, *ab.EmployeeServiceCon
 	reg.Configure(mock.Config{
 		Authorize: func(userID string, r model.Resource, a model.Action) bool { return true },
 	})
-	m.MountOperations(reg)
+	m.MountOperations(qualifyingRegistry{reg})
 
 	cfg := ab.EmployeeServiceConfig{
 		Id:          "esc1",
@@ -107,7 +122,7 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 		Notes:                   "First booking",
 	}
 	var res ab.Reservation
-	caller.Call(ab.OpCreateReservation, &createRes, &res, func(err error) {
+	caller.Call(ab.ModelName+"."+ab.OpCreateReservation, &createRes, &res, func(err error) {
 		if err != nil {
 			t.Fatalf("OpCreateReservation failed: %v", err)
 		}

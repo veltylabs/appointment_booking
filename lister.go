@@ -23,7 +23,7 @@ type reservationLister struct {
 func (l reservationLister) List(done func([]model.Model, error)) {
 	out := &ReservationList{}
 	l.caller.Call(
-		OpListReservationsByStaff,
+		qualifiedOp(OpListReservationsByStaff),
 		&ListReservationsByStaffArgs{TenantId: l.tenantId, StaffId: l.staffId},
 		out,
 		func(err error) {
@@ -54,7 +54,7 @@ func (s *reservationFormStore) List(done func([]model.Model, error)) {
 	}
 	out := &ReservationList{}
 	s.caller.Call(
-		OpListReservationsByStaff,
+		qualifiedOp(OpListReservationsByStaff),
 		&ListReservationsByStaffArgs{
 			TenantId: s.cfg.TenantId,
 			StaffId:  s.cfg.StaffId,
@@ -130,7 +130,7 @@ func (s *reservationFormStore) Save(recs []model.Model, done func(error)) {
 			return
 		}
 		s.caller.Call(
-			OpCreateReservation,
+			qualifiedOp(OpCreateReservation),
 			&CreateReservationArgs{
 				TenantId:                s.cfg.TenantId,
 				ClientId:                r.ClientId,
@@ -166,7 +166,7 @@ type employeeServiceConfigLister struct {
 func (l employeeServiceConfigLister) List(done func([]model.Model, error)) {
 	out := &EmployeeServiceConfigList{}
 	l.caller.Call(
-		OpListEmployeeServiceConfigsByStaff,
+		qualifiedOp(OpListEmployeeServiceConfigsByStaff),
 		&ListEmployeeServiceConfigsByStaffArgs{TenantId: l.tenantId, StaffId: l.staffId},
 		out,
 		func(err error) {
@@ -206,7 +206,7 @@ func (l employeeServiceConfigLister) Save(recs []model.Model, done func(error)) 
 		if cfg.Id != "" {
 			op = OpUpdateEmployeeServiceConfig
 		}
-		l.caller.Call(op, cfg, nil, func(err error) {
+		l.caller.Call(qualifiedOp(op), cfg, nil, func(err error) {
 			if err != nil {
 				done(err)
 				return

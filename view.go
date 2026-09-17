@@ -121,7 +121,7 @@ func FreeSlots(caller router.Caller, cfg FormConfig, day string) ([]string, erro
 	out := &TimeSlotList{}
 	ch := make(chan error, 1)
 	caller.Call(
-		OpListAvailability,
+		qualifiedOp(OpListAvailability),
 		&ListAvailabilityArgs{
 			TenantId: cfg.TenantId,
 			StaffId:  cfg.StaffId,

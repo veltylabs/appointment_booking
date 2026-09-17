@@ -32,7 +32,29 @@ const (
 	OpUpdateEmployeeServiceConfig      = "update_employee_service_config"
 )
 
-func (m *Module) ModelName() string { return "appointment_booking" }
+// ModelName is this module's identity: mcp.HarvestOps qualifies every op
+// above as "appointment_booking.<name>" on the wire — the qualification
+// that makes this module's own "get_day_bounds" distinct from
+// business_calendar's op of the same bare name (the collision this whole
+// mechanism exists to make unrepresentable).
+//
+// Unlike the other modules in this ecosystem, this package builds its own
+// Lister/Saver implementations directly (lister.go, schedule_client.go,
+// view.go) instead of going through view.NewCallerLister — so it cannot
+// lean on view.Ops.Module to compose the qualified name automatically.
+// qualifiedOp (below) is the single place that composition happens instead;
+// every caller.Call site in this package goes through it.
+const ModelName = "appointment_booking"
+
+func (m *Module) ModelName() string { return ModelName }
+
+// qualifiedOp composes the wire name mcp.HarvestOps produces for one of this
+// module's own ops (see ModelName's doc above). Every caller.Call site in
+// this package calls this instead of passing an Op* constant directly, so
+// none hand-writes "appointment_booking." as a literal.
+func qualifiedOp(name string) string {
+	return ModelName + "." + name
+}
 
 func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpCreateReservation, m.opCreateReservation).Requires("reservation", model.Create).Accepts(&CreateReservationArgs{})

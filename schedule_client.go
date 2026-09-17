@@ -22,7 +22,7 @@ func NewScheduleClient(caller router.Caller, tenantId, staffId string) *Schedule
 func (c *ScheduleClient) Blocks(done func([]WorkCalendarBlock, error)) {
 	out := &WorkCalendarBlockList{}
 	c.caller.Call(
-		OpListBlocks,
+		qualifiedOp(OpListBlocks),
 		&ListBlocksArgs{TenantId: c.tenantId, StaffId: c.staffId},
 		out,
 		func(err error) {
@@ -43,7 +43,7 @@ func (c *ScheduleClient) Blocks(done func([]WorkCalendarBlock, error)) {
 func (c *ScheduleClient) Exceptions(from, to int64, done func([]WorkCalendarException, error)) {
 	out := &WorkCalendarExceptionList{}
 	c.caller.Call(
-		OpListExceptions,
+		qualifiedOp(OpListExceptions),
 		&ListExceptionsArgs{TenantId: c.tenantId, StaffId: c.staffId, From: from, To: to},
 		out,
 		func(err error) {
@@ -63,7 +63,7 @@ func (c *ScheduleClient) Exceptions(from, to int64, done func([]WorkCalendarExce
 // SaveDayBlocks pisa todos los bloques semanales del weekday dado.
 func (c *ScheduleClient) SaveDayBlocks(dayOfWeek int, blocks []WorkCalendarBlock, done func(error)) {
 	c.caller.Call(
-		OpSaveDayBlocks,
+		qualifiedOp(OpSaveDayBlocks),
 		&SaveDayBlocksArgs{
 			TenantId:  c.tenantId,
 			StaffId:   c.staffId,
@@ -78,7 +78,7 @@ func (c *ScheduleClient) SaveDayBlocks(dayOfWeek int, blocks []WorkCalendarBlock
 // AddException da de alta una excepción de calendario.
 func (c *ScheduleClient) AddException(exc WorkCalendarException, done func(error)) {
 	c.caller.Call(
-		OpAddCalendarException,
+		qualifiedOp(OpAddCalendarException),
 		&AddCalendarExceptionArgs{
 			TenantId:      c.tenantId,
 			StaffId:       c.staffId,
@@ -96,7 +96,7 @@ func (c *ScheduleClient) AddException(exc WorkCalendarException, done func(error
 // RemoveException da de baja una excepción por id.
 func (c *ScheduleClient) RemoveException(exceptionId string, done func(error)) {
 	c.caller.Call(
-		OpRemoveCalendarException,
+		qualifiedOp(OpRemoveCalendarException),
 		&RemoveCalendarExceptionArgs{TenantId: c.tenantId, ExceptionId: exceptionId},
 		nil,
 		done,

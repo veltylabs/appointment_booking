@@ -50,7 +50,7 @@ func TestListBlocksOp_ReturnsRows(t *testing.T) {
 	caller := loopback.New(m)
 	out := &ab.WorkCalendarBlockList{}
 	var got error
-	caller.Call(ab.OpListBlocks, &ab.ListBlocksArgs{TenantId: "t1", StaffId: "s1"}, out, func(err error) { got = err })
+	caller.Call(ab.ModelName+"."+ab.OpListBlocks, &ab.ListBlocksArgs{TenantId: "t1", StaffId: "s1"}, out, func(err error) { got = err })
 	if got != nil {
 		t.Fatalf("Call: %v", got)
 	}
@@ -65,7 +65,7 @@ func TestGetDayBoundsOp_NilBoundsMeansUnbounded(t *testing.T) {
 	caller := loopback.New(m)
 	out := &ab.DayBoundsResult{}
 	var got error
-	caller.Call(ab.OpGetDayBounds, &ab.GetDayBoundsArgs{TenantId: "t1", Date: 1767139200}, out, func(err error) { got = err })
+	caller.Call(ab.ModelName+"."+ab.OpGetDayBounds, &ab.GetDayBoundsArgs{TenantId: "t1", Date: 1767139200}, out, func(err error) { got = err })
 	if got != nil {
 		t.Fatalf("Call: %v", got)
 	}
@@ -92,7 +92,7 @@ func TestListExceptionsOp_RangeFilter(t *testing.T) {
 	caller := loopback.New(m)
 	out := &ab.WorkCalendarExceptionList{}
 	var got error
-	caller.Call(ab.OpListExceptions, &ab.ListExceptionsArgs{TenantId: "t1", StaffId: "s1", From: from, To: to}, out, func(err error) { got = err })
+	caller.Call(ab.ModelName+"."+ab.OpListExceptions, &ab.ListExceptionsArgs{TenantId: "t1", StaffId: "s1", From: from, To: to}, out, func(err error) { got = err })
 	if got != nil {
 		t.Fatalf("Call: %v", got)
 	}
