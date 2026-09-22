@@ -2,8 +2,9 @@
 PLAN: "fix!: FreeSlots blocks on a channel, deadlocking wasm when called from an async callback — make it callback-shaped"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 2874502215171401177
+PR: https://github.com/veltylabs/appointment_booking/pull/14
 ---
 
 > This plan is dispatched via the CodeJob workflow. See skill: agents-workflow.
