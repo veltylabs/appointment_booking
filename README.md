@@ -185,8 +185,8 @@ formView := appointmentbooking.NewFormView(caller, appointmentbooking.FormConfig
 })
 ```
 
-`FreeSlots(caller, cfg, day)` devuelve los horarios reservables para una fecha (p. ej. `"2026-09-08"`) como
-cadenas `"HH:MM"` en la zona horaria configurada.
+`FreeSlots(caller, cfg, day, done)` devuelve los horarios reservables para una fecha (p. ej. `"2026-09-08"`) como
+cadenas `"HH:MM"` en la zona horaria configurada invocando el callback `done(slots, err)`.
 
 ## Interfaz de Servicio (SchedulingService)
 

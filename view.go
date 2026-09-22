@@ -107,19 +107,22 @@ func NewFormView(caller router.Caller, cfg FormConfig) view.Presenter {
 // FreeSlots devuelve los huecos reservables de un día como cadenas "HH:MM" en
 // cfg.Timezone, listos para que un widget de lista los renderice como filas vacías.
 //
-// day es "YYYY-MM-DD". Devuelve nil (sin error) cuando el alcance está incompleto —
+// day es "YYYY-MM-DD". done recibe (nil, nil) cuando el alcance está incompleto —
 // sin staff o sin configuración de servicio significa que no hay nada que calcular, no un
-// fallo.
-func FreeSlots(caller router.Caller, cfg FormConfig, day string) ([]string, error) {
+// fallo. done siempre se invoca exactamente una vez, nunca de forma síncrona antes de que
+// FreeSlots retorne cuando hay una llamada de red real en curso — igual que
+// router.Caller.Call.
+func FreeSlots(caller router.Caller, cfg FormConfig, day string, done func([]string, error)) {
 	if cfg.StaffId == "" || cfg.ServiceConfigId == "" {
-		return nil, nil
+		done(nil, nil)
+		return
 	}
 	daySec := dayToUnix(day)
 	if daySec == 0 {
-		return nil, nil
+		done(nil, nil)
+		return
 	}
 	out := &TimeSlotList{}
-	ch := make(chan error, 1)
 	caller.Call(
 		qualifiedOp(OpListAvailability),
 		&ListAvailabilityArgs{
@@ -130,19 +133,21 @@ func FreeSlots(caller router.Caller, cfg FormConfig, day string) ([]string, erro
 			To:       daySec,
 		},
 		out,
-		func(err error) { ch <- err },
+		func(err error) {
+			if err != nil {
+				done(nil, err)
+				return
+			}
+			slots := make([]string, 0, out.Len())
+			for i := 0; i < out.Len(); i++ {
+				ts := out.At(i).(*TimeSlot)
+				tStr := tinytime.FormatTime(ts.StartUtc * 1000000000)
+				if len(tStr) >= 5 {
+					tStr = tStr[:5]
+				}
+				slots = append(slots, tStr)
+			}
+			done(slots, nil)
+		},
 	)
-	if err := <-ch; err != nil {
-		return nil, err
-	}
-	slots := make([]string, 0, out.Len())
-	for i := 0; i < out.Len(); i++ {
-		ts := out.At(i).(*TimeSlot)
-		tStr := tinytime.FormatTime(ts.StartUtc * 1000000000)
-		if len(tStr) >= 5 {
-			tStr = tStr[:5]
-		}
-		slots = append(slots, tStr)
-	}
-	return slots, nil
 }
