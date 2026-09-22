@@ -2,6 +2,8 @@ package tests
 
 import (
 	"errors"
+	"os"
+	"strings"
 	"testing"
 
 	"webtyp.com/json"
@@ -328,6 +330,30 @@ func TestDayToUnix_RoundTripsAtNegativeOffset(t *testing.T) {
 	}
 }
 
+// TestFreeSlots_EmptyWithoutServiceConfig also reproduces a real production
+// bug — a hard deadlock — found in mjosefa-cms's booking screen:
+// FreeSlots used to be `(caller, cfg, day) ([]string, error)`, blocking
+// internally on `ch := make(chan error, 1); caller.Call(...); <-ch`. Under
+// GOOS=js/wasm there is no OS thread to park on that channel: when FreeSlots
+// is called from an ALREADY-async callback (exactly what bookingview.go's
+// crudview.Config.OnAfterReload is — it runs inside the callback chain
+// Presenter.Reload → callerLister.list → caller.Call), the callback that
+// would fill ch can never run until the current stack unwinds, and the
+// current stack cannot unwind because it is blocked on <-ch. The Go/wasm
+// runtime detects zero runnable goroutines and calls runtime.wasmExit(0)
+// SILENTLY — no panic text reaches the page, the app just dies. Confirmed
+// reproducible with a real Postgres row: any professional with >=1 service
+// configured hits this the moment "Reserva Hora" loads.
+//
+// The fix (see docs/PLAN.md) is not "defer to a microtask + goroutine" (that
+// approach was tried in webtyp/dom and rejected — it introduces real
+// goroutine concurrency into a reconciler that is single-threaded by
+// construction). The fix is simpler and matches every OTHER transport call
+// in this exact codebase (router.Caller.Call, reservationLister.List,
+// reservationFormStore.List): FreeSlots becomes callback-shaped, with NO
+// channel anywhere in it. This test drives the new callback signature; see
+// TestFreeSlots_NeverBlocksOnAChannel below for the structural guarantee
+// that the blocking shape cannot silently come back.
 func TestFreeSlots_EmptyWithoutServiceConfig(t *testing.T) {
 	reg, _ := setupBookingFormTestEnv(t)
 	caller := loopbackCaller{reg: reg}
@@ -339,11 +365,42 @@ func TestFreeSlots_EmptyWithoutServiceConfig(t *testing.T) {
 		Timezone:        "UTC",
 	}
 
-	slots, err := ab.FreeSlots(caller, formCfg, "2025-01-06")
-	if err != nil {
-		t.Fatalf("FreeSlots unexpected error: %v", err)
+	done := make(chan struct{})
+	var gotSlots []string
+	var gotErr error
+	ab.FreeSlots(caller, formCfg, "2025-01-06", func(slots []string, err error) {
+		gotSlots, gotErr = slots, err
+		close(done)
+	})
+	<-done // safe here: loopbackCaller.Call invokes its callback synchronously,
+	// before Call returns — this test asserts FreeSlots' own shape, not wasm
+	// scheduling (that risk is what the structural test below closes instead).
+
+	if gotErr != nil {
+		t.Fatalf("FreeSlots unexpected error: %v", gotErr)
 	}
-	if slots != nil {
-		t.Fatalf("expected nil slots, got %v", slots)
+	if gotSlots != nil {
+		t.Fatalf("expected nil slots, got %v", gotSlots)
+	}
+}
+
+// TestFreeSlots_NeverBlocksOnAChannel is the structural regression guard for
+// the deadlock class this bug belongs to: no exported function in this
+// package may hide a blocking channel wait behind a synchronous-looking
+// return. A behavioral test cannot prove a NEGATIVE about wasm scheduling
+// from a stdlib test binary (loopbackCaller's synchronous callback would
+// mask the exact hazard either way — see the comment above), so this
+// asserts the invariant directly against the source: view.go must never
+// contain `make(chan`.
+func TestFreeSlots_NeverBlocksOnAChannel(t *testing.T) {
+	src, err := os.ReadFile("../view.go")
+	if err != nil {
+		t.Fatalf("reading view.go: %v", err)
+	}
+	if strings.Contains(string(src), "make(chan") {
+		t.Fatal("view.go contains a blocking channel (\"make(chan\") — this is exactly the " +
+			"deadlock shape TestFreeSlots_EmptyWithoutServiceConfig's doc comment explains. " +
+			"Every transport call in this package must be callback-shaped (done func(...)), " +
+			"never wrapped in a channel to fake a synchronous return.")
 	}
 }
