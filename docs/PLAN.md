@@ -2,6 +2,8 @@
 PLAN: "feat: Reservation.Origin — quién confirma una reserva, y que el funcionario lo vea"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 15920676984437781603
 ---
 
 > This plan is dispatched via the CodeJob workflow. See skill: agents-workflow.
