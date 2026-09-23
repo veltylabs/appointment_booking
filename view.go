@@ -1,6 +1,7 @@
 package appointmentbooking
 
 import (
+	"webtyp.com/fmt/lang"
 	"webtyp.com/router"
 	tinytime "webtyp.com/time"
 	"webtyp.com/view"
@@ -29,13 +30,44 @@ func NewEmployeeServiceConfigView(caller router.Caller, tenantId, staffId string
 	)
 }
 
+func reservationStanding(status, origin string) string {
+	if status == StatusPending {
+		switch origin {
+		case OriginCounter:
+			return lang.Translate("Pending confirmation").String()
+		case OriginOnline:
+			return lang.Translate("Awaiting patient").String()
+		}
+	}
+	switch status {
+	case StatusPending:
+		return lang.Translate("Pending").String()
+	case StatusConfirmed:
+		return lang.Translate("Confirmed").String()
+	case StatusCancelled:
+		return lang.Translate("Cancelled").String()
+	case StatusCompleted:
+		return lang.Translate("Completed").String()
+	case StatusNoShow:
+		return lang.Translate("No show").String()
+	case StatusExpired:
+		return lang.Translate("Expired").String()
+	case StatusRescheduled:
+		return lang.Translate("Rescheduled").String()
+	case StatusConflicted:
+		return lang.Translate("Conflicted").String()
+	default:
+		return lang.Translate(status).String()
+	}
+}
+
 // Item implementa view.Itemizer — el ÚNICO código específico de view que carga este registro. El
 // Presenter indexa las filas por ID a partir de esto durante Reload; no hay lookup manual byId/WithFill.
 func (r *Reservation) Item() view.Item {
 	return view.Item{
 		ID:          r.Id,
 		Label:       r.LocalStringDate + " " + r.LocalStringTime,
-		Description: r.Status,
+		Description: reservationStanding(r.Status, r.Origin),
 	}
 }
 
@@ -47,7 +79,7 @@ func (r *ReservationForm) Item() view.Item {
 		ID:          r.Id,
 		LeadMain:    r.Hour,
 		Label:       r.ClientId,
-		Description: r.Status,
+		Description: reservationStanding(r.Status, r.Origin),
 	}
 }
 

@@ -377,6 +377,7 @@ type Reservation struct {
 	LocalStringDate string
 	LocalStringTime string
 	Status string
+	Origin string
 	RescheduledFromId string
 	StatusBeforeConflict string
 	PaymentId string
@@ -390,7 +391,7 @@ func (m *Reservation) ModelName() string { return "reservation" }
 
 func (m *Reservation) Schema() []model.Field { return ReservationModel.Fields }
 
-func (m *Reservation) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.ClientId, &m.CreatorUserId, &m.EmployeeServiceConfigId, &m.StaffIdsnapshot, &m.ServiceIdsnapshot, &m.DurationMinSnapshot, &m.PriceSnapshot, &m.CurrencySnapshot, &m.ReservationDate, &m.ReservationTime, &m.LocalStringDate, &m.LocalStringTime, &m.Status, &m.RescheduledFromId, &m.StatusBeforeConflict, &m.PaymentId, &m.Notes, &m.UpdatedAt, &m.UpdatedBy, &m.Revision} }
+func (m *Reservation) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.ClientId, &m.CreatorUserId, &m.EmployeeServiceConfigId, &m.StaffIdsnapshot, &m.ServiceIdsnapshot, &m.DurationMinSnapshot, &m.PriceSnapshot, &m.CurrencySnapshot, &m.ReservationDate, &m.ReservationTime, &m.LocalStringDate, &m.LocalStringTime, &m.Status, &m.Origin, &m.RescheduledFromId, &m.StatusBeforeConflict, &m.PaymentId, &m.Notes, &m.UpdatedAt, &m.UpdatedBy, &m.Revision} }
 
 func (m *Reservation) IsNil() bool { return m == nil }
 
@@ -410,6 +411,7 @@ func (m *Reservation) EncodeFields(w model.FieldWriter) {
 	w.String("local_string_date", m.LocalStringDate)
 	w.String("local_string_time", m.LocalStringTime)
 	w.String("status", m.Status)
+	w.String("origin", m.Origin)
 	w.String("rescheduled_from_id", m.RescheduledFromId)
 	w.String("status_before_conflict", m.StatusBeforeConflict)
 	w.String("payment_id", m.PaymentId)
@@ -435,6 +437,7 @@ func (m *Reservation) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("local_string_date"); ok { m.LocalStringDate = v }
 	if v, ok := r.String("local_string_time"); ok { m.LocalStringTime = v }
 	if v, ok := r.String("status"); ok { m.Status = v }
+	if v, ok := r.String("origin"); ok { m.Origin = v }
 	if v, ok := r.String("rescheduled_from_id"); ok { m.RescheduledFromId = v }
 	if v, ok := r.String("status_before_conflict"); ok { m.StatusBeforeConflict = v }
 	if v, ok := r.String("payment_id"); ok { m.PaymentId = v }
@@ -473,6 +476,7 @@ var Reservation_ = struct {
 	LocalStringDate string
 	LocalStringTime string
 	Status string
+	Origin string
 	RescheduledFromId string
 	StatusBeforeConflict string
 	PaymentId string
@@ -496,6 +500,7 @@ var Reservation_ = struct {
 	LocalStringDate: "local_string_date",
 	LocalStringTime: "local_string_time",
 	Status: "status",
+	Origin: "origin",
 	RescheduledFromId: "rescheduled_from_id",
 	StatusBeforeConflict: "status_before_conflict",
 	PaymentId: "payment_id",
@@ -529,13 +534,14 @@ type ReservationForm struct {
 	Hour string
 	Notes string
 	Status string
+	Origin string
 }
 
 func (m *ReservationForm) ModelName() string { return "reservation_form" }
 
 func (m *ReservationForm) Schema() []model.Field { return ReservationFormModel.Fields }
 
-func (m *ReservationForm) Pointers() []any { return []any{&m.Id, &m.ClientId, &m.Day, &m.Hour, &m.Notes, &m.Status} }
+func (m *ReservationForm) Pointers() []any { return []any{&m.Id, &m.ClientId, &m.Day, &m.Hour, &m.Notes, &m.Status, &m.Origin} }
 
 func (m *ReservationForm) IsNil() bool { return m == nil }
 
@@ -546,6 +552,7 @@ func (m *ReservationForm) EncodeFields(w model.FieldWriter) {
 	w.String("hour", m.Hour)
 	w.String("notes", m.Notes)
 	w.String("status", m.Status)
+	w.String("origin", m.Origin)
 }
 
 func (m *ReservationForm) DecodeFields(r model.FieldReader) {
@@ -555,6 +562,7 @@ func (m *ReservationForm) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("hour"); ok { m.Hour = v }
 	if v, ok := r.String("notes"); ok { m.Notes = v }
 	if v, ok := r.String("status"); ok { m.Status = v }
+	if v, ok := r.String("origin"); ok { m.Origin = v }
 }
 
 type ReservationFormList []*ReservationForm
@@ -577,6 +585,7 @@ var ReservationForm_ = struct {
 	Hour string
 	Notes string
 	Status string
+	Origin string
 }{
 	Id: "id",
 	ClientId: "client_id",
@@ -584,6 +593,7 @@ var ReservationForm_ = struct {
 	Hour: "hour",
 	Notes: "notes",
 	Status: "status",
+	Origin: "origin",
 }
 
 func ReadOneReservationForm(qb *orm.QB, model *ReservationForm) (*ReservationForm, error) {
@@ -647,13 +657,14 @@ type CreateReservationArgs struct {
 	SlotStartUtc int64
 	Notes string
 	RescheduledFromId string
+	Origin string
 }
 
 func (m *CreateReservationArgs) ModelName() string { return "create_reservation_args" }
 
 func (m *CreateReservationArgs) Schema() []model.Field { return CreateReservationArgsModel.Fields }
 
-func (m *CreateReservationArgs) Pointers() []any { return []any{&m.TenantId, &m.ClientId, &m.CreatorUserId, &m.EmployeeServiceConfigId, &m.SlotStartUtc, &m.Notes, &m.RescheduledFromId} }
+func (m *CreateReservationArgs) Pointers() []any { return []any{&m.TenantId, &m.ClientId, &m.CreatorUserId, &m.EmployeeServiceConfigId, &m.SlotStartUtc, &m.Notes, &m.RescheduledFromId, &m.Origin} }
 
 func (m *CreateReservationArgs) IsNil() bool { return m == nil }
 
@@ -665,6 +676,7 @@ func (m *CreateReservationArgs) EncodeFields(w model.FieldWriter) {
 	w.Int("slot_start_utc", m.SlotStartUtc)
 	w.String("notes", m.Notes)
 	w.String("rescheduled_from_id", m.RescheduledFromId)
+	w.String("origin", m.Origin)
 }
 
 func (m *CreateReservationArgs) DecodeFields(r model.FieldReader) {
@@ -675,6 +687,7 @@ func (m *CreateReservationArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.Int("slot_start_utc"); ok { m.SlotStartUtc = v }
 	if v, ok := r.String("notes"); ok { m.Notes = v }
 	if v, ok := r.String("rescheduled_from_id"); ok { m.RescheduledFromId = v }
+	if v, ok := r.String("origin"); ok { m.Origin = v }
 }
 
 type CreateReservationArgsList []*CreateReservationArgs

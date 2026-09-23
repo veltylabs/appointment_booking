@@ -44,6 +44,20 @@ El estado de la reserva se controla mediante una FSM en código — sin tabla `r
 - **La publicación de eventos es de tipo "dispara y olvida" (fire-and-forget)** a través del `events.Publisher` inyectado (`Deps.Publisher`). Un publisher `nil` es seguro.
 - **Sin importaciones entre módulos.** Las dependencias externas se acceden únicamente mediante interfaces inyectadas: `StaffReader`, `CatalogReader`, `DirectoryReader`, `BoundsReader`.
 
+### Origen de una reserva (`Origin`)
+
+El campo `reservation.origin` indica la vía de creación/confirmación de la reserva:
+- `OriginCounter` (`"COUNTER"`): creada y confirmada por el personal en el mostrador.
+- `OriginOnline` (`"ONLINE"`): creada por el paciente para confirmación por su propia vía.
+
+Al presentar el estado de la reserva en UI (`Item().Description`), se traduce mediante `lang.Translate` según la siguiente matriz:
+
+| Status | Origin | Clave (EN) |
+|---|---|---|
+| `PENDING` | `COUNTER` | `Pending confirmation` |
+| `PENDING` | `ONLINE` | `Awaiting patient` |
+| cualquier otro | — | la clave del propio estado (`Confirmed`, `Cancelled`, …) |
+
 ### Interfaces inyectadas (parámetros del constructor)
 
 El servicio mantiene `*orm.DB` directamente — sin interfaces de almacenamiento intermedias. Solo se inyectan dependencias entre módulos:

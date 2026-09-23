@@ -59,7 +59,7 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 	})
 
 	body := []byte(`{"tenant_id":"t1","client_id":"c1","creator_user_id":"u1",` +
-		`"employee_service_config_id":"` + cfg.Id + `","slot_start_utc":1736154000}`)
+		`"employee_service_config_id":"` + cfg.Id + `","slot_start_utc":1736154000,"origin":"` + ab.OriginCounter + `"}`)
 
 	ok := &mock.Context{InBody: body}
 	ok.SetUserID("u1")

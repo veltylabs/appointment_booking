@@ -51,6 +51,7 @@ func TestTenantIsolation(t *testing.T) {
 		CreatorUserId:           "user_A",
 		EmployeeServiceConfigId: cfgAId,
 		SlotStartUtc:            slotA,
+		Origin:                  ab.OriginCounter,
 	})
 	if err != nil {
 		t.Fatalf("CreateReservation TA: %v", err)

@@ -32,10 +32,5 @@ func Migrate(conn ddl.Execer, ddlCompiler ddl.Compiler) error {
 		&appointmentbooking.WorkCalendarException{},
 		&appointmentbooking.Reservation{},
 	}
-	for _, t := range tables {
-		if err := d.CreateTable(t); err != nil {
-			return err
-		}
-	}
-	return nil
+	return d.Sync(tables...)
 }

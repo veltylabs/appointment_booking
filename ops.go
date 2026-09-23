@@ -102,7 +102,7 @@ func writeError(ctx router.Context, err error) {
 	case ErrSlotTaken, ErrConflict, ErrBlocksOverlap:
 		ctx.WriteStatus(409)
 	case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
-		ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay:
+		ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs:
 		ctx.WriteStatus(400)
 	default:
 		ctx.WriteStatus(500)
@@ -130,6 +130,7 @@ func (m *Module) opCreateReservation(ctx router.Context) {
 		SlotStartUtc:            args.SlotStartUtc,
 		Notes:                   args.Notes,
 		RescheduledFromId:       args.RescheduledFromId,
+		Origin:                  args.Origin,
 	}
 	res, err := m.CreateReservation(cmd)
 	if err != nil {

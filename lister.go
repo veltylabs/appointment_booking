@@ -83,6 +83,7 @@ func (s *reservationFormStore) List(done func([]model.Model, error)) {
 					Hour:     r.LocalStringTime,
 					Notes:    r.Notes,
 					Status:   r.Status,
+					Origin:   r.Origin,
 				})
 			}
 			done(rows, nil)
@@ -138,6 +139,7 @@ func (s *reservationFormStore) Save(recs []model.Model, done func(error)) {
 				EmployeeServiceConfigId: s.cfg.ServiceConfigId,
 				SlotStartUtc:            slot,
 				Notes:                   r.Notes,
+				Origin:                  OriginCounter,
 			},
 			&Reservation{},
 			func(err error) {

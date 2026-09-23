@@ -122,6 +122,7 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 		EmployeeServiceConfigId: cfg.Id,
 		SlotStartUtc:            1736154000,
 		Notes:                   "First booking",
+		Origin:                  ab.OriginCounter,
 	}
 	var res ab.Reservation
 	caller.Call(ab.ModelName+"."+ab.OpCreateReservation, &createRes, &res, func(err error) {
@@ -160,8 +161,8 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 	if item.Label != "c1" {
 		t.Errorf("expected Label %q, got %q", "c1", item.Label)
 	}
-	if item.Description != ab.StatusPending {
-		t.Errorf("expected Status %q, got %q", ab.StatusPending, item.Description)
+	if item.Description != "Pending confirmation" {
+		t.Errorf("expected Status %q, got %q", "Pending confirmation", item.Description)
 	}
 }
 

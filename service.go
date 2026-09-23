@@ -12,6 +12,7 @@ import (
 var (
 	ErrCalendarConfigNotFound = fmt.Err("calendar", "config", "not", "found")
 	ErrSlotTaken              = fmt.Err("slot", "taken")
+	ErrMissingArgs            = fmt.Err("missing", "args")
 	ErrInvalidBlock           = fmt.Err("appointment_booking: start_min must be < end_min and both within 0..1439")
 	ErrBlocksOverlap          = fmt.Err("appointment_booking: two blocks of the same day overlap")
 	ErrBlockOutsideBusinessHours = fmt.Err("appointment_booking: block falls outside the establishment's opening hours")
@@ -161,6 +162,7 @@ type CreateReservationCmd struct {
 	SlotStartUtc            int64
 	Notes                   string
 	RescheduledFromId       string
+	Origin                  string
 }
 
 type ChangeStatusCmd struct {
@@ -746,6 +748,10 @@ func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to i
 }
 
 func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error) {
+	if cmd.Origin != OriginCounter && cmd.Origin != OriginOnline {
+		return Reservation{}, ErrMissingArgs
+	}
+
 	// 1. Cargar EmployeeServiceConfig
 	empSvcCfg, err := m.repo.GetEmployeeServiceConfig(cmd.EmployeeServiceConfigId)
 	if err != nil {
@@ -827,6 +833,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc * 1000000000),
 			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc * 1000000000),
 			Status:                  StatusPending,
+			Origin:                  cmd.Origin,
 			RescheduledFromId:       cmd.RescheduledFromId,
 			Notes:                   cmd.Notes,
 			UpdatedAt:               now,

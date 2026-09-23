@@ -5,6 +5,15 @@ import (
 	"webtyp.com/model"
 )
 
+// Origin dice por qué vía se confirma una reserva, y por lo tanto de quién es
+// el turno mientras está PENDING. No se deduce de creator_user_id: una
+// inferencia miente en silencio el día que una reserva se cree sin usuario por
+// otro motivo.
+const (
+	OriginCounter = "COUNTER" // la crea y la confirma el personal, en el mostrador
+	OriginOnline  = "ONLINE"  // la crea el paciente y la confirma él mismo por su vía
+)
+
 // EmployeeServiceConfigModel: que servicios realiza un profesional, durante cuanto
 // tiempo y a que precio. La política de widgets es POR ROL, la misma regla que cada
 // modelo de transporte a continuación: input.X() en cada campo que edita una persona.
@@ -102,6 +111,7 @@ var ReservationModel = model.Definition{
 		// status: valores válidos = las constantes FSM exportadas de fsm.go/service.go — los
 		// literales viven SOLO en esas constantes (regla anti magic-string, ver item_catalog).
 		{Name: "status", Type: model.Text(), NotNull: true},
+		{Name: "origin", Type: model.Text(), NotNull: true},
 		{Name: "rescheduled_from_id", Type: model.Text()},
 		// status_before_conflict: el estado anterior cuando Status == CONFLICTED —
 		// es la columna del campo StatusBeforeConflict del struct generado: se
@@ -144,6 +154,7 @@ var ReservationFormModel = model.Definition{
 		{Name: "hour", Type: input.Hour(), NotNull: true},
 		{Name: "notes", Type: input.Textarea()},
 		{Name: "status", Type: model.Text()},
+		{Name: "origin", Type: model.Text()},
 	},
 }
 
@@ -172,6 +183,7 @@ var CreateReservationArgsModel = model.Definition{
 		{Name: "slot_start_utc", Type: input.Number()},
 		{Name: "notes", Type: input.Text()},
 		{Name: "rescheduled_from_id", Type: input.Text()},
+		{Name: "origin", Type: input.Text()},
 	},
 }
 
