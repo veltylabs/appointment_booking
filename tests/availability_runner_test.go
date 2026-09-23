@@ -184,6 +184,7 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            midnightSlot,
+			Origin:                  ab.OriginCounter,
 		})
 		if err != ab.ErrSlotTaken {
 			t.Fatalf("expected ab.ErrSlotTaken for slot outside work hours, got: %v", err)

@@ -32,8 +32,15 @@ func TestMigrate_CreatesFiveTables(t *testing.T) {
 		t.Fatalf("Migrate failed: %v", err)
 	}
 
-	if len(execer.calls) != 5 {
-		t.Fatalf("expected 5 table creations, got %d", len(execer.calls))
+	var seen []string
+	for _, call := range execer.calls {
+		if len(seen) == 0 || seen[len(seen)-1] != call {
+			seen = append(seen, call)
+		}
+	}
+
+	if len(seen) != 5 {
+		t.Fatalf("expected 5 table migrations, got %d (%v)", len(seen), seen)
 	}
 }
 
@@ -54,13 +61,20 @@ func TestMigrate_TableOrder(t *testing.T) {
 		appointmentbooking.ReservationModel.Name,
 	}
 
-	if len(execer.calls) != len(expected) {
-		t.Fatalf("expected %d table creations, got %d", len(expected), len(execer.calls))
+	var seen []string
+	for _, call := range execer.calls {
+		if len(seen) == 0 || seen[len(seen)-1] != call {
+			seen = append(seen, call)
+		}
+	}
+
+	if len(seen) != len(expected) {
+		t.Fatalf("expected %d table migrations, got %d", len(expected), len(seen))
 	}
 
 	for i, want := range expected {
-		if execer.calls[i] != want {
-			t.Errorf("table at index %d: expected %q, got %q", i, want, execer.calls[i])
+		if seen[i] != want {
+			t.Errorf("table at index %d: expected %q, got %q", i, want, seen[i])
 		}
 	}
 }

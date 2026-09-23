@@ -64,6 +64,7 @@ func TestService_Back(t *testing.T) {
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slotStartUTC,
+			Origin:                  ab.OriginCounter,
 		})
 		if err != nil {
 			t.Fatalf("CreateReservation: %v", err)

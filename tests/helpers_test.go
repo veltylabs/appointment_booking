@@ -91,6 +91,7 @@ func createBooked(t *testing.T, s ab.SchedulingService, tenant, staff, cfgID str
 		CreatorUserId:           "u1",
 		EmployeeServiceConfigId: cfgID,
 		SlotStartUtc:            slotStart,
+		Origin:                  ab.OriginCounter,
 	})
 	if err != nil {
 		t.Fatalf("CreateReservation: %v", err)

@@ -39,6 +39,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            1000,
+			Origin:                  ab.OriginCounter,
 		})
 		if err != ab.ErrNotFound {
 			t.Fatalf("expected ab.ErrNotFound, got: %v", err)
@@ -67,6 +68,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            1000,
+			Origin:                  ab.OriginCounter,
 		})
 		if err == nil || !contains(err.Error(), "staff not found") {
 			t.Fatalf("expected 'staff not found' error, got: %v", err)
@@ -95,6 +97,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            1000,
+			Origin:                  ab.OriginCounter,
 		})
 		if err == nil || !contains(err.Error(), "service not found") {
 			t.Fatalf("expected 'service not found' error, got: %v", err)
@@ -123,6 +126,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            1000,
+			Origin:                  ab.OriginCounter,
 		})
 		if err == nil || !contains(err.Error(), "client not found") {
 			t.Fatalf("expected 'client not found' error, got: %v", err)
@@ -166,6 +170,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot,
+			Origin:                  ab.OriginCounter,
 		})
 		if err != nil {
 			t.Fatalf("CreateReservation: %v", err)
@@ -212,6 +217,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot,
+			Origin:                  ab.OriginCounter,
 		})
 
 		s.ChangeReservationStatus(ab.ChangeStatusCmd{
@@ -264,6 +270,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot1,
+			Origin:                  ab.OriginCounter,
 		})
 
 		mockPub := deps.Publisher.(*MockEventPublisher)
@@ -276,6 +283,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot2,
 			RescheduledFromId:       res1.Id,
+			Origin:                  ab.OriginCounter,
 		})
 		if err != nil {
 			t.Fatalf("CreateReservation reschedule: %v", err)
@@ -314,6 +322,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot,
+			Origin:                  ab.OriginCounter,
 		})
 
 		_, err := s.GetReservation("T2", res.Id)
@@ -332,6 +341,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot,
+			Origin:                  ab.OriginCounter,
 		})
 
 		err := s.ChangeReservationStatus(ab.ChangeStatusCmd{
@@ -365,6 +375,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot,
+			Origin:                  ab.OriginCounter,
 		})
 
 		err := s.ChangeReservationStatus(ab.ChangeStatusCmd{
@@ -396,6 +407,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot1,
+			Origin:                  ab.OriginCounter,
 		})
 		for i := 0; i < 1000000; i++ {} // busy wait alternative to avoid nanosecond collision
 		s.CreateReservation(ab.CreateReservationCmd{
@@ -404,6 +416,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u2",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot2,
+			Origin:                  ab.OriginCounter,
 		})
 
 		from := Date(2025, 2, 7, 0, 0, 0, 0)
@@ -431,6 +444,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slot,
+			Origin:                  ab.OriginCounter,
 		})
 
 		// try to expire before the reservation

@@ -84,6 +84,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slotStartUTC,
 			Notes:                   "Test note",
+			Origin:                  ab.OriginCounter,
 		}
 		res, err := s.CreateReservation(cmd)
 		if err != nil {
@@ -168,6 +169,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slotStartUTC,
+			Origin:                  ab.OriginCounter,
 		}
 
 		_, err := s.CreateReservation(cmd)
@@ -214,6 +216,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 			CreatorUserId:           "u1",
 			EmployeeServiceConfigId: cfgID,
 			SlotStartUtc:            slotStartUTC,
+			Origin:                  ab.OriginCounter,
 		}
 
 		res, err := s.CreateReservation(cmd)
