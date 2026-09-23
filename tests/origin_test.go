@@ -25,6 +25,51 @@ func (d *dummyCompiler) CompileDDL(stmt ddl.Stmt, m model.Model) (string, []any,
 	return stmt.Table, nil, nil
 }
 
+// existingSchemaExecer simulates a database that already has the "reservation" table with
+// every ReservationModel column EXCEPT "origin" — the state every deployed base is in the
+// moment this plan ships. It implements ddl.TableIntrospector so ddl.Sync takes the real
+// column-reconciliation path (sync.go step 2+) instead of the introspector-less fallback that
+// blindly re-emits AddColumn for every field. Plain CreateTable (the pre-D10 behavior) never
+// calls TableColumns or emits OpAddColumn at all, so this fake is what lets the test tell the
+// two implementations apart.
+type existingSchemaExecer struct{ dummyExecer }
+
+func (e *existingSchemaExecer) TableColumns(table string) ([]string, error) {
+	if table != ab.ReservationModel.Name {
+		return nil, nil
+	}
+	cols := make([]string, 0, len(ab.ReservationModel.Fields))
+	for _, f := range ab.ReservationModel.Fields {
+		if f.Name == "origin" {
+			continue
+		}
+		cols = append(cols, f.Name)
+	}
+	return cols, nil
+}
+
+// addColumnTrackingCompiler records every OpAddColumn the sync emits, keyed as "table.column".
+type addColumnTrackingCompiler struct {
+	dummyCompiler
+	addColumnCalls []string
+}
+
+func (c *addColumnTrackingCompiler) CompileDDL(stmt ddl.Stmt, m model.Model) (string, []any, error) {
+	if stmt.Op == ddl.OpAddColumn {
+		c.addColumnCalls = append(c.addColumnCalls, stmt.Table+"."+stmt.Column.Name)
+	}
+	return c.dummyCompiler.CompileDDL(stmt, m)
+}
+
+func containsStr(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
 // helper to set up a test service with calendar & employee service config ready for booking
 func setupBookingService(t *testing.T) (ab.SchedulingService, *ab.Repository, string, int64) {
 	t.Helper()
@@ -234,13 +279,23 @@ func TestCU7_FSM_Unchanged(t *testing.T) {
 	}
 }
 
-// CU-8: Una base ya creada recibe la columna nueva mediante Sync en migrate.
+// CU-8: Una base ya creada recibe la columna nueva mediante Sync en migrate. execer simula el
+// esquema desplegado hoy (reservation SIN origin); si migrate.go volviera a usar CreateTable en
+// vez de Sync, TableColumns nunca se consultaría y ningún OpAddColumn se emitiría — este test
+// falla en ese caso, que es exactamente lo que prueba que D10 quedó cerrado.
 func TestCU8_MigrateSync_AddsColumn(t *testing.T) {
-	execer := &dummyExecer{}
-	compiler := &dummyCompiler{}
+	execer := &existingSchemaExecer{}
+	compiler := &addColumnTrackingCompiler{}
 
 	err := migrate.Migrate(execer, compiler)
 	if err != nil {
 		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	if !containsStr(compiler.addColumnCalls, "reservation.origin") {
+		t.Fatalf("expected Sync to add the missing 'origin' column to 'reservation', add-column calls: %v", compiler.addColumnCalls)
+	}
+	if containsStr(compiler.addColumnCalls, "reservation.status") {
+		t.Fatalf("Sync re-added a column that already existed ('status'), reconciliation isn't reading TableColumns correctly: %v", compiler.addColumnCalls)
 	}
 }
