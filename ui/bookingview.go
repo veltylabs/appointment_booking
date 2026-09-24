@@ -1,4 +1,4 @@
-package appointment_booking
+package ui
 
 import (
 	"webtyp.com/components/calendarslider"
@@ -21,9 +21,7 @@ import (
 	staffmanager "github.com/veltylabs/staff_manager"
 )
 
-// NameBookingView es la identidad de widget de esta pantalla — rightpanel
-// pone el chasis (título, panel, scroll); esta hoja solo ajusta la fila de
-// controles (área/profesional/servicio/confirmar).
+// NameBookingView es la identidad de widget de esta pantalla.
 const NameBookingView = widget.Name("bookingview")
 
 const PartBookingHeader = widget.Part("header")
@@ -36,27 +34,13 @@ var (
 func (v *BookingView) WidgetName() widget.Name { return NameBookingView }
 func (v *BookingView) WidgetKind() widget.Kind { return widget.Region }
 
-// bookingWindowPastDays/FutureDays acotan qué reservas trae la lista — una
-// ventana móvil desde hoy, nunca un año calendario fijo (a diferencia del
-// demo del que este wiring parte).
 const (
 	bookingWindowPastDays   = 30
 	bookingWindowFutureDays = 365
 )
 
 // NewBookingView construye la pantalla "Reserva Hora": área (especialidad) →
-// profesional → servicio → día → hueco, sobre appointment_booking real.
-//
-// Nace de la Etapa 8 (docs/PLAN_LOCAL.md), desbloqueada por D12
-// (EmployeeServiceConfig ahora tiene ops). Reservation nace PENDING —
-// CreateReservation lo fija así incondicionalmente, sin manera de crear
-// directo en CONFIRMED por la API pública — así que confirmar es un botón
-// explícito sobre la fila seleccionada (confirmSelected), no algo que esta
-// pantalla intente forzar en el mismo paso que la crea. ReservationForm (D8)
-// no lleva Revision (deliberadamente mínimo, 6 campos) — confirmar por eso
-// hace primero get_reservation (trae el Reservation completo, con Revision
-// para el control de concurrencia optimista) y recién entonces
-// change_reservation_status.
+// profesional → servicio → día → hueco.
 func NewBookingView(caller router.Caller, tenantID string) Component {
 	v := &BookingView{
 		caller:   caller,
@@ -78,26 +62,18 @@ type BookingView struct {
 	caller   router.Caller
 	tenantID string
 
-	// área — derivada de staff_manager.StaffMember.Specialty, nunca
-	// hardcodeada (ver AGENTS.md: no hardcodear lo que el backend ya da).
 	area     *SignalString
 	areaOpts *SignalNodes
 
 	picker *staffPicker
 
-	// servicio — los EmployeeServiceConfig del profesional elegido (D12),
-	// con el nombre resuelto contra item_catalog para mostrarlo.
 	serviceConfigs []ab.EmployeeServiceConfig
-	catalogNames   []fmt.KeyValue // service_id -> nombre (no map: tinygo/binario)
-	service        *SignalString  // employee_service_config_id elegido
+	catalogNames   []fmt.KeyValue
+	service        *SignalString
 	serviceOpts    *SignalNodes
 
-	day *SignalString // filtro de día del calendario ("YYYY-MM-DD")
+	day *SignalString
 
-	// panel es el crudview (calendario + lista de huecos), reconstruido cada
-	// vez que cambia el profesional o el servicio — el Presenter de
-	// appointment_booking queda atado a (staffId, serviceConfigId) desde su
-	// construcción, igual que Horario y Servicios.
 	panel  *SignalNodes
 	target *targethour.TargetHour
 }
@@ -109,14 +85,10 @@ func (v *BookingView) Init(_ Ctx) {
 	})
 }
 
-// staffInArea es el FilterFn del picker: sin área elegida, todos; con área,
-// solo quienes comparten esa especialidad.
 func (v *BookingView) staffInArea(sm staffmanager.StaffMember) bool {
 	return v.area.Get() == "" || sm.Specialty == v.area.Get()
 }
 
-// rebuildAreaOptions deriva las especialidades DISTINTAS de la lista de
-// staff ya cargada — nunca una lista escrita a mano.
 func (v *BookingView) rebuildAreaOptions() {
 	var areas []string
 	for _, sm := range v.picker.staff {
@@ -157,8 +129,6 @@ func (v *BookingView) onAreaChange(area string) {
 	v.reloadServices()
 }
 
-// reloadServices trae los EmployeeServiceConfig del profesional elegido y
-// los nombres de item_catalog para mostrarlos — dos llamadas en paralelo.
 func (v *BookingView) reloadServices() {
 	staffID := v.picker.sel.Get()
 	if staffID == "" {
@@ -200,8 +170,6 @@ func (v *BookingView) reloadServices() {
 		func(error) { done() })
 }
 
-// catalogName busca el nombre de item_catalog para un service_id — lista
-// corta (catálogo de un tenant), recorrido lineal en vez de mapa.
 func (v *BookingView) catalogName(serviceID string) string {
 	for _, kv := range v.catalogNames {
 		if kv.Key == serviceID {
@@ -233,10 +201,6 @@ func (v *BookingView) onServiceChange(id string) {
 	v.rebuildPanel()
 }
 
-// rebuildPanel arma el crudview de reservas para (staffId, serviceConfigId):
-// calendario como Filter (día), targethour como List (huecos libres +
-// reservas del día), FreeSlots repoblado tras cada Reload vía OnAfterReload
-// — mismo esqueleto que app-demo/modules/reservation, sobre las ops reales.
 func (v *BookingView) rebuildPanel() {
 	staffID := v.picker.sel.Get()
 	serviceConfigID := v.service.Get()
@@ -292,7 +256,7 @@ func (v *BookingView) rebuildPanel() {
 			if t, ok := list.(*targethour.TargetHour); ok {
 				freeSlotsCache(v.caller, cfg, v.day.Get(), func(slots []string) {
 					t.FreeSlots = slots
-					t.SetItems(t.Items()) // re-triggers t.rows so the free-slot rows show up
+					t.SetItems(t.Items())
 				})
 			}
 		},
@@ -305,11 +269,6 @@ func (v *BookingView) rebuildPanel() {
 	v.panel.Set([]*Element{Div().Child(cv)})
 }
 
-// freeSlotsCache llama FreeSlots (D8) para el día activo. "" antes de elegir
-// día no consulta nada — el editor recién arma huecos cuando hay un día.
-// FreeSlots es callback (nunca bloquea con un canal — ver su propio doc):
-// done llega de forma asíncrona, siempre desde el callback real de
-// caller.Call, nunca síncronamente antes de que esta función retorne.
 func freeSlotsCache(caller router.Caller, cfg ab.FormConfig, day string, done func(slots []string)) {
 	if day == "" {
 		done(nil)
@@ -335,11 +294,6 @@ func (v *BookingView) refreshFreeSlots(cfg ab.FormConfig) {
 	})
 }
 
-// confirmSelected confirma la reserva actualmente elegida en la lista
-// (v.target.Selected, el mismo signal que crudview usa para editar). Dos
-// llamadas en secuencia: get_reservation trae el Reservation completo — con
-// Revision, que ReservationForm no lleva — y change_reservation_status lo usa
-// para el control de concurrencia optimista del FSM.
 func (v *BookingView) confirmSelected() {
 	if v.target == nil {
 		return
@@ -362,9 +316,6 @@ func (v *BookingView) confirmSelected() {
 		})
 }
 
-// Render arma el chasis con rightpanel: título, panel y scroll son suyos. El
-// bloque de controles (área/profesional/servicio/confirmar) va en
-// HeadControls; el crudview de reservas en Article.
 func (v *BookingView) Render() *Element {
 	controls := Div().Set(clsBookingHeader.AsAttr()).
 		Child(Label().Text("Área")).
@@ -378,17 +329,13 @@ func (v *BookingView) Render() *Element {
 			OnClick(func(Event) { v.confirmSelected() }))
 
 	panel := &rightpanel.RightPanel{
-		Title:        "Reserva Hora",
+		Title:        NavLabel,
 		HeadControls: controls,
 		Article:      Div().BindChildren(v.panel),
 	}
 	return Div().Set(clsBookingRoot.AsAttr()).Child(panel.Render())
 }
 
-// byDay adapta el Presenter de reservas: el filtro (term = "YYYY-MM-DD" del
-// calendario) filtra la lista ya cargada por fecha, y re-expone Save (crear
-// una reserva) del Presenter subyacente — mismo adaptador que el demo de
-// reservation ya usaba, sobre el Presenter real de D8.
 type byDay struct {
 	view.Presenter
 }
@@ -406,9 +353,6 @@ func (p byDay) Filter(term string) []view.Item {
 	return items
 }
 
-// Save re-expone la del Presenter subyacente (crear una reserva); crudview
-// pinta el botón de guardar solo si esta capacidad está presente. El resultado
-// llega por el done callback — nunca se bloquea esperando la respuesta.
 func (p byDay) Save(recs []model.Model, done func(error)) {
 	if s, ok := p.Presenter.(view.Saver); ok {
 		s.Save(recs, done)
