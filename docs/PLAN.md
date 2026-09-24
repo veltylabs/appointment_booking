@@ -2,8 +2,9 @@
 PLAN: "feat(ui): Reserva Hora y Personal (datos, horario, servicios), su semilla y su demo viven en el módulo"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 9473845396645637254
+PR: https://github.com/veltylabs/appointment_booking/pull/16
 ---
 
 > Este plan se despacha con el flujo CodeJob. Ver skill: agents-workflow.
