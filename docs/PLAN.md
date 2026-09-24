@@ -2,6 +2,8 @@
 PLAN: "feat(ui): Reserva Hora y Personal (datos, horario, servicios), su semilla y su demo viven en el módulo"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 9473845396645637254
 ---
 
 > Este plan se despacha con el flujo CodeJob. Ver skill: agents-workflow.
