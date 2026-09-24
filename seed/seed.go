@@ -10,6 +10,10 @@ import (
 	staffseed "github.com/veltylabs/staff_manager/seed"
 )
 
+// maxSeedDays es cuántos días hacia adelante busca Load un día hábil que acepte
+// las reservas de demo.
+const maxSeedDays = 14
+
 // Upstream contiene las estructuras de datos semilla provistas por los módulos
 // aguas arriba (staff, catálogo, pacientes).
 type Upstream struct {
@@ -97,46 +101,51 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 		return data, fmt.Err("no hay pacientes en el módulo de pacientes")
 	}
 
-	// 4. Dos reservas para el próximo día hábil (09:00 y 09:30 Santiago).
-	nowSec := tinytime.Now() / 1e9
-	targetSec := nowSec + 86400
-	wd := tinytime.Weekday(targetSec * 1e9)
-	if wd == 6 { // Sábado -> Lunes (+2 días)
-		targetSec += 2 * 86400
-	} else if wd == 0 { // Domingo -> Lunes (+1 día)
-		targetSec += 86400
-	}
-
-	isoDate := tinytime.FormatISO8601(targetSec * 1e9)
-	if len(isoDate) >= 10 {
-		isoDate = isoDate[:10]
-	}
-	dayNano, err := tinytime.ParseDate(isoDate)
-	if err != nil {
-		return data, err
-	}
-	daySec := dayNano / 1e9
-
-	slotStartUtc1 := ab.LocalIntToUnixUTC(daySec, 540, "America/Santiago") // 09:00
-	slotStartUtc2 := ab.LocalIntToUnixUTC(daySec, 570, "America/Santiago") // 09:30
-
+	// 4. Dos reservas para el próximo día hábil que las acepte (09:00 y 09:30
+	// Santiago). Se prueba hasta maxSeedDays días hacia adelante, saltando fines
+	// de semana: el día siguiente puede ser feriado o cierre del calendario
+	// institucional, y la semilla no debe fallar según la fecha en que corre.
 	patient1ID := up.Patients.Patients[0].Id
 	patient2ID := patient1ID
 	if len(up.Patients.Patients) > 1 {
 		patient2ID = up.Patients.Patients[1].Id
 	}
 
-	// Primera reserva
-	res1, err := m.CreateReservation(ab.CreateReservationCmd{
-		TenantId:                tenantID,
-		ClientId:                patient1ID,
-		EmployeeServiceConfigId: data.ServiceConfigs[0].Id,
-		SlotStartUtc:            slotStartUtc1,
-		Origin:                  ab.OriginCounter,
-	})
-	if err != nil {
-		return data, err
+	nowSec := tinytime.Now() / 1e9
+	var res1 ab.Reservation
+	var daySec int64
+	var lastErr error
+	booked := false
+	for offset := int64(1); offset <= maxSeedDays && !booked; offset++ {
+		candidate := nowSec + offset*86400
+		wd := tinytime.Weekday(candidate * 1e9)
+		if wd == 0 || wd == 6 {
+			continue
+		}
+		isoDate := tinytime.FormatISO8601(candidate * 1e9)
+		if len(isoDate) >= 10 {
+			isoDate = isoDate[:10]
+		}
+		dayNano, err := tinytime.ParseDate(isoDate)
+		if err != nil {
+			return data, err
+		}
+		daySec = dayNano / 1e9
+		res1, lastErr = m.CreateReservation(ab.CreateReservationCmd{
+			TenantId:                tenantID,
+			ClientId:                patient1ID,
+			EmployeeServiceConfigId: data.ServiceConfigs[0].Id,
+			SlotStartUtc:            ab.LocalIntToUnixUTC(daySec, 540, "America/Santiago"), // 09:00
+			Origin:                  ab.OriginCounter,
+		})
+		booked = lastErr == nil
 	}
+	if !booked {
+		return data, fmt.Err("seed: ningún día hábil aceptó la reserva de demo", lastErr)
+	}
+	slotStartUtc2 := ab.LocalIntToUnixUTC(daySec, 570, "America/Santiago") // 09:30
+
+	// Primera reserva: confirmarla.
 	if err := m.ChangeReservationStatus(ab.ChangeStatusCmd{
 		TenantId: tenantID,
 		Id:       res1.Id,
