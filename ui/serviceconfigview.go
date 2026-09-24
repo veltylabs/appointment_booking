@@ -1,4 +1,4 @@
-package appointment_booking
+package ui
 
 import (
 	"webtyp.com/layout/crudview"
@@ -13,8 +13,7 @@ import (
 	ab "github.com/veltylabs/appointment_booking"
 )
 
-// NameServiceConfigView es la identidad de widget de esta pestaña —
-// rightpanel pone el chasis, esta hoja solo ajusta la fila del selector.
+// NameServiceConfigView es la identidad de widget de esta pestaña.
 const NameServiceConfigView = widget.Name("serviceconfigview")
 
 const PartServiceHeader = widget.Part("header")
@@ -27,24 +26,7 @@ var (
 func (s *ServiceConfigView) WidgetName() widget.Name { return NameServiceConfigView }
 func (s *ServiceConfigView) WidgetKind() widget.Kind { return widget.Region }
 
-// NewServiceConfigView construye la pestaña "Servicios" de la pantalla
-// Personal: selector de profesional + crudview sobre
-// appointment_booking.NewEmployeeServiceConfigView (D12), acotado a ese
-// profesional.
-//
-// Mismo patrón self-contained que NewScheduleView (Horario) — no comparten
-// selección de profesional todavía; ambas pestañas mantienen su propio
-// picker. Unificarlas en un único selector compartido a nivel de la
-// pantalla Personal queda anotado como pulido pendiente, no un defecto
-// funcional (ver docs/PLAN_LOCAL.md Etapa 7).
-//
-// El formulario generado por crudview muestra un campo staff_id editable
-// (EmployeeServiceConfigModel lo declara input.Text() porque el propio
-// campo es genuinamente editable en otros contextos de la librería) pero
-// employeeServiceConfigLister.Save sobreescribe ese valor con el
-// profesional scopeado en cada guardado — lo que el usuario escriba ahí no
-// tiene efecto. Confuso, no incorrecto: el valor persistido siempre es el
-// correcto.
+// NewServiceConfigView construye la pestaña "Servicios" de la pantalla Personal.
 func NewServiceConfigView(caller router.Caller, tenantID string) Component {
 	v := &ServiceConfigView{caller: caller, tenantID: tenantID}
 	v.picker = newStaffPicker(caller, func(string) { v.rebuildPanel() })
@@ -66,10 +48,6 @@ func (s *ServiceConfigView) Init(_ Ctx) {
 	s.picker.load(s.rebuildPanel)
 }
 
-// rebuildPanel reconstruye el crudview completo — el Presenter de
-// appointment_booking está atado a (tenantId, staffId) desde su
-// construcción, así que cambiar de profesional exige un Presenter nuevo, no
-// una recarga del existente. Mismo enfoque que el editor de horario.
 func (s *ServiceConfigView) rebuildPanel() {
 	staffID := s.picker.sel.Get()
 	if staffID == "" {
@@ -95,8 +73,6 @@ func (s *ServiceConfigView) rebuildPanel() {
 	s.panel.Set([]*Element{Div().Child(cv)})
 }
 
-// Render arma el chasis con rightpanel — título, panel y scroll son suyos.
-// El selector de profesional va en HeadControls, el crudview en Article.
 func (s *ServiceConfigView) Render() *Element {
 	panel := &rightpanel.RightPanel{
 		Title:        "Servicios",

@@ -240,3 +240,27 @@ Esta interfaz depende de los lectores inyectados:
 - `StaffReader` — valida la existencia del personal
 - `CatalogReader` — valida la existencia del servicio
 - `BoundsReader` — responde "qué minutos de una fecha son utilizables" (opcional)
+
+## View and demo
+
+This module ships its own user interface (`ui/`), demo data (`seed/`), and runnable client demo (`web/client.go`).
+
+### `ui` package
+
+- Identifiers: `ID` ("appointment_booking"), `NavLabel` ("Reserva Hora"), `PersonalID` ("personal"), `PersonalLabel` ("Personal").
+- Module browsers:
+  - `Browser(caller, ids, tenantID)`: builds the "Reserva Hora" booking UI module.
+  - `PersonalBrowser(caller, ids, tenantID)`: builds the "Personal" UI module (staff data, work schedule, service configurations).
+- Component builders: `NewBookingView`, `NewScheduleView`, `NewServiceConfigView`.
+
+### `seed` package
+
+`seed.Load(m, tenantID, upstream)` populates validated demo data into `appointment_booking`:
+- Work calendar configurations (Chile timezone).
+- Work calendar blocks (Monday to Friday, 09:00-13:00 and 15:00-18:00).
+- Employee service configurations mapped from upstream staff specialties and catalog items.
+- Two confirmed reservations for the next business day.
+
+### Runnable demo
+
+Run `webtyp` at the repository root to open the demo — in-browser, in-memory, no login.
