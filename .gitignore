@@ -20,3 +20,4 @@ coverage.html
 *.code-workspace
 .vscode
 go.work
+/web/public/
