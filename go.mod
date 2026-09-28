@@ -34,7 +34,7 @@ require (
 	webtyp.com/color v0.1.2 // indirect
 	webtyp.com/date v0.0.7 // indirect
 	webtyp.com/font v0.0.5 // indirect
-	webtyp.com/form v0.4.17 // indirect
+	webtyp.com/form v0.4.19 // indirect
 	webtyp.com/icons v0.0.7 // indirect
 	webtyp.com/user v0.3.13 // indirect
 )
