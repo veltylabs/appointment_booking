@@ -24,7 +24,7 @@ Los archivos Go de un módulo que **no sean de prueba** pueden importar, desde `
 | Paquete | Rol | Por qué es un puerto y no una dependencia concreta |
 |---|---|---|
 | `model` | `Model`/`Fielder`/`Encodable`/`Decodable`/`IDGenerator`/`Definition` | *Interfaces* de esquema + codec; los codificadores concretos (`json`, `jsvalue`) viven fuera |
-| `router` | `OpModule`/`OpRegistry`/`Context`/`Caller` | Agnóstico del transporte; un módulo implementa `OpModule`, nunca un servidor concreto |
+| `router` | `OperationModule`/`OperationRegistry`/`Context`/`Caller` | Agnóstico del transporte; un módulo implementa `OperationModule`, nunca un servidor concreto |
 | `view` | `Presenter`, `view.New(...)` | Contrato de UI; el renderizador (`layout/crudview` o cualquier otro) es inyectado por la aplicación |
 | `events` | `Publisher`/`Subscriber`/`Event` | Contrato de pub/sub; el broker (en proceso, `sse`, una cola) es inyectado |
 | `orm` | `*orm.DB`, constructor de consultas (`Create`/`Update`/`Delete`/`Query`) | Capa ergonómica sobre `storage.Conn` — el equivalente de `database/sql`, agnóstico del backend por construcción |
@@ -49,7 +49,7 @@ llame a `orm.New(conn)`. Un módulo que los importa **no** sabe ni le importa qu
   incorporado "solo para pruebas" sigue siendo una dependencia que el módulo envía, y es exactamente el acoplamiento
   que esta lista blanca existe para prevenir. Las pruebas de integración de backend pertenecen al repositorio de la aplicación (raíz de composición), nunca al módulo.
 - **Un transporte concreto**: `webtyp/mcp`, `webtyp/server`/`httpd`, o cualquier cosa que importe
-  `net/http`. Un módulo habla `router.OpModule`; la aplicación decide qué transporte lo cosecha.
+  `net/http`. Un módulo habla `router.OperationModule`; la aplicación decide qué transporte lo cosecha.
 - **Un generador de ID concreto**: `webtyp/unixid`. En su lugar, acepta `model.IDGenerator` vía `Deps` —
   nunca construyas uno dentro del módulo.
 - **Un codificador concreto**: `webtyp/json`, `webtyp/jsvalue`. Los modelos de un módulo implementan
@@ -61,7 +61,7 @@ llame a `orm.New(conn)`. Un módulo que los importa **no** sabe ni le importa qu
   renderizador que dibuja ese `Presenter`.
 - **Un puerto autodeclarado que duplica un contrato del ecosistema**: ninguna interfaz local `EventPublisher`,
   `UIAdapter`, `IDGenerator` o `CatalogService`-como-shim-de-transporte que se cruce con
-  `events.Publisher`/`view.Presenter`/`model.IDGenerator`/`router.OpModule`. Si un límite necesita un
+  `events.Publisher`/`view.Presenter`/`model.IDGenerator`/`router.OperationModule`. Si un límite necesita un
   contrato que esta lista no nombra, eso es un defecto **aguas arriba** (en `model`/`router`/`view`/`events`/
   `orm`), corregido allí y consumido aquí — nunca parcheado localmente. Un módulo aún puede declarar sus propias
   interfaces de lector estrechas entre módulos (`CatalogReader`, `StaffReader`, …) para datos de **dominio** que
@@ -171,8 +171,8 @@ libre de reflexión y de tamaño TinyGo. Un módulo apunta a `wasm`/TinyGo prime
   Contra `storage/mem` (pruebas del módulo) esto es una operación nula (no-op) — nada que crear. Contra un backend SQL real
   migra el esquema, exactamente como lo hacía el antiguo `orm.DB.CreateTable`. El módulo nunca
   recibe una cadena de conexión sin procesar ni elige un controlador.
-- **Transporte**: el módulo implementa `router.OpModule` — `ModelName() string` +
-  `MountOps(reg router.OpRegistry)`, registrando cada operación con `.Requires(resource, action)`
+- **Transporte**: el módulo implementa `router.OperationModule` — `ModelName() string` +
+  `MountOperations(reg router.OperationRegistry)`, registrando cada operación con `.Requires(resource, action)`
   y `.Accepts(&ArgsType{})`. Nunca implementa `router.APIModule`/`Router`, y nunca ve
   `mcp.Tool`/`mcp.ToolProvider`.
 - **Vista**: `NewView(caller router.Caller) view.Presenter`, construido con `view.New(...)` — importando
@@ -200,7 +200,7 @@ The whitelist and blacklist above apply to the **root domain package**. Three su
 - Ejecutor: `gotest`, nunca `go test` directamente (una vez instalado vía
   `go install github.com/webtyp/devflow/cmd/gotest@latest`).
 - Las propias pruebas de un módulo construyen su `*orm.DB` sobre `storage/mem` (`orm.New(mem.New())`), ejecutan
-  `MountOps` contra `router/mock` (satisface `router.OpRegistry`), y ejercitan el `view.Presenter`
+  `MountOperations` contra `router/mock` (satisface `router.OperationRegistry`), y ejercitan el `view.Presenter`
   contra el `FakeCaller` de `view/conformance` o un `router.Caller` simulado hecho a mano — nunca una BD, transporte o renderizador concreto.
 - Las pruebas viven en `tests/` (paquete `tests`, externo — ejercita solo la API exportada), según la
   convención del ecosistema. `tests/` es un directorio plano **dentro del módulo raíz** — **nunca un módulo Go anidado**: sin `tests/go.mod`, sin `replace` apuntando de vuelta al padre (un `replace` de ruta local siempre es un defecto, ver la lista negra). Las dependencias solo de prueba se resuelven mediante un `go mod tidy` en la raíz del módulo.
@@ -215,7 +215,7 @@ The whitelist and blacklist above apply to the **root domain package**. Three su
 - Un módulo cuyas Definiciones llevan widgets de formulario incluye la prueba de regresión de widgets: `form.New(id,
   &GeneratedArgs{})` rinde exactamente las entradas esperadas — detecta una regeneración que silenciosamente
   pierde widgets.
-- Las verificaciones de contrato en tiempo de compilación pertenecen al lado de la implementación: `var _ router.OpModule =
+- Las verificaciones de contrato en tiempo de compilación pertenecen al lado de la implementación: `var _ router.OperationModule =
   (*Module)(nil)`.
 
 ## Publicación / despacho
