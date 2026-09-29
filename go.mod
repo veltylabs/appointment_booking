@@ -24,7 +24,7 @@ require (
 	webtyp.com/router v0.1.43
 	webtyp.com/storage v0.1.1
 	webtyp.com/svg v0.3.14
-	webtyp.com/time v0.5.6
+	webtyp.com/time v0.5.7
 	webtyp.com/unixid v0.2.28
 	webtyp.com/view v0.6.10
 	webtyp.com/widget v0.6.32
