@@ -8,7 +8,7 @@ require (
 	github.com/veltylabs/item_catalog v0.3.9
 	github.com/veltylabs/patient_directory v0.0.5
 	github.com/veltylabs/staff_manager v0.1.10
-	webtyp.com/auth v0.0.58
+	webtyp.com/auth v0.0.60
 	webtyp.com/components v0.7.0
 	webtyp.com/css v0.4.23
 	webtyp.com/ddl v0.0.17

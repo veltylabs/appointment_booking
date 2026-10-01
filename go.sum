@@ -8,8 +8,8 @@ github.com/veltylabs/patient_directory v0.0.5 h1:rSYG/s7hu63RZWLXnTO4uR1IFANpx7K
 github.com/veltylabs/patient_directory v0.0.5/go.mod h1:nF8HHTL+lAVi6bC0NHKHGOPZbT/x14nuqo4PQ5+qmRA=
 github.com/veltylabs/staff_manager v0.1.10 h1:mvpgw59uxNtbO+psUGuEfIER1H+yA5kAxLksAsytxgQ=
 github.com/veltylabs/staff_manager v0.1.10/go.mod h1:AXt6mOnv53K1YYR1QwxWR6Pe164tZ3U9bKhr7TVcS2w=
-webtyp.com/auth v0.0.58 h1:X2iImZwIfxmnQ49wawmtHgAsZwoAQD49be+2TGl2OKk=
-webtyp.com/auth v0.0.58/go.mod h1:u7v1vYlFavXByKL2UoTS8A/Ia9Dj1HzBoN+JOh1ADTA=
+webtyp.com/auth v0.0.60 h1:6DMfRQSJia1TbdK26Iut11vnELc9HaqmoeFNIcBuu2M=
+webtyp.com/auth v0.0.60/go.mod h1:IIeB5/rbMjD2PzYOn3jDrFotNVAMs4yEoZJ1FUOWVo8=
 webtyp.com/color v0.1.2 h1:PN2vx9jtlwFsu2juQoaj0GEJMY/ex3fQDcop20V8+ik=
 webtyp.com/color v0.1.2/go.mod h1:p5n4e0KRiPavkkQajtQKoMAU7C+1yx86AZlzMWTJhC8=
 webtyp.com/components v0.7.0 h1:+08fhdiV3gnY0uLbIGH065EI0hA6wRskZTTvqBrdzzA=
