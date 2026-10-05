@@ -1,7 +1,7 @@
 github.com/veltylabs/business_calendar v0.4.0 h1:i8ruWF43jNMTpXzfl/tBZQ9R1ICrIhggQwNC8fZGeII=
 github.com/veltylabs/business_calendar v0.4.0/go.mod h1:UHJPyPKIWMKl2l39uvvKO7lkaCXlaoix278NXRTnSo4=
-github.com/veltylabs/device_manager v0.1.8 h1:xqdAxh9CJX91m6Nqmrxz2YV4I0VrWyd1TC1YljkhXCk=
-github.com/veltylabs/device_manager v0.1.8/go.mod h1:ss38Dp0b363PyaMZvgKzQ5qgpNeWNfzwZUqMY+ctZAc=
+github.com/veltylabs/device_manager v0.1.30 h1:pHTIJXPP3AXRWx3AasBb6DbQBYDhl5mwLSv7lRtuqJU=
+github.com/veltylabs/device_manager v0.1.30/go.mod h1:LTMvjWVQoZoDYnA4L0Io5jJCm23hjL1Na1uCa+qbK2o=
 github.com/veltylabs/item_catalog v0.3.9 h1:CdLeGDZaPihmrJUzhxpvjQM5a2Y71qqQygg4nz2RW18=
 github.com/veltylabs/item_catalog v0.3.9/go.mod h1:NE989yvAnXY9RjKy2bml1fTxHAI5eG15XTSox6++d4M=
 github.com/veltylabs/patient_directory v0.0.5 h1:rSYG/s7hu63RZWLXnTO4uR1IFANpx7KZNyYm326wehw=
