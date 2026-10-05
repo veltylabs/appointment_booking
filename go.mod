@@ -27,14 +27,14 @@ require (
 	webtyp.com/time v0.5.7
 	webtyp.com/unixid v0.2.28
 	webtyp.com/view v0.6.10
-	webtyp.com/widget v0.6.32
+	webtyp.com/widget v0.6.34
 )
 
 require (
 	webtyp.com/color v0.1.2 // indirect
 	webtyp.com/date v0.0.7 // indirect
 	webtyp.com/font v0.0.5 // indirect
-	webtyp.com/form v0.4.19 // indirect
+	webtyp.com/form v0.4.22 // indirect
 	webtyp.com/icons v0.0.7 // indirect
 	webtyp.com/user v0.3.13 // indirect
 )
