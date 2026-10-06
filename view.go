@@ -1,7 +1,7 @@
 package appointmentbooking
 
 import (
-	"webtyp.com/fmt/lang"
+	"webtyp.com/lang"
 	"webtyp.com/router"
 	tinytime "webtyp.com/time"
 	"webtyp.com/view"

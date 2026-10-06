@@ -1,6 +1,6 @@
 module github.com/veltylabs/appointment_booking
 
-go 1.25.2
+go 1.26.8
 
 require (
 	github.com/veltylabs/business_calendar v0.4.0
@@ -18,6 +18,7 @@ require (
 	webtyp.com/html v0.0.24
 	webtyp.com/input v0.0.10
 	webtyp.com/json v0.5.27
+	webtyp.com/lang v0.1.0
 	webtyp.com/layout v0.3.24
 	webtyp.com/model v0.2.0
 	webtyp.com/orm v0.12.4
