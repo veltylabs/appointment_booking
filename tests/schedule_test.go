@@ -223,7 +223,7 @@ func TestScheduleClient_RoundTrip(t *testing.T) {
 
 func TestRemoveException_UnknownIsNotFound(t *testing.T) {
 	m, _ := newModuleWithBroker(t)
-	if err := m.RemoveException("t1", "nope"); err != ab.ErrNotFound {
+	if err := m.RemoveException("t1", "nope"); err == nil || err.Error() != ab.ErrNotFound.Error() {
 		t.Fatalf("expected ab.ErrNotFound, got %v", err)
 	}
 }

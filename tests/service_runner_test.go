@@ -41,7 +41,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			SlotStartUtc:            1000,
 			Origin:                  ab.OriginCounter,
 		})
-		if err != ab.ErrNotFound {
+		if err == nil || err.Error() != ab.ErrNotFound.Error() {
 			t.Fatalf("expected ab.ErrNotFound, got: %v", err)
 		}
 	})
@@ -326,7 +326,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		})
 
 		_, err := s.GetReservation("T2", res.Id)
-		if err != ab.ErrNotFound {
+		if err == nil || err.Error() != ab.ErrNotFound.Error() {
 			t.Fatalf("expected ErrNotFound for cross tenant Get, got %v", err)
 		}
 	})
@@ -351,7 +351,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			ActorId:  "u1",
 			Revision: 0,
 		})
-		if err != ab.ErrNotFound {
+		if err == nil || err.Error() != ab.ErrNotFound.Error() {
 			t.Fatalf("expected ErrNotFound for cross tenant ChangeStatus, got %v", err)
 		}
 	})
@@ -360,7 +360,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		err := s.SaveDayBlocks("t_uc12", "non_existent", 1, []ab.WorkCalendarBlock{
 			{StartMin: 540, EndMin: 1020, IsActive: true},
 		})
-		if err != ab.ErrCalendarConfigNotFound {
+		if err == nil || err.Error() != ab.ErrCalendarConfigNotFound.Error() {
 			t.Fatalf("expected ErrCalendarConfigNotFound, got %v", err)
 		}
 	})

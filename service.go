@@ -1,24 +1,32 @@
 package appointmentbooking
 
 import (
-	"webtyp.com/events"
 	"webtyp.com/fmt"
+	"webtyp.com/events"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/svg"
 	tinytime "webtyp.com/time"
 )
 
-var (
-	ErrCalendarConfigNotFound = fmt.Err("calendar", "config", "not", "found")
-	ErrSlotTaken              = fmt.Err("slot", "taken")
-	ErrMissingArgs            = fmt.Err("missing", "args")
-	ErrInvalidBlock           = fmt.Err("appointment_booking: start_min must be < end_min and both within 0..1439")
-	ErrBlocksOverlap          = fmt.Err("appointment_booking: two blocks of the same day overlap")
-	ErrBlockOutsideBusinessHours = fmt.Err("appointment_booking: block falls outside the establishment's opening hours")
-	ErrBlockOnClosedDay          = fmt.Err("appointment_booking: the establishment is closed on that date")
-	ErrNoServiceConfig           = fmt.Err("appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured")
-	ErrIncompleteSlot            = fmt.Err("appointment_booking: a booking needs both a day and an hour")
+// domainError is the concrete type of this package's sentinel errors. Code
+// compares them by asserting this type and comparing the value: == between two
+// error values compiles, under TinyGo, to runtime.interfaceEqual, which pulls
+// internal/reflectlite into the wasm binary.
+type domainError string
+
+func (e domainError) Error() string { return string(e) }
+
+const (
+	ErrCalendarConfigNotFound domainError = "calendar config not found"
+	ErrSlotTaken              domainError = "slot taken"
+	ErrMissingArgs            domainError = "missing args"
+	ErrInvalidBlock           domainError = "appointment_booking: start_min must be < end_min and both within 0..1439"
+	ErrBlocksOverlap          domainError = "appointment_booking: two blocks of the same day overlap"
+	ErrBlockOutsideBusinessHours domainError = "appointment_booking: block falls outside the establishment's opening hours"
+	ErrBlockOnClosedDay          domainError = "appointment_booking: the establishment is closed on that date"
+	ErrNoServiceConfig           domainError = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
+	ErrIncompleteSlot            domainError = "appointment_booking: a booking needs both a day and an hour"
 )
 
 // Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).
@@ -256,7 +264,7 @@ func (m *Module) UpsertCalendarConfig(cfg WorkCalendarConfig) error {
 func (m *Module) requireCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error) {
 	cfg, err := m.repo.GetCalendarConfig(tenantId, staffId)
 	if err != nil {
-		if err == ErrNotFound {
+		if e, ok := err.(domainError); ok && e == ErrNotFound {
 			return WorkCalendarConfig{}, ErrCalendarConfigNotFound
 		}
 		return WorkCalendarConfig{}, err
@@ -977,7 +985,7 @@ func (m *Module) ExpirePendingReservations(tenantId string, before int64) (int, 
 
 	rows, err := ReadAllReservation(qb)
 	if err != nil {
-		if err == orm.ErrNotFound {
+		if orm.IsNotFound(err) {
 			return 0, nil
 		}
 		return 0, err

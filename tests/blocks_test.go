@@ -260,7 +260,7 @@ func TestBlockOutsideBusinessHoursIsRejected(t *testing.T) {
 
 	d := Date(2027, 6, 7, 0, 0, 0, 0)
 	err := s.MarkWorkingDays("t1", "s1", []int64{d}, 0, 480)
-	if err != ab.ErrBlockOutsideBusinessHours {
+	if err == nil || err.Error() != ab.ErrBlockOutsideBusinessHours.Error() {
 		t.Fatalf("expected ErrBlockOutsideBusinessHours, got %v", err)
 	}
 
@@ -272,7 +272,7 @@ func TestBlockOutsideBusinessHoursIsRejected(t *testing.T) {
 	bounds := deps.Bounds.(*MockBoundsReader)
 	bounds.Overrides = append(bounds.Overrides, DateBound{Date: d, Bounds: tinytime.DayBounds{}})
 	err = s.MarkWorkingDays("t1", "s1", []int64{d}, 540, 1020)
-	if err != ab.ErrBlockOnClosedDay {
+	if err == nil || err.Error() != ab.ErrBlockOnClosedDay.Error() {
 		t.Fatalf("expected ErrBlockOnClosedDay, got %v", err)
 	}
 }

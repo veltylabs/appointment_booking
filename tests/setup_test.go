@@ -179,7 +179,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 
 		// Second reservation on same slot
 		_, err = s.CreateReservation(cmd)
-		if err != ab.ErrSlotTaken {
+		if err == nil || err.Error() != ab.ErrSlotTaken.Error() {
 			t.Fatalf("expected ab.ErrSlotTaken, got: %v", err)
 		}
 	})
