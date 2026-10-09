@@ -1,7 +1,7 @@
 package seed
 
 import (
-	"errors"
+	"webtyp.com/fmt"
 	tinytime "webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
@@ -77,7 +77,7 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 		}
 
 		if matchedServiceID == "" {
-			return data, errors.New("no se encontró servicio en catálogo para la especialidad " + sm.Specialty + " del profesional " + sm.Name)
+			return data, fmt.Err("no se encontró servicio en catálogo para la especialidad " + sm.Specialty + " del profesional " + sm.Name)
 		}
 
 		esc, err := m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{
@@ -95,10 +95,10 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 	}
 
 	if len(data.ServiceConfigs) == 0 {
-		return data, errors.New("no hay configuraciones de servicio creadas")
+		return data, fmt.Err("no hay configuraciones de servicio creadas")
 	}
 	if len(up.Patients.Patients) == 0 {
-		return data, errors.New("no hay pacientes en el módulo de pacientes")
+		return data, fmt.Err("no hay pacientes en el módulo de pacientes")
 	}
 
 	// 4. Dos reservas para el próximo día hábil que las acepte (09:00 y 09:30
@@ -141,7 +141,7 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 		booked = lastErr == nil
 	}
 	if !booked {
-		return data, errors.New("seed: ningún día hábil aceptó la reserva de demo: " + lastErr.Error())
+		return data, fmt.Err("seed: ningún día hábil aceptó la reserva de demo: " + lastErr.Error())
 	}
 	slotStartUtc2 := ab.LocalIntToUnixUTC(daySec, 570, "America/Santiago") // 09:30
 
