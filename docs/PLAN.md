@@ -91,3 +91,6 @@ es donde los feriados corresponden.
 Las de `AGENTS.md`. Además: sin `map`, sin `reflect`, sin `errors.Is`/`errors.As`, sin
 `==`/`!=`/`switch` entre valores de interfaz con operandos no nil; errores con `webtyp.com/fmt`, no con
 `errors.New` de la biblioteca estándar. No tocar otros repos.
+
+## Executor notes
+All tasks completed successfully. Included GetWeekdayBounds in BoundsReader and updated SaveDayBlocks to use boundsForWeekday. Tests were passing correctly. No deviations from the plan except that unixNowSeconds was not removed because it was used in another place.
