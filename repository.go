@@ -1,15 +1,14 @@
 package appointmentbooking
 
 import (
-	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 )
 
 // Errores sentinela a nivel de paquete
-var (
-	ErrNotFound = fmt.Err("record", "not", "found")
-	ErrConflict = fmt.Err("optimistic", "concurrency", "conflict")
+const (
+	ErrNotFound domainError = "record not found"
+	ErrConflict domainError = "optimistic concurrency conflict"
 )
 
 // Repository provee operaciones CRUD para todas las tablas de appointment-booking.
@@ -40,7 +39,7 @@ func (r *Repository) GetReservation(id string) (Reservation, error) {
 	m := &Reservation{}
 	qb := r.db.Query(m).Where(Reservation_.Id).Eq(id)
 	got, err := ReadOneReservation(qb, m)
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		return Reservation{}, ErrNotFound
 	}
 	if err != nil {
@@ -53,7 +52,7 @@ func (r *Repository) GetReservationTx(tx *orm.DB, tenantId, id string) (Reservat
 	m := &Reservation{}
 	qb := tx.Query(m).Where(Reservation_.Id).Eq(id).Where(Reservation_.TenantId).Eq(tenantId)
 	got, err := ReadOneReservation(qb, m)
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		return Reservation{}, ErrNotFound
 	}
 	if err != nil {
@@ -91,7 +90,7 @@ func (r *Repository) ListReservationsByTenantRange(tenantId string, from, to int
 		Where(Reservation_.ReservationDate).Lte(to)
 	rows, err := ReadAllReservation(qb)
 	if err != nil {
-		if err == orm.ErrNotFound {
+		if orm.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -129,7 +128,7 @@ func (r *Repository) UpdateReservationStatusTx(tx *orm.DB, id, status, updatedBy
 	current := &Reservation{}
 	qb := tx.Query(current).Where(Reservation_.Id).Eq(id)
 	got, err := ReadOneReservation(qb, current)
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -153,7 +152,7 @@ func (r *Repository) UpdateReservationConflictTx(tx *orm.DB, id, tenantId, statu
 	current := &Reservation{}
 	qb := tx.Query(current).Where(Reservation_.Id).Eq(id).Where(Reservation_.TenantId).Eq(tenantId)
 	got, err := ReadOneReservation(qb, current)
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		return ErrNotFound
 	}
 	if err != nil {
@@ -209,7 +208,7 @@ func (r *Repository) GetException(tenantId, id string) (WorkCalendarException, e
 		Where(WorkCalendarException_.Id).Eq(id).
 		Where(WorkCalendarException_.TenantId).Eq(tenantId)
 	got, err := ReadOneWorkCalendarException(qb, m)
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		return WorkCalendarException{}, ErrNotFound
 	}
 	if err != nil {
@@ -233,7 +232,7 @@ func (r *Repository) GetEmployeeServiceConfig(id string) (EmployeeServiceConfig,
 	m := &EmployeeServiceConfig{}
 	qb := r.db.Query(m).Where(EmployeeServiceConfig_.Id).Eq(id)
 	got, err := ReadOneEmployeeServiceConfig(qb, m)
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		return EmployeeServiceConfig{}, ErrNotFound
 	}
 	if err != nil {
@@ -273,10 +272,10 @@ func (r *Repository) UpsertCalendarConfig(cfg WorkCalendarConfig) error {
 		Where(WorkCalendarConfig_.TenantId).Eq(cfg.TenantId).
 		Where(WorkCalendarConfig_.StaffId).Eq(cfg.StaffId)
 	got, err := ReadOneWorkCalendarConfig(qb, existing)
-	if err != nil && err != orm.ErrNotFound {
+	if err != nil && !orm.IsNotFound(err) {
 		return err
 	}
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		// No existe — crear
 		cfg.Id = r.ids.NewID()
 		return r.db.Create(&cfg)
@@ -292,7 +291,7 @@ func (r *Repository) GetCalendarConfig(tenantId, staffId string) (WorkCalendarCo
 		Where(WorkCalendarConfig_.TenantId).Eq(tenantId).
 		Where(WorkCalendarConfig_.StaffId).Eq(staffId)
 	got, err := ReadOneWorkCalendarConfig(qb, m)
-	if err == orm.ErrNotFound {
+	if orm.IsNotFound(err) {
 		return WorkCalendarConfig{}, ErrNotFound
 	}
 	if err != nil {

@@ -2,6 +2,7 @@ package appointmentbooking
 
 import (
 	"webtyp.com/fmt"
+	"webtyp.com/orm"
 	"webtyp.com/model"
 	"webtyp.com/router"
 )
@@ -96,18 +97,27 @@ var _ router.OperationModule = (*Module)(nil)
 // 500, eso es el "runtime mystery" que CONSTRUCTION_HARNESS prohíbe):
 //   400 = decode/validación/precondición inválida · 404 = no existe · 409 = conflicto · 500 = resto.
 func writeError(ctx router.Context, err error) {
-	switch err {
-	case ErrNotFound:
-		ctx.WriteStatus(404)
-	case ErrSlotTaken, ErrConflict, ErrBlocksOverlap:
-		ctx.WriteStatus(409)
-	case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
-		ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs:
-		ctx.WriteStatus(400)
-	default:
-		ctx.WriteStatus(500)
+	if e, ok := err.(domainError); ok {
+		switch e {
+		case ErrNotFound:
+			ctx.WriteStatus(404)
+		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap:
+			ctx.WriteStatus(409)
+		case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
+			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot:
+			ctx.WriteStatus(400)
+		default:
+			ctx.WriteStatus(500)
+		}
+		ctx.Write([]byte(e.Error()))
+		return
 	}
-	ctx.Write([]byte(err.Error()))
+	if orm.IsNotFound(err) {
+		ctx.WriteStatus(404)
+		ctx.Write([]byte("not found"))
+		return
+	}
+	ctx.WriteStatus(500)
 }
 
 func (m *Module) opCreateReservation(ctx router.Context) {

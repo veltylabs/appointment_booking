@@ -59,7 +59,7 @@ func TestTenantIsolation(t *testing.T) {
 
 	// 2. Test GetReservation isolation
 	_, err = svc.GetReservation("TB", resA.Id)
-	if err != ab.ErrNotFound {
+	if err == nil || err.Error() != ab.ErrNotFound.Error() {
 		t.Fatalf("expected GetReservation cross-tenant to return ErrNotFound, got %v", err)
 	}
 
@@ -71,7 +71,7 @@ func TestTenantIsolation(t *testing.T) {
 		ActorId:  "user_B",
 		Revision: 0,
 	})
-	if err != ab.ErrNotFound {
+	if err == nil || err.Error() != ab.ErrNotFound.Error() {
 		t.Fatalf("expected ChangeReservationStatus cross-tenant to return ErrNotFound, got %v", err)
 	}
 

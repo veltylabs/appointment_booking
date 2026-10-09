@@ -20,10 +20,10 @@ require (
 	webtyp.com/json v0.5.27
 	webtyp.com/lang v0.1.0
 	webtyp.com/layout v0.3.24
-	webtyp.com/model v0.2.0
-	webtyp.com/orm v0.12.4
+	webtyp.com/model v0.2.2
+	webtyp.com/orm v0.12.8
 	webtyp.com/router v0.3.2
-	webtyp.com/storage v0.1.1
+	webtyp.com/storage v0.1.3
 	webtyp.com/svg v0.3.14
 	webtyp.com/time v0.5.7
 	webtyp.com/unixid v0.2.28

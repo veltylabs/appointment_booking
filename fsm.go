@@ -1,6 +1,5 @@
 package appointmentbooking
 
-import "webtyp.com/fmt"
 
 // Estados
 const (
@@ -58,7 +57,7 @@ var transitions = []transition{
 }
 
 // ErrInvalidTransition se devuelve cuando una transición no está permitida.
-var ErrInvalidTransition = fmt.Err("invalid", "transition")
+const ErrInvalidTransition domainError = "invalid transition"
 
 // Transition devuelve el siguiente estado, o un error si la transición no es válida.
 func Transition(current, event string) (string, error) {

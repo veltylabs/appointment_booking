@@ -145,7 +145,7 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 
 	t.Run("UC-15_ListAvailability_NoCalendarConfig", func(t *testing.T) {
 		_, err := s.ListAvailability("t_uc15", "non_existent_staff", "cfg_id", 0, 1000)
-		if err != ab.ErrCalendarConfigNotFound {
+		if err == nil || err.Error() != ab.ErrCalendarConfigNotFound.Error() {
 			t.Fatalf("expected ab.ErrCalendarConfigNotFound, got: %v", err)
 		}
 	})
@@ -186,7 +186,7 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 			SlotStartUtc:            midnightSlot,
 			Origin:                  ab.OriginCounter,
 		})
-		if err != ab.ErrSlotTaken {
+		if err == nil || err.Error() != ab.ErrSlotTaken.Error() {
 			t.Fatalf("expected ab.ErrSlotTaken for slot outside work hours, got: %v", err)
 		}
 	})

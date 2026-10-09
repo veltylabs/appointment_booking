@@ -257,7 +257,7 @@ func TestFormView_SaveWithoutServiceConfig(t *testing.T) {
 
 	var serr error
 	saver.Save([]model.Model{rec}, func(err error) { serr = err })
-	if !errors.Is(serr, ab.ErrNoServiceConfig) && serr != ab.ErrNoServiceConfig {
+	if serr == nil || serr.Error() != ab.ErrNoServiceConfig.Error() {
 		t.Fatalf("expected ErrNoServiceConfig, got %v", serr)
 	}
 }
@@ -284,7 +284,7 @@ func TestFormView_SaveWithoutHour(t *testing.T) {
 
 	var serr error
 	saver.Save([]model.Model{rec}, func(err error) { serr = err })
-	if !errors.Is(serr, ab.ErrIncompleteSlot) && serr != ab.ErrIncompleteSlot {
+	if serr == nil || serr.Error() != ab.ErrIncompleteSlot.Error() {
 		t.Fatalf("expected ErrIncompleteSlot, got %v", serr)
 	}
 }

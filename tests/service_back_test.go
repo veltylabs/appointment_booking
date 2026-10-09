@@ -90,7 +90,7 @@ func TestService_Back(t *testing.T) {
 			ActorId:  "u1",
 			Revision: 0, // Wrong revision, should be 1
 		})
-		if err2 != ab.ErrConflict {
+		if err2 == nil || err2.Error() != ab.ErrConflict.Error() {
 			t.Fatalf("Second change should fail with ab.ErrConflict, got: %v", err2)
 		}
 

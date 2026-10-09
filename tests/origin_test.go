@@ -146,7 +146,7 @@ func TestCU2_CreateReservation_OriginValidation(t *testing.T) {
 		Origin:                  "",
 	}
 	_, err := s.CreateReservation(cmdEmpty)
-	if err != ab.ErrMissingArgs {
+	if err == nil || err.Error() != ab.ErrMissingArgs.Error() {
 		t.Fatalf("expected ErrMissingArgs for empty origin, got: %v", err)
 	}
 
@@ -160,7 +160,7 @@ func TestCU2_CreateReservation_OriginValidation(t *testing.T) {
 		Origin:                  "WHATSAPP",
 	}
 	_, err = s.CreateReservation(cmdInvalid)
-	if err != ab.ErrMissingArgs {
+	if err == nil || err.Error() != ab.ErrMissingArgs.Error() {
 		t.Fatalf("expected ErrMissingArgs for invalid origin 'WHATSAPP', got: %v", err)
 	}
 }
@@ -274,7 +274,7 @@ func TestCU7_FSM_Unchanged(t *testing.T) {
 
 	// Terminal states should fail transition
 	_, err = ab.Transition(ab.StatusCancelled, ab.EventConfirm)
-	if err != ab.ErrInvalidTransition {
+	if err == nil || err.Error() != ab.ErrInvalidTransition.Error() {
 		t.Fatalf("expected ErrInvalidTransition from CANCELLED, got %v", err)
 	}
 }
