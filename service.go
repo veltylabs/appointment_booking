@@ -124,7 +124,13 @@ type DirectoryReader interface {
 //
 // date is midnight UTC in seconds.
 type BoundsReader interface {
+	// GetDayBounds: which minutes of this concrete date are usable
+	// (holidays and closures applied). date is midnight UTC in seconds.
 	GetDayBounds(date int64) (tinytime.DayBounds, error)
+	// GetWeekdayBounds: the establishment's regular hours for a weekday
+	// (0 = Sunday … 6 = Saturday), without date exceptions. A weekly
+	// schedule is validated against this, never against one date.
+	GetWeekdayBounds(dayOfWeek int) (tinytime.DayBounds, error)
 }
 
 type SchedulingService interface {
@@ -272,14 +278,24 @@ func (m *Module) requireCalendarConfig(tenantId, staffId string) (WorkCalendarCo
 	return cfg, nil
 }
 
-// boundsForDay es el ÚNICO punto del módulo que consulta BoundsReader. Un solo
-// nil-check de m.bounds en todo el módulo (regla §6.1): nil = Unbounded, y casi
-// todo el código que viene después ya siempre tiene bounds.
+// boundsForDay es el ÚNICO punto del módulo que consulta BoundsReader para una
+// fecha concreta. Un solo nil-check de m.bounds en todo el módulo (regla §6.1):
+// nil = Unbounded, y casi todo el código que viene después ya siempre tiene bounds.
 func (m *Module) boundsForDay(d int64) (tinytime.DayBounds, error) {
 	if m.bounds == nil {
 		return tinytime.Unbounded(), nil
 	}
 	return m.bounds.GetDayBounds(d)
+}
+
+// boundsForWeekday es similar a boundsForDay pero consulta BoundsReader
+// por el horario regular de un día de la semana (0 = Sunday … 6 = Saturday),
+// ignorando excepciones por fecha.
+func (m *Module) boundsForWeekday(dow int) (tinytime.DayBounds, error) {
+	if m.bounds == nil {
+		return tinytime.Unbounded(), nil
+	}
+	return m.bounds.GetWeekdayBounds(dow)
 }
 
 // GetDayBounds proxies Deps.Bounds para que el editor acote sus propios controles
@@ -331,21 +347,6 @@ func validateBlockSet(bounds tinytime.DayBounds, blocks []WorkCalendarBlock) err
 	return nil
 }
 
-// nextWeekday devuelve la fecha (medianoche UTC) de la próxima ocurrencia de dow
-// a partir de now. Es la fecha representativa que un bloque WEEKLY se valida
-// contra: un template semanal aplica a muchas fechas, y esta es la única
-// elección determinista que un BoundsReader con datos iguales cubre.
-func nextWeekday(now int64, dow int) int64 {
-	start := tinytime.MidnightUTC(now)
-	for i := 0; i < 7; i++ {
-		d := start + int64(i*86400)
-		if tinytime.Weekday(d) == dow {
-			return d
-		}
-	}
-	return start
-}
-
 // unixNowSeconds es Now() en segundos epoch — MidnightUTC/Weekday/etc. del
 // paquete webtyp.com/time operan en segundos, mientras que Now() entrega nanos.
 func unixNowSeconds() int64 { return tinytime.Now() / 1000000000 }
@@ -374,7 +375,7 @@ func (m *Module) SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks [
 		blocks[i].SpecificDate = 0
 		blocks[i].IsActive = true
 	}
-	bounds, err := m.boundsForDay(nextWeekday(unixNowSeconds(), dayOfWeek))
+	bounds, err := m.boundsForWeekday(dayOfWeek)
 	if err != nil {
 		return err
 	}

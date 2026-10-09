@@ -365,6 +365,76 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		}
 	})
 
+	t.Run("SaveDayBlocks_WeekdayBoundsWithHolidays", func(t *testing.T) {
+		mockBounds, ok := deps.Bounds.(*MockBoundsReader)
+		if !ok {
+			mockBounds = &MockBoundsReader{Default: OpenDayBounds}
+			deps.Bounds = mockBounds
+
+			_, mOk := s.(*ab.Module)
+			if mOk {
+				newDeps := deps
+				newDeps.Bounds = mockBounds
+				s2, _ := ab.New(db, newDeps)
+				s = s2
+			} else {
+				t.Fatalf("Deps.Bounds is not MockBoundsReader and unable to mock it")
+			}
+		}
+
+		// Un feriado (cerrado) que cae justo en el próximo lunes
+		start := tinytime.MidnightUTC(tinytime.Now() / 1e9)
+		var nextMon int64
+		for i := 0; i < 7; i++ {
+			d := start + int64(i*86400)
+			if tinytime.Weekday(d) == 1 { // Lunes = 1
+				nextMon = d
+				break
+			}
+		}
+
+		// Guardar el estado actual para restaurarlo al final
+		origOverrides := mockBounds.Overrides
+		origWeekdayOverrides := mockBounds.WeekdayOverrides
+		defer func() {
+			mockBounds.Overrides = origOverrides
+			mockBounds.WeekdayOverrides = origWeekdayOverrides
+		}()
+
+		mockBounds.Overrides = []DateBound{{Date: nextMon, Bounds: tinytime.DayBounds{Open: false}}}
+		mockBounds.WeekdayOverrides = []WeekdayBound{
+			{DayOfWeek: 0, Bounds: tinytime.DayBounds{Open: false}}, // Domingo cerrado siempre
+		}
+
+		repo.UpsertCalendarConfig(ab.WorkCalendarConfig{
+			TenantId: "t_wb", StaffId: "s_wb", IsActive: true,
+		})
+
+		// Lunes (1) no debe estar afectado por el feriado al guardar horario semanal
+		err := s.SaveDayBlocks("t_wb", "s_wb", 1, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 780, IsActive: true}, // 09:00 - 13:00
+		})
+		if err != nil {
+			t.Fatalf("expected success for saving blocks on Monday despite a holiday, got %v", err)
+		}
+
+		// Domingo (0) sí debe fallar porque WeekdayOverrides dice que está cerrado
+		err = s.SaveDayBlocks("t_wb", "s_wb", 0, []ab.WorkCalendarBlock{
+			{StartMin: 540, EndMin: 780, IsActive: true},
+		})
+		if err == nil || err.Error() != ab.ErrBlockOnClosedDay.Error() {
+			t.Fatalf("expected ErrBlockOnClosedDay for Sunday, got %v", err)
+		}
+
+		// Bloque fuera de horario (MockBoundsReader.Default es 08:00 - 20:00 (480-1200))
+		err = s.SaveDayBlocks("t_wb", "s_wb", 2, []ab.WorkCalendarBlock{
+			{StartMin: 1260, EndMin: 1320, IsActive: true}, // 21:00 - 22:00
+		})
+		if err == nil || err.Error() != ab.ErrBlockOutsideBusinessHours.Error() {
+			t.Fatalf("expected ErrBlockOutsideBusinessHours, got %v", err)
+		}
+	})
+
 	t.Run("UC-18_ChangeReservationStatus_ConfirmWithPaymentID", func(t *testing.T) {
 		slot := Date(2025, 2, 6, 10, 0, 0, 0)
 		cfgID := setupValidConfig("t_uc18", "s_uc18", slot)

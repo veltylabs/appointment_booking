@@ -53,11 +53,17 @@ type DateBound struct {
 	Bounds tinytime.DayBounds
 }
 
+type WeekdayBound struct {
+	DayOfWeek int
+	Bounds    tinytime.DayBounds
+}
+
 // MockBoundsReader es el fake de ab.BoundsReader: bounds por fecha vía
 // Overrides (scan lineal) y un Default para el resto.
 type MockBoundsReader struct {
-	Default   tinytime.DayBounds
-	Overrides []DateBound
+	Default          tinytime.DayBounds
+	Overrides        []DateBound
+	WeekdayOverrides []WeekdayBound
 }
 
 func (b *MockBoundsReader) GetDayBounds(date int64) (tinytime.DayBounds, error) {
@@ -66,6 +72,18 @@ func (b *MockBoundsReader) GetDayBounds(date int64) (tinytime.DayBounds, error) 
 	}
 	for _, o := range b.Overrides {
 		if o.Date == date {
+			return o.Bounds, nil
+		}
+	}
+	return b.Default, nil
+}
+
+func (b *MockBoundsReader) GetWeekdayBounds(dayOfWeek int) (tinytime.DayBounds, error) {
+	if b == nil {
+		return tinytime.Unbounded(), nil
+	}
+	for _, o := range b.WeekdayOverrides {
+		if o.DayOfWeek == dayOfWeek {
 			return o.Bounds, nil
 		}
 	}
