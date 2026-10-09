@@ -3,6 +3,8 @@ PLAN: "feat!: reservas offline-first — CreateReservationCmd.Id obligatorio y r
 TAG: v0.2.0
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 3168463643924610062
 ---
 
 > This plan is dispatched via the CodeJob workflow. See skill: agents-workflow.
