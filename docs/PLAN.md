@@ -2,8 +2,9 @@
 PLAN: "fix: weekly schedule validated against the weekly hours, not the next occurrence's date (a holiday blocked saving a weekday)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 3416651458354618066
+PR: https://github.com/veltylabs/appointment_booking/pull/18
 ---
 
 # Plan — `SaveDayBlocks` contra el horario semanal
