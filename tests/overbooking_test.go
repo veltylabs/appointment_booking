@@ -30,6 +30,28 @@ func TestCreateOverbooking_MissingId(t *testing.T) {
 	}
 }
 
+// A reservation made offline must carry the id its device minted: without one, a resend would
+// create a second reservation instead of answering the first.
+func TestCreateReservation_MissingId(t *testing.T) {
+	deps := SetupDependencies()
+	m, repo, _ := newTestModule(t, deps)
+	slot := Date(2025, 2, 3, 10, 0, 0, 0)
+	cfgID := setupReservable(t, m, repo, "t1", "s1", slot)
+
+	_, err := m.CreateReservation(ab.CreateReservationCmd{
+		Id:                      "",
+		TenantId:                "t1",
+		ClientId:                "c1",
+		CreatorUserId:           "u1",
+		EmployeeServiceConfigId: cfgID,
+		SlotStartUtc:            slot,
+		Origin:                  ab.OriginCounter,
+	})
+	if err == nil || err.Error() != ab.ErrMissingArgs.Error() {
+		t.Fatalf("expected ErrMissingArgs, got %v", err)
+	}
+}
+
 func TestCreateOverbooking_Idempotency(t *testing.T) {
 	deps := SetupDependencies()
 	m, repo, _ := newTestModule(t, deps)
