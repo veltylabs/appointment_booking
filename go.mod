@@ -18,7 +18,7 @@ require (
 	webtyp.com/html v0.0.27
 	webtyp.com/input v0.0.18
 	webtyp.com/json v0.5.29
-	webtyp.com/lang v0.1.5
+	webtyp.com/lang v0.1.6
 	webtyp.com/layout v0.3.41
 	webtyp.com/model v0.2.2
 	webtyp.com/orm v0.12.9
