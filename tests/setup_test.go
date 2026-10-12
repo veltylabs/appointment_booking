@@ -3,28 +3,13 @@ package tests
 import (
 	"testing"
 
-	"webtyp.com/fmt"
 	"webtyp.com/orm"
 	tinytime "webtyp.com/time"
 	ab "github.com/veltylabs/appointment_booking"
 )
 
-func pad2(n int) string {
-	s := fmt.Convert(n).String()
-	if len(s) < 2 {
-		return "0" + s
-	}
-	return s
-}
-
-func Date(year, month, day, hour, min, sec, ms int) int64 {
-	dateStr := fmt.Convert(year).String() + "-" + pad2(month) + "-" + pad2(day)
-	timeStr := pad2(hour) + ":" + pad2(min) + ":" + pad2(sec)
-	nano, err := tinytime.ParseDateTime(dateStr, timeStr)
-	if err != nil {
-		nano, _ = tinytime.ParseDate(dateStr)
-	}
-	return nano / 1000000000
+func Date(year, month, day, hour, min, sec, _ int) int64 {
+	return tinytime.Date(year, month, day, hour, min, sec)
 }
 
 // RunServicePureTests tests generic logic of the service (Availability, FSM changes, CreateReservation)
@@ -78,6 +63,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		}
 
 		cmd := ab.CreateReservationCmd{
+			Id:                      "res-setup-1",
 			TenantId:                "t1",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -164,6 +150,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		slotStartUTC := targetDay + 540*60 // 09:00 UTC
 
 		cmd := ab.CreateReservationCmd{
+			Id:                      "res-setup-2",
 			TenantId:                "t2",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -172,15 +159,26 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 			Origin:                  ab.OriginCounter,
 		}
 
-		_, err := s.CreateReservation(cmd)
+		res1, err := s.CreateReservation(cmd)
 		if err != nil {
 			t.Fatalf("first CreateReservation should succeed, got: %v", err)
 		}
 
-		// Second reservation on same slot
-		_, err = s.CreateReservation(cmd)
+		// Idempotent retry: same command with same ID returns existing reservation
+		resRetry, err := s.CreateReservation(cmd)
+		if err != nil {
+			t.Fatalf("idempotent retry should succeed, got: %v", err)
+		}
+		if resRetry.Id != res1.Id {
+			t.Fatalf("expected same reservation id on retry, got: %s vs %s", resRetry.Id, res1.Id)
+		}
+
+		// Second reservation with DIFFERENT id on same slot
+		cmdDiff := cmd
+		cmdDiff.Id = "res-setup-3"
+		_, err = s.CreateReservation(cmdDiff)
 		if err == nil || err.Error() != ab.ErrSlotTaken.Error() {
-			t.Fatalf("expected ab.ErrSlotTaken, got: %v", err)
+			t.Fatalf("expected ab.ErrSlotTaken for distinct id, got: %v", err)
 		}
 	})
 
@@ -211,6 +209,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		slotStartUTC := targetDay + 540*60 // 09:00 UTC
 
 		cmd := ab.CreateReservationCmd{
+			Id:                      "res-setup-4",
 			TenantId:                "t3",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",

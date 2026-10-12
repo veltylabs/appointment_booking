@@ -34,6 +34,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := cfgs[0].Id
 
 		_, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc01",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -63,6 +64,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		defer func() { mockStaff.Exists = true }()
 
 		_, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc02",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -92,6 +94,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		defer func() { mockCatalog.Exists = true }()
 
 		_, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc03",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -121,6 +124,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		defer func() { mockDirectory.Exists = true }()
 
 		_, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc04",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -165,6 +169,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("t_uc05", "s_uc05", slot)
 
 		res, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc05",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -212,6 +217,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("t_uc06", "s_uc06", slot)
 
 		res, _ := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc06",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -265,6 +271,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("t_uc07", "s_uc07", slot1)
 
 		res1, _ := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc07",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -277,6 +284,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		mockPub.PublishedEvents = nil
 
 		res2, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc07",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -317,6 +325,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("T1", "s_uc13", slot)
 
 		res, _ := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "T1",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -336,6 +345,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("T1", "s_uc14", slot)
 
 		res, _ := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "T1",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -440,6 +450,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("t_uc18", "s_uc18", slot)
 
 		res, _ := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc18",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -472,6 +483,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("t_uc19", "s_uc19", slot1)
 
 		s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc19",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",
@@ -481,6 +493,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		})
 		for i := 0; i < 1000000; i++ {} // busy wait alternative to avoid nanosecond collision
 		s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc19",
 			ClientId:                "c2",
 			CreatorUserId:           "u2",
@@ -509,6 +522,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgID := setupValidConfig("t_uc20", "s_uc20", slot)
 
 		s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      nextTestID(),
 			TenantId:                "t_uc20",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",

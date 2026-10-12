@@ -9,11 +9,13 @@ import (
 
 const (
 	OpCreateReservation          = "create_reservation"
+	OpCreateOverbooking          = "create_overbooking"
 	OpGetReservation             = "get_reservation"
 	OpListReservationsByStaff    = "list_reservations_by_staff"
 	OpListReservationsByClient   = "list_reservations_by_client"
 	OpChangeReservationStatus    = "change_reservation_status"
 	OpExpirePendingReservations  = "expire_pending_reservations"
+	OpGetCalendarConfig          = "get_calendar_config"
 	OpUpsertCalendarConfig       = "upsert_calendar_config"
 	OpSaveDayBlocks              = "save_day_blocks"
 	OpSaveDateBlocks             = "save_date_blocks"
@@ -59,11 +61,13 @@ func qualifiedOp(name string) string {
 
 func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpCreateReservation, m.opCreateReservation).Requires("reservation", model.Create).Accepts(&CreateReservationArgs{})
+	reg.Operation(OpCreateOverbooking, m.opCreateOverbooking).Requires("overbooking", model.Create).Accepts(&CreateOverbookingArgs{})
 	reg.Operation(OpGetReservation, m.opGetReservation).Requires("reservation", model.Read).Accepts(&GetReservationArgs{})
 	reg.Operation(OpListReservationsByStaff, m.opListReservationsByStaff).Requires("reservation", model.Read).Accepts(&ListReservationsByStaffArgs{})
 	reg.Operation(OpListReservationsByClient, m.opListReservationsByClient).Requires("reservation", model.Read).Accepts(&ListReservationsByClientArgs{})
 	reg.Operation(OpChangeReservationStatus, m.opChangeReservationStatus).Requires("reservation", model.Update).Accepts(&ChangeReservationStatusArgs{})
 	reg.Operation(OpExpirePendingReservations, m.opExpirePendingReservations).Requires("reservation", model.Update).Accepts(&ExpirePendingReservationsArgs{})
+	reg.Operation(OpGetCalendarConfig, m.opGetCalendarConfig).Requires("calendar", model.Read).Accepts(&GetCalendarConfigArgs{})
 	// Upserts: crean en la rama not-found Y actualizan en la otra — el op exige TODAS las
 	// acciones que realmente puede ejecutar (model.Action es bitmask). Declarar solo Update
 	// dejaría a un principal update-only creando filas (violación de closed-by-default).
@@ -101,10 +105,10 @@ func writeError(ctx router.Context, err error) {
 		switch e {
 		case ErrNotFound:
 			ctx.WriteStatus(404)
-		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap:
+		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap, ErrIdTaken, ErrOverbookNotAllowed:
 			ctx.WriteStatus(409)
 		case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
-			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot:
+			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot, ErrSlotNotInSchedule:
 			ctx.WriteStatus(400)
 		default:
 			ctx.WriteStatus(500)
@@ -133,6 +137,7 @@ func (m *Module) opCreateReservation(ctx router.Context) {
 		return
 	}
 	cmd := CreateReservationCmd{
+		Id:                      args.Id,
 		TenantId:                args.TenantId,
 		ClientId:                args.ClientId,
 		CreatorUserId:           args.CreatorUserId,
@@ -143,6 +148,37 @@ func (m *Module) opCreateReservation(ctx router.Context) {
 		Origin:                  args.Origin,
 	}
 	res, err := m.CreateReservation(cmd)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	if err := ctx.Encode(&res); err != nil {
+		ctx.WriteStatus(500)
+	}
+}
+
+func (m *Module) opCreateOverbooking(ctx router.Context) {
+	var args CreateOverbookingArgs
+	if err := ctx.Decode(&args); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	if err := args.Validate(model.ActionCreate); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	cmd := CreateReservationCmd{
+		Id:                      args.Id,
+		TenantId:                args.TenantId,
+		ClientId:                args.ClientId,
+		CreatorUserId:           args.CreatorUserId,
+		EmployeeServiceConfigId: args.EmployeeServiceConfigId,
+		SlotStartUtc:            args.SlotStartUtc,
+		Notes:                   args.Notes,
+		RescheduledFromId:       args.RescheduledFromId,
+		Origin:                  args.Origin,
+	}
+	res, err := m.CreateOverbooking(cmd)
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -312,6 +348,22 @@ func (m *Module) opUpdateEmployeeServiceConfig(ctx router.Context) {
 	ctx.WriteStatus(200)
 }
 
+func (m *Module) opGetCalendarConfig(ctx router.Context) {
+	var args GetCalendarConfigArgs
+	if err := ctx.Decode(&args); err != nil {
+		ctx.WriteStatus(400)
+		return
+	}
+	cfg, err := m.GetCalendarConfig(args.TenantId, args.StaffId)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	if err := ctx.Encode(&cfg); err != nil {
+		ctx.WriteStatus(500)
+	}
+}
+
 func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 	var args UpsertCalendarConfigArgs
 	if err := ctx.Decode(&args); err != nil {
@@ -319,8 +371,11 @@ func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 		return
 	}
 	cfg := WorkCalendarConfig{
-		TenantId: args.TenantId, StaffId: args.StaffId,
-		Timezone: args.Timezone, IsActive: args.IsActive,
+		TenantId:          args.TenantId,
+		StaffId:           args.StaffId,
+		Timezone:          args.Timezone,
+		IsActive:          args.IsActive,
+		MaxOverbookPerDay: args.MaxOverbookPerDay,
 	}
 	if err := m.UpsertCalendarConfig(cfg); err != nil {
 		writeError(ctx, err)

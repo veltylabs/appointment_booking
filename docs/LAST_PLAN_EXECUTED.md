@@ -1,93 +1,197 @@
 ---
-PLAN: "chore: drop the Schema()/Pointers() stubs from list types"
-EXECUTOR: jules
+PLAN: "feat!: reservas offline-first — CreateReservationCmd.Id obligatorio y reintento idempotente; sobrecupo explícito con tope por profesional (cerrado por defecto)"
+TAG: v0.2.0
+EXECUTOR: local
 REVIEWER: none
 ---
 
-> This plan is dispatched via the CodeJob workflow. See skill: agents-workflow.
->
-> **Phase C** of
-> [`LIST_CONTRACT_MASTER_PLAN.md`](https://github.com/webtyp/docs/blob/main/LIST_CONTRACT_MASTER_PLAN.md).
-> Runs in parallel with the other phase-C repos.
->
-> **Depends on phase A** (`webtyp.com/model`) and **phase B** (`webtyp.com/ormc`).
-> As the first line of work: `go get webtyp.com/model@latest`. Never add a
-> `replace`, never invent a version.
+# Plan — `appointment_booking`: reservas sin servidor y sobrecupo explícito
 
-# Plan — `github.com/veltylabs/appointment_booking`: a list stops claiming it has columns
+## 0. Contexto (leer primero)
 
-## 0. Context (verified against the repo — do not re-diagnose)
+Una ola offline-first (master plan:
+<https://github.com/veltylabs/mjosefa-cms/blob/main/docs/OFFLINE_FIRST_MASTER_PLAN.md>) permite
+que la recepción de una clínica **reserve sin servidor**. El navegador ejecuta este mismo módulo
+sobre su base local, guarda la operación en una cola (`webtyp/outbox`) y la reenvía al servidor
+cuando vuelve la conexión, a `POST /api/appointment_booking/create_reservation`. Decisiones del
+master que aplica este plan:
 
-`model.FielderSlice` used to embed `model.Fielder`, so every list type had to
-answer "what are your columns?" — a question a sequence of rows cannot have.
-`ormc` therefore emitted, on every generated list:
+- **OF-5:** el id de la reserva lo genera quien llama. La reserva creada sin conexión llega al
+  servidor con el mismo id, así que reenviarla **no duplica**.
+- **OF-6:** sin retrocompatibilidad; no queda ningún camino viejo.
+- **OF-7:** si la hora ya fue tomada por otro puesto, el servidor la rechaza con `ErrSlotTaken`
+  (409; ya existe) y la reserva va a una bandeja de conflictos del puesto que la creó.
+- **OF-16:** **sobrecupo explícito**. Es una operación propia con su propio permiso, con un
+  **tope por profesional y día que por defecto es 0** (cerrado). Una reserva de sobrecupo se ve
+  distinta en la agenda. Prior art: FHIR `Slot.overbooked`, el "overbook" con permiso de las
+  agendas hospitalarias y el sobrecupo que autoriza el médico en Chile.
 
-```go
-func (s *XList) Schema() []model.Field { return nil }
-func (s *XList) Pointers() []any       { return nil }
+Estado actual (verificado en `main`, v0.1.46):
+
+- `CreateReservation(cmd CreateReservationCmd)` (`service.go`) asigna
+  `newReservation.Id = m.ids.NewID()`; `CreateReservationCmd` y `CreateReservationArgsModel`
+  (`model.go`) no tienen `id`.
+- Reenviar la misma creación hoy **falla** con `ErrSlotTaken`, porque la hora ya la ocupa la
+  propia reserva.
+- No existe sobrecupo.
+- `patient_directory` **v0.1.0** quitó `Deps.IDs`; la demo (`web/client.go`) todavía lo pasa.
+
+Los IDs internos de configuración (bloques de horario, excepciones, configuración de servicio)
+siguen generándose con `Deps.IDs`. Son pantallas de administración que se usan en línea y no
+entran en esta ola; `Deps.IDs` se mantiene para ellos.
+
+## Design gate
+
+### 1. Prior art
+- **Replicache / Zero:** ids generados en el cliente; la mutación de creación es idempotente.
+- **Stripe `Idempotency-Key` / HTTP `PUT` con id del cliente:** repetir una creación devuelve el
+  mismo recurso.
+- **FHIR `Slot.overbooked` / `Schedule`:** el sobrecupo es un estado explícito del cupo, no un
+  choque silencioso; las agendas hospitalarias (Epic, Cerner) lo permiten solo con permiso.
+
+### 2. Prueba del nombre para un novato
+- `CreateReservation(CreateReservationCmd{Id: id, ...})`: "crea la reserva con este id".
+- `CreateOverbooking(cmd)`: "crea un sobrecupo".
+- `WorkCalendarConfig.MaxOverbookPerDay`: "máximo de sobrecupos por día de este profesional".
+- `Reservation.Overbooked`: "es sobrecupo".
+- `ErrOverbookNotAllowed`: "no se permite (más) sobrecupo".
+- `ErrSlotNotInSchedule`: "la hora solicitada no pertenece a un bloque de horario habilitado".
+
+### 3. Libro de complejidad
+```
+Conceptos que aprender              +1 (sobrecupo: un método, un campo de config, una marca)
+Archivos que tocar para hacer X      0
+Líneas en el sitio de llamada        +1 (Id en el comando)
+Formas de hacer lo mismo             0 (sobrecupo es otra intención, no otra forma de reservar)
 ```
 
-Nothing ever called them: the json codec reaches rows through
-`Len()`/`At()`/`Append()` and type-asserts the **element**, never the list.
+### 4. Dónde va
+En este módulo: es su regla de agenda. La bandeja de conflictos y la decisión de ofrecer
+"Sobrecupo" pertenecen a la app (mjosefa-cms), que llama a estas operaciones.
+Se agrega simetría en la API exponiendo `GetCalendarConfig` para no tener lecturas destructivas en UI.
 
-The harm is that having them made the lie true for the compiler. A list
-satisfies `model.Fielder`, so `Accepts(&XList{})` compiles and
-`mcp/tool_schema.go` believes it, publishing the tool **advertising that it
-takes no arguments** — no error, no log.
+### 5. Qué borra
+`newReservation.Id = m.ids.NewID()` en `CreateReservation`, e `IDs` de
+`patientdirectory.Deps` en la demo.
 
-Phase A narrowed `FielderSlice` to `Len`/`At`/`Append`; phase B stopped `ormc`
-emitting the two stubs. This repo now carries them as dead weight. Removing them
-is what closes the hole **here**: until it regenerates, its list types still
-satisfy `model.Fielder`.
-
-**This is not a size optimization.** Measured: ~27 bytes per list type, 0,02 %
-of a real WASM client. Do not justify or scope this change by binary size.
-
-**Anti-footgun.** Do NOT remove the `EncodeFields`/`DecodeFields` no-ops from
-list types. `json.Encode` takes a `model.Encodable`, so deleting those breaks
-every call that serializes a list. That alternative was measured and rejected.
-`Len`, `At` and `Append` are the whole slice contract now and must survive
-untouched.
-
-## Quality rules
+## Code Quality Checklist
 
 ```
-RULE: never hand-edit a generated *_orm.go — run the generator.
-RULE: every repeated string is a named constant; string literals forbidden in logic.
-RULE: this repo's behaviour must not change; only dead methods disappear.
+RULE: Every repeated string (env key, file path, prefix, flag name, URL) MUST be
+a named constant in the library package. String literals are forbidden in logic.
 ```
+- Errores como constantes tipadas `domainError` comparadas por aserción de tipo `err.(domainError)`.
+- Sin uso de `reflectlite` o `==` directo entre interfaces de error.
+- En WASM / paquete raíz: usar `webtyp.com/fmt`, nunca `errors`, `strconv`, `strings`.
 
-## Stage 1 — regenerate with the new `ormc`
+## 1. Cambios (normativos)
 
-**Files:** `model_orm.go` (27 list types).
+### 1.1 `model.go` + regenerar `model_orm.go`
+- `CreateReservationArgsModel`: agregar como **primer** campo
+  `{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true}`.
+- `ReservationModel`: agregar `{Name: "overbooked", Type: model.Bool(), NotNull: true}`.
+- `ReservationFormModel`: agregar `{Name: "overbooked", Type: model.Bool()}`.
+- `WorkCalendarConfigModel`: agregar `{Name: "max_overbook_per_day", Type: model.Int(), NotNull: true}`
+  (0 = sin sobrecupo por defecto).
+- `UpsertCalendarConfigArgsModel`: agregar `{Name: "max_overbook_per_day", Type: input.Number()}`.
+- Nuevo `GetCalendarConfigArgsModel`:
+  `Name: "get_calendar_config_args"`, campos `tenant_id` (model.Text()) y `staff_id` (input.Text()).
+- Nuevo `CreateOverbookingArgsModel`: **mismos campos** que `CreateReservationArgsModel`, con nombre
+  `create_overbooking_args`.
+- Regenerar con `go install webtyp.com/ormc/cmd/ormc@latest && ormc` en la raíz; commitear lo
+  generado; nunca editar `model_orm.go` a mano.
+- Migración: `migrate/migrate.go` ya reconcilia con `d.Sync(tables...)`. Asegurar que incluye todas las tablas de configuración y reservas.
 
-1. `go get webtyp.com/model@latest` so `FielderSlice` is the narrowed one.
-2. Run `ormc` at the repo root. It rewrites the generated file(s) in place; the
-   header is `DO NOT EDIT. generated by webtyp.com/ormc`.
-3. Confirm the diff contains **only** removals of the two stub methods —
-   27 `Schema()` and 27 `Pointers()` lines — and nothing else. If
-   any other line moved, the installed `ormc` predates phase B: stop and say so
-   in the PR instead of committing the drift.
+### 1.2 `service.go`
+- Interfaz `SchedulingService`: agregar:
+  - `CreateOverbooking(cmd CreateReservationCmd) (Reservation, error)`
+  - `GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error)`
+- `CreateReservationCmd` gana `Id string` como primer campo.
+- Nuevos errores de dominio junto a los existentes:
+  - `ErrIdTaken domainError = "reservation id already used"`
+  - `ErrOverbookNotAllowed domainError = "overbooking not allowed for this professional and day"`
+  - `ErrSlotNotInSchedule domainError = "appointment_booking: slot is not within professional's scheduled blocks"`
+- `GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error)` expuesto públicamente sobre `Module`.
+- `CreateReservation`, **antes** de cualquier otra validación de disponibilidad:
+  1. `cmd.Id == ""` → `ErrMissingArgs`.
+  2. **Reintento idempotente:** buscar `repo.GetReservation(cmd.Id)`:
+     - Si existe y tiene mismo `TenantId` y mismo `ClientId` → devolverla tal como está guardada, sin escribir en BD ni publicar eventos.
+     - Si existe y tiene distinto `TenantId` o distinto `ClientId` → `ErrIdTaken`.
+     - Si retorna `ErrNotFound` (evaluado con `e, ok := err.(domainError); ok && e == ErrNotFound`) → continuar.
+     - Cualquier otro error de BD → retornarlo.
+  3. El resto igual que hoy, con `newReservation.Id = cmd.Id` y `Overbooked: false`. (Eliminar `newReservation.Id = m.ids.NewID()`).
+- **Refactor `scheduleSlots`:** extraer de `ListAvailability` una función:
+  ```go
+  func (m *Module) scheduleSlots(from, to int64, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, empSvcCfg EmployeeServiceConfig, activeReservations []Reservation) ([]TimeSlot, error)
+  ```
+  `ListAvailability` la invoca con las reservas activas (comportamiento idéntico al actual).
+- Nuevo `CreateOverbooking(cmd CreateReservationCmd) (Reservation, error)`:
+  1. Id obligatorio y reintento idempotente (pasos 1 y 2 de `CreateReservation`).
+  2. Mismas validaciones de precondición (origen válido, configuración de servicio activa, cliente, staff y catálogo existen).
+  3. Comprobar que la hora solicitada coincide con el inicio de un slot habilitado del horario del día: invocar `scheduleSlots` con `activeReservations = nil`. Si no coincide → `ErrSlotNotInSchedule`.
+  4. Leer `WorkCalendarConfig`: si `MaxOverbookPerDay == 0` → `ErrOverbookNotAllowed`.
+  5. Contar reservas activas del profesional en ese día (`ReservationDate == targetDay`, `Overbooked == true`, excluyendo `StatusCancelled`, `StatusRescheduled`, `StatusExpired`). Si `int64(count) >= cfg.MaxOverbookPerDay` → `ErrOverbookNotAllowed`.
+  6. Insertar en BD dentro de la transacción con `newReservation.Id = cmd.Id` y `Overbooked: true`. Emitir `EventReservationCreated`.
+- `UpsertCalendarConfig`: validar que `cfg.MaxOverbookPerDay < 0` retorna `ErrMissingArgs`.
 
-## Acceptance criteria
+### 1.3 `ops.go`, `lister.go` y `view.go`
+- En `ops.go`:
+  - `OpCreateOverbooking = "create_overbooking"` registrado con `.Requires("overbooking", model.Create).Accepts(&CreateOverbookingArgs{})`.
+  - `OpGetCalendarConfig = "get_calendar_config"` registrado con `.Requires("calendar", model.Read).Accepts(&GetCalendarConfigArgs{})`.
+  - `writeError`: mapear `ErrIdTaken` y `ErrOverbookNotAllowed` a 409; `ErrSlotNotInSchedule` a 400.
+  - `opCreateReservation`: mapear `args.Id` a `cmd.Id`.
+  - `opUpsertCalendarConfig`: mapear `args.MaxOverbookPerDay` a `cfg.MaxOverbookPerDay`.
+- En `lister.go`:
+  - `reservationFormStore.List`: mapear `r.Overbooked` a `ReservationForm.Overbooked`.
+  - `reservationFormStore.Save`: pasar `Id: r.Id` a `CreateReservationArgs`.
+- En `view.go`:
+  - Actualizar `ReservationForm.Item()`: si `r.Overbooked == true`, reflejar la marca de sobrecupo en `Description` (ej. añadiendo `· Sobrecupo` vía `lang.Translate`).
 
-1. `go build ./...`, `go vet ./...`, `go test ./...` green.
-2. `grep -rn "List) Schema() \[\]model.Field" --include='*.go' .` → empty.
-3. `grep -rn "List) Pointers()" --include='*.go' .` → empty.
-4. `grep -rnc "Append() model.Fielder" --include='*.go' .` → unchanged from
-   before the change: the traversal contract survived.
-5. `go.mod` requires the phase A tag of `webtyp.com/model`; no `replace`.
-6. `grep -rn "TODO\|FIXME\|Deprecated" --include='*.go' .` → only hits that
-   predate this change.
+### 1.4 `ui/`
+- En `ui/bookingview.go`: una reserva sobrecupada refleja la etiqueta de sobrecupo en el slot de la agenda.
+- En `ui/scheduleview.go`:
+  - `reload()` consulta `OpGetCalendarConfig`. Si no existe, invoca `OpUpsertCalendarConfig` con defaults sin pisar datos existentes.
+  - Muestra un control numérico para editar `max_overbook_per_day` y guardarlo.
+- En `ui/css.go`: estilos asociados al panel de horario.
 
-## Out of scope
+### 1.5 `seed/` y `web/`
+- `seed/seed.go`: asignar IDs determinísticos a las reservas de demostración (`"demo-reservation-1"` y `"demo-reservation-2"`).
+- `web/client.go`: actualizar dependencia de `patient_directory` y remover `IDs` de `patientdirectory.Deps`.
 
-- Changing `model.FielderSlice` itself — phase A, already shipped.
-- Changing what `ormc` emits — phase B, already shipped.
-- Removing the `EncodeFields`/`DecodeFields` no-ops — measured and rejected.
-- Any behaviour change in this repo. If a test fails, the cause is upstream:
-  report it, do not paper over it here.
+### 1.6 Documentación
+- Actualizar `README.md` y `docs/ARCHITECTURE.md` detallando id generado por el cliente, reintento idempotente y la operación de sobrecupo con su permiso `overbooking:c`.
 
-| Stage | Files | Action |
+## 2. Tests (`tests/`, `gotest`)
+
+- Actualizar `tests/helpers_test.go:createBooked` para generar o recibir un ID determinístico.
+- En `tests/setup_test.go`:
+  - Actualizar `CreateReservation_SlotTaken` para que dos llamadas con IDs distintos a la misma hora fallen con `ErrSlotTaken`.
+  - Agregar prueba de reintento idempotente con el mismo ID.
+- Crear `tests/overbooking_test.go` cubriendo los 10 casos de aceptación:
+  1. Sin `Id` → `ErrMissingArgs`.
+  2. **Reintento:** `CreateReservation` dos veces con el mismo comando → la segunda devuelve la misma reserva sin error; 1 fila en BD; 1 evento emitido.
+  3. Mismo ID con distinto cliente → `ErrIdTaken` (409 en op).
+  4. Dos IDs distintos para la misma hora → `ErrSlotTaken` (409).
+  5. Sobrecupo cerrado por defecto: `MaxOverbookPerDay == 0` → `ErrOverbookNotAllowed`.
+  6. Con `MaxOverbookPerDay == 1`: un sobrecupo sobre hora tomada → OK y `Overbooked == true`; segundo sobrecupo el mismo día → `ErrOverbookNotAllowed`; al día siguiente permitido.
+  7. Sobrecupo en hora fuera del horario → `ErrSlotNotInSchedule`.
+  8. Sobrecupo cancelado no cuenta para el tope.
+  9. RBAC: `create_overbooking` declara `overbooking`/Create.
+  10. `ListAvailability` no sufre regresiones tras el refactor de `scheduleSlots`.
+
+## 3. Criterios de aceptación y Entrega
+
+- `gotest ./...` en verde (race, tests y wasm).
+- `grep -n "newReservation.Id = m.ids.NewID()" service.go` → vacío.
+- `grep -n "IDs:" web/client.go` no muestra `patientdirectory.Deps` con `IDs`.
+- **Delivery check:** Antes de finalizar la ejecución: `git diff --stat main` lista los archivos correspondientes a las etapas planificadas, y ningún archivo es eliminado que no haya sido ordenado eliminar.
+
+| Etapa | Archivos | Listo cuando |
 |---|---|---|
-| 1 | `model_orm.go` | regenerate with `ormc`; 27 stub pairs disappear |
+| 1 | `model.go`, `model_orm.go`, `migrate/migrate.go` | Definiciones de modelos actualizadas y código generado por ormc al día |
+| 2 | `service.go`, `lister.go`, `view.go` | Idempotencia, `scheduleSlots`, `CreateOverbooking`, `GetCalendarConfig` y mapeo de `ReservationForm` |
+| 3 | `ops.go` | Nuevas operaciones registradas y mapeo de errores HTTP |
+| 4 | `ui/bookingview.go`, `ui/scheduleview.go`, `ui/css.go` | Visualización en agenda y configuración de sobrecupo en horario |
+| 5 | `seed/seed.go`, `web/client.go` | Semillas con IDs y demo actualizada |
+| 6 | `tests/helpers_test.go`, `tests/setup_test.go`, `tests/overbooking_test.go`, etc. | Suite completa en verde con todos los casos nuevos |
+| 7 | `README.md`, `docs/ARCHITECTURE.md` | Documentación técnica sincronizada |

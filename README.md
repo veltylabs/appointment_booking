@@ -101,6 +101,9 @@ func New(db *orm.DB, deps Deps) (*Module, error)
 | `ErrBlockOutsideBusinessHours` | Un bloque cae fuera de la ventana de apertura del establecimiento |
 | `ErrBlockOnClosedDay` | El establecimiento está cerrado en esa fecha |
 | `ErrInvalidTransition` | La FSM rechaza el evento para el estado actual |
+| `ErrIdTaken` | Id de reserva ya usado por otro cliente o tenant |
+| `ErrOverbookNotAllowed` | Sobrecupo deshabilitado o cupo máximo diario excedido para el profesional |
+| `ErrSlotNotInSchedule` | El slot solicitado no cae dentro de los bloques de trabajo del profesional |
 
 ### Raíz de composición (cómo conectar este módulo)
 
@@ -134,15 +137,29 @@ broker.Subscribe(businesscalendar.EventCalendarChanged, func(ev events.Event) {
 })
 ```
 
-### Operaciones disponibles (23 en total)
+### Operaciones disponibles (25 en total)
 
-`create_reservation`, `get_reservation`, `list_reservations_by_staff`, `list_reservations_by_client`,
+`create_reservation`, `create_overbooking`, `get_reservation`, `list_reservations_by_staff`, `list_reservations_by_client`,
 `change_reservation_status`, `expire_pending_reservations`, `list_conflicting_reservations`,
-`recompute_conflicts`, `upsert_calendar_config`, `save_day_blocks`, `save_date_blocks`,
-`mark_working_days`, `unmark_working_days`, `list_blocks`, `get_day_bounds`, `add_calendar_exception`,
-`remove_calendar_exception`, `list_availability`, `list_exceptions`,
-`create_employee_service_config`, `get_employee_service_config`,
-`list_employee_service_configs_by_staff`, `update_employee_service_config`
+`recompute_conflicts`, `get_calendar_config`, `upsert_calendar_config`, `save_day_blocks`, `save_date_blocks`,
+`mark_working_days`, `unmark_working_days`, `list_blocks`, `add_exception`,
+`remove_exception`, `list_exceptions`, `get_day_bounds`, `list_availability`,
+`create_employee_service_config`, `get_employee_service_config`, `list_employee_service_config_by_staff`,
+`update_employee_service_config`.
+
+### Idempotencia e IDs generados por el cliente
+
+`create_reservation` y `create_overbooking` requieren un `id` provisto por el llamador (generado en el cliente antes de enviar la solicitud en red). Esto garantiza idempotencia:
+- Si una solicitud se reintenta con el mismo `id` y mismo payload (`tenant_id`, `client_id`), el servicio retorna la reserva existente sin crear duplicados en la base de datos ni emitir nuevos eventos.
+- Si se intenta reutilizar el mismo `id` con datos incompatibles, retorna `ErrIdTaken` (HTTP 409).
+
+### Gestión de sobrecupos (Overbooking)
+
+- Cada profesional puede tener configurado un límite de sobrecupos diarios (`workcalendar_config.max_overbook_per_day`).
+- Si `max_overbook_per_day == 0` (por defecto), los sobrecupos están deshabilitados (`ErrOverbookNotAllowed`).
+- Las reservas sobrecupadas se crean mediante `create_overbooking`, requieren permiso RBAC sobre `"overbooking"`, y marcan `overbooked: true`.
+- Los sobrecupos cancelados o reprogramados liberan el cupo del día.
+- El slot del sobrecupo debe pertenecer al horario regular de atención del profesional (`ErrSlotNotInSchedule` si está fuera).
 
 > `expire_pending_reservations` es el **único disparador para el evento FSM EXPIRE**; debe ser llamado por un
 > programador externo — el módulo no tiene procesos en segundo plano internos.

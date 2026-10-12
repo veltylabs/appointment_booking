@@ -46,6 +46,7 @@ func TestTenantIsolation(t *testing.T) {
 
 	// Create reservation for Tenant A
 	resA, err := svc.CreateReservation(ab.CreateReservationCmd{
+		Id:                      "res-iso-A",
 		TenantId:                "TA",
 		ClientId:                "client_A",
 		CreatorUserId:           "user_A",

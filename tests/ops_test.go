@@ -58,7 +58,7 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 		StartMin: 540, EndMin: 1020, IsActive: true,
 	})
 
-	body := []byte(`{"tenant_id":"t1","client_id":"c1","creator_user_id":"u1",` +
+	body := []byte(`{"id":"res-ops-1","tenant_id":"t1","client_id":"c1","creator_user_id":"u1",` +
 		`"employee_service_config_id":"` + cfg.Id + `","slot_start_utc":1736154000,"origin":"` + ab.OriginCounter + `"}`)
 
 	ok := &mock.Context{InBody: body}
@@ -68,7 +68,10 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 		t.Fatalf("primera reserva: status %d, body=%s", ok.Status, ok.ResponseBody())
 	}
 
-	taken := &mock.Context{InBody: body}
+	bodyTaken := []byte(`{"id":"res-ops-2","tenant_id":"t1","client_id":"c1","creator_user_id":"u1",` +
+		`"employee_service_config_id":"` + cfg.Id + `","slot_start_utc":1736154000,"origin":"` + ab.OriginCounter + `"}`)
+
+	taken := &mock.Context{InBody: bodyTaken}
 	taken.SetUserID("u1")
 	reg.Invoke("OP", "/"+ab.OpCreateReservation, taken)
 	if taken.Status != 409 {

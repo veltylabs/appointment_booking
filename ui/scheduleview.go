@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"webtyp.com/fmt"
 	tintime "webtyp.com/time"
 
 	"webtyp.com/components/scheduleeditor"
@@ -30,17 +31,22 @@ const timezoneClinic = "America/Santiago"
 
 // NewScheduleView construye la pestaña "Horario" de la pantalla Personal.
 func NewScheduleView(caller router.Caller, tenantID string) Component {
-	v := &ScheduleView{caller: caller, tenantID: tenantID}
+	v := &ScheduleView{
+		caller:      caller,
+		tenantID:    tenantID,
+		overbookVal: NewString("0"),
+	}
 	v.picker = newStaffPicker(caller, func(string) { v.reload() })
 	return v
 }
 
 type ScheduleView struct {
 	Element
-	caller   router.Caller
-	tenantID string
-	picker   *staffPicker
-	editor   *SignalNodes
+	caller      router.Caller
+	tenantID    string
+	picker      *staffPicker
+	editor      *SignalNodes
+	overbookVal *SignalString
 }
 
 func (s *ScheduleView) Init(_ Ctx) {
@@ -57,9 +63,27 @@ func (s *ScheduleView) reload() {
 		return
 	}
 
-	s.caller.Call(ab.ModelName+"."+ab.OpUpsertCalendarConfig,
-		&ab.UpsertCalendarConfigArgs{TenantId: s.tenantID, StaffId: staffID, Timezone: timezoneClinic, IsActive: true},
-		nil, func(error) {
+	var calCfg ab.WorkCalendarConfig
+	s.caller.Call(ab.ModelName+"."+ab.OpGetCalendarConfig,
+		&ab.GetCalendarConfigArgs{TenantId: s.tenantID, StaffId: staffID},
+		&calCfg,
+		func(err error) {
+			if err != nil {
+				s.overbookVal.Set("0")
+				s.caller.Call(ab.ModelName+"."+ab.OpUpsertCalendarConfig,
+					&ab.UpsertCalendarConfigArgs{
+						TenantId:          s.tenantID,
+						StaffId:           staffID,
+						Timezone:          timezoneClinic,
+						IsActive:          true,
+						MaxOverbookPerDay: 0,
+					},
+					nil, func(error) {
+						s.fetchAndBuild(staffID)
+					})
+				return
+			}
+			s.overbookVal.Set(fmt.Sprint(calCfg.MaxOverbookPerDay))
 			s.fetchAndBuild(staffID)
 		})
 }
@@ -143,9 +167,40 @@ func (s *ScheduleView) buildEditor(
 }
 
 func (s *ScheduleView) Render() *Element {
+	overbookInput := NewElement("input").
+		Attr("type", "number").
+		Attr("min", "0").
+		Attr("name", "max-overbook-per-day").
+		Bind(s.overbookVal).
+		OnChange(func(e Event) {
+			valStr := e.TargetValue()
+			s.overbookVal.Set(valStr)
+			val, _ := fmt.Convert(valStr).Int64()
+			if val < 0 {
+				val = 0
+			}
+			staffID := s.picker.sel.Get()
+			if staffID != "" {
+				s.caller.Call(ab.ModelName+"."+ab.OpUpsertCalendarConfig,
+					&ab.UpsertCalendarConfigArgs{
+						TenantId:          s.tenantID,
+						StaffId:           staffID,
+						Timezone:          timezoneClinic,
+						IsActive:          true,
+						MaxOverbookPerDay: val,
+					},
+					nil, func(error) {})
+			}
+		})
+
+	controls := Div().Set(clsHeader.AsAttr()).
+		Child(s.picker.render("schedule-staff")).
+		Child(Label().Text("Máx. sobrecupo/día:")).
+		Child(overbookInput)
+
 	panel := &rightpanel.RightPanel{
 		Title:        "Horario",
-		HeadControls: Div().Set(clsHeader.AsAttr()).Child(s.picker.render("schedule-staff")),
+		HeadControls: controls,
 		Article:      Div().BindChildren(s.editor),
 	}
 	return Div().Set(clsRoot.AsAttr()).Child(panel.Render())
@@ -296,17 +351,10 @@ func closureDatesOf(closures businesscalendar.ClosureList) []string {
 }
 
 func dayToUnix(day string) int64 {
-	nano, err := tintime.ParseDate(day)
-	if err != nil {
-		return 0
-	}
-	return nano / 1000000000
+	return tintime.DateKeyToUnix(day)
 }
 
 func unixToDay(seconds int64) string {
-	iso := tintime.FormatISO8601(seconds * 1000000000)
-	if len(iso) < 10 {
-		return iso
-	}
-	return iso[:10]
+	y, m, d, _, _, _ := tintime.CivilDate(seconds)
+	return fmt.Sprintf("%04d-%02d-%02d", y, m, d)
 }

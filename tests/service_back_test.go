@@ -59,6 +59,7 @@ func TestService_Back(t *testing.T) {
 		slotStartUTC := targetDay + 540*60
 
 		res, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      "res-back-1",
 			TenantId:                "t99",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",

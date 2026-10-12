@@ -99,7 +99,7 @@ type fakeIDs struct{ n int }
 
 func (f *fakeIDs) NewID() string {
 	f.n++
-	return "test-id-" + fmt.Convert(f.n).String()
+	return "testid" + fmt.Convert(f.n).String()
 }
 
 var _ model.IDGenerator = (*fakeIDs)(nil)

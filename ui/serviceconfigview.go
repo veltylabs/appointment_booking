@@ -29,6 +29,7 @@ func (s *ServiceConfigView) WidgetKind() widget.Kind { return widget.Region }
 // NewServiceConfigView construye la pestaña "Servicios" de la pantalla Personal.
 func NewServiceConfigView(caller router.Caller, tenantID string) Component {
 	v := &ServiceConfigView{caller: caller, tenantID: tenantID}
+	v.panel = NewNodes()
 	v.picker = newStaffPicker(caller, func(string) { v.rebuildPanel() })
 	return v
 }
@@ -51,7 +52,12 @@ func (s *ServiceConfigView) Init(_ Ctx) {
 func (s *ServiceConfigView) rebuildPanel() {
 	staffID := s.picker.sel.Get()
 	if staffID == "" {
-		s.panel.Set([]*Element{Div().Text("No hay profesionales registrados todavía.")})
+		panel := &rightpanel.RightPanel{
+			Title:        "Servicios",
+			HeadControls: Div().Set(clsServiceHeader.AsAttr()).Child(s.picker.render("service-config-staff")),
+			Article:      Div().Text("No hay profesionales registrados todavía."),
+		}
+		s.panel.Set([]*Element{panel.Render()})
 		return
 	}
 
@@ -65,19 +71,16 @@ func (s *ServiceConfigView) rebuildPanel() {
 		ParentID:  ID + ".services." + staffID,
 		Presenter: ab.NewEmployeeServiceConfigView(s.caller, s.tenantID, staffID),
 		IDs:       ids,
+		Context:   Div().Set(clsServiceHeader.AsAttr()).Child(s.picker.render("service-config-staff")),
 	})
 	if err != nil {
 		s.panel.Set([]*Element{Div().Text("Error interno: " + err.Error())})
 		return
 	}
-	s.panel.Set([]*Element{Div().Child(cv)})
+	cv.Activate()
+	s.panel.Set([]*Element{cv.Render()})
 }
 
 func (s *ServiceConfigView) Render() *Element {
-	panel := &rightpanel.RightPanel{
-		Title:        "Servicios",
-		HeadControls: Div().Set(clsServiceHeader.AsAttr()).Child(s.picker.render("service-config-staff")),
-		Article:      Div().BindChildren(s.panel),
-	}
-	return Div().Set(clsServiceRoot.AsAttr()).Child(panel.Render())
+	return Div().Set(clsServiceRoot.AsAttr()).BindChildren(s.panel)
 }

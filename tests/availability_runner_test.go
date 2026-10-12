@@ -179,6 +179,7 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 		midnightSlot := dayStart // 00:00 UTC, which is outside 09:00 - 17:00
 
 		_, err := s.CreateReservation(ab.CreateReservationCmd{
+			Id:                      "res-avail-1",
 			TenantId:                "t_uc17",
 			ClientId:                "c1",
 			CreatorUserId:           "u1",

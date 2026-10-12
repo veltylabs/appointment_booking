@@ -48,7 +48,6 @@ func TestSeed_LoadPopulatesServicesAndReservations(t *testing.T) {
 		t.Fatalf("itemcatalog.New: %v", err)
 	}
 	pd, err := patientdirectory.New(db, patientdirectory.Deps{
-		IDs:         ids,
 		Publisher:   broker,
 		TenantID:    tenantID,
 		ValidateRUT: trustedip.ValidateRUT,

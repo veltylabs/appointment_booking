@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"webtyp.com/orm"
@@ -8,6 +10,13 @@ import (
 	tinytime "webtyp.com/time"
 	ab "github.com/veltylabs/appointment_booking"
 )
+
+var testIDCounter int64
+
+func nextTestID() string {
+	n := atomic.AddInt64(&testIDCounter, 1)
+	return fmt.Sprintf("test-res-%d", n)
+}
 
 // newTestModule monta el stack real del módulo sobre storage/mem + los deps
 // dados (que incluyen el Broker/BoundsReader del test).
@@ -86,6 +95,7 @@ func setupReservable(t *testing.T, s ab.SchedulingService, repo *ab.Repository, 
 func createBooked(t *testing.T, s ab.SchedulingService, tenant, staff, cfgID string, slotStart int64) ab.Reservation {
 	t.Helper()
 	res, err := s.CreateReservation(ab.CreateReservationCmd{
+		Id:                      nextTestID(),
 		TenantId:                tenant,
 		ClientId:                "c1",
 		CreatorUserId:           "u1",

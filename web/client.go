@@ -13,8 +13,10 @@ import (
 	"webtyp.com/unixid"
 
 	"webtyp.com/auth/trusted_ip"
+	"webtyp.com/lang"
 
 	ab "github.com/veltylabs/appointment_booking"
+	_ "github.com/veltylabs/appointment_booking/config"
 	"github.com/veltylabs/appointment_booking/seed"
 	"github.com/veltylabs/appointment_booking/ui"
 	businesscalendar "github.com/veltylabs/business_calendar"
@@ -40,6 +42,8 @@ func (demoUser) UserAvatar() string  { return "" }
 func (demoUser) UserRoles() []string { return []string{"Administrador"} }
 
 func main() {
+	lang.OutLang("es")
+
 	ids, err := unixid.NewUnixID()
 	if err != nil {
 		panic(err)
@@ -69,7 +73,7 @@ func main() {
 		panic(err)
 	}
 	pd, err := patientdirectory.New(db, patientdirectory.Deps{
-		IDs: ids, Publisher: broker, TenantID: demoTenantID, ValidateRUT: trustedip.ValidateRUT,
+		Publisher: broker, TenantID: demoTenantID, ValidateRUT: trustedip.ValidateRUT,
 	})
 	if err != nil {
 		panic(err)

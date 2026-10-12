@@ -44,6 +44,7 @@ var WorkCalendarConfigModel = model.Definition{
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
 		{Name: "timezone", Type: model.Text(), NotNull: true},
 		{Name: "is_active", Type: model.Bool()},
+		{Name: "max_overbook_per_day", Type: model.Int(), NotNull: true},
 	},
 }
 
@@ -122,6 +123,7 @@ var ReservationModel = model.Definition{
 		{Name: "status_before_conflict", Type: model.Text()},
 		{Name: "payment_id", Type: model.Text()},
 		{Name: "notes", Type: model.Text()},
+		{Name: "overbooked", Type: model.Bool(), NotNull: true},
 		{Name: "updated_at", Type: model.Int()},
 		{Name: "updated_by", Type: model.Text()},
 		{Name: "revision", Type: model.Int()},
@@ -155,6 +157,7 @@ var ReservationFormModel = model.Definition{
 		{Name: "notes", Type: input.Textarea()},
 		{Name: "status", Type: model.Text()},
 		{Name: "origin", Type: model.Text()},
+		{Name: "overbooked", Type: model.Bool()},
 	},
 }
 
@@ -176,6 +179,22 @@ var TimeSlotModel = model.Definition{
 var CreateReservationArgsModel = model.Definition{
 	Name: "create_reservation_args",
 	Fields: model.Fields{
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "client_id", Type: input.Text()},
+		{Name: "creator_user_id", Type: input.Text()},
+		{Name: "employee_service_config_id", Type: input.Text()},
+		{Name: "slot_start_utc", Type: input.Number()},
+		{Name: "notes", Type: input.Text()},
+		{Name: "rescheduled_from_id", Type: input.Text()},
+		{Name: "origin", Type: input.Text()},
+	},
+}
+
+var CreateOverbookingArgsModel = model.Definition{
+	Name: "create_overbooking_args",
+	Fields: model.Fields{
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
 		{Name: "client_id", Type: input.Text()},
 		{Name: "creator_user_id", Type: input.Text()},
@@ -268,6 +287,15 @@ var UpsertCalendarConfigArgsModel = model.Definition{
 		{Name: "staff_id", Type: input.Text()},
 		{Name: "timezone", Type: input.Text()},
 		{Name: "is_active", Type: input.Checkbox()},
+		{Name: "max_overbook_per_day", Type: input.Number()},
+	},
+}
+
+var GetCalendarConfigArgsModel = model.Definition{
+	Name: "get_calendar_config_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
+		{Name: "staff_id", Type: input.Text()},
 	},
 }
 

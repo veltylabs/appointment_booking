@@ -9,8 +9,8 @@ import (
 
 const (
 	titleReservations          = "Reservas"
-	titleBooking               = "Reserva"
-	titleEmployeeServiceConfig = "Services"
+	titleBooking               = "Reserva Hora"
+	titleEmployeeServiceConfig = "Servicios"
 )
 
 // Item implements view.Itemizer.
@@ -64,10 +64,14 @@ func reservationStanding(status, origin string) string {
 // Item implementa view.Itemizer — el ÚNICO código específico de view que carga este registro. El
 // Presenter indexa las filas por ID a partir de esto durante Reload; no hay lookup manual byId/WithFill.
 func (r *Reservation) Item() view.Item {
+	desc := reservationStanding(r.Status, r.Origin)
+	if r.Overbooked {
+		desc += " · " + lang.Translate("Overbooked").String()
+	}
 	return view.Item{
 		ID:          r.Id,
 		Label:       r.LocalStringDate + " " + r.LocalStringTime,
-		Description: reservationStanding(r.Status, r.Origin),
+		Description: desc,
 	}
 }
 
@@ -75,11 +79,15 @@ func (r *Reservation) Item() view.Item {
 // se lee hacia abajo en una columna de horas; un widget de lista que encabeza con una hora
 // (webtyp/components targethour) se vincula a este campo.
 func (r *ReservationForm) Item() view.Item {
+	desc := reservationStanding(r.Status, r.Origin)
+	if r.Overbooked {
+		desc += " · " + lang.Translate("Overbooked").String()
+	}
 	return view.Item{
 		ID:          r.Id,
 		LeadMain:    r.Hour,
 		Label:       r.ClientId,
-		Description: reservationStanding(r.Status, r.Origin),
+		Description: desc,
 	}
 }
 

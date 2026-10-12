@@ -4,7 +4,8 @@ import (
 	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/router"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
+	"webtyp.com/unixid"
 	"webtyp.com/view"
 )
 
@@ -77,13 +78,14 @@ func (s *reservationFormStore) List(done func([]model.Model, error)) {
 					}
 				}
 				rows = append(rows, &ReservationForm{
-					Id:       r.Id,
-					ClientId: clientId,
-					Day:      r.LocalStringDate,
-					Hour:     r.LocalStringTime,
-					Notes:    r.Notes,
-					Status:   r.Status,
-					Origin:   r.Origin,
+					Id:         r.Id,
+					ClientId:   clientId,
+					Day:        r.LocalStringDate,
+					Hour:       r.LocalStringTime,
+					Notes:      r.Notes,
+					Status:     r.Status,
+					Origin:     r.Origin,
+					Overbooked: r.Overbooked,
 				})
 			}
 			done(rows, nil)
@@ -130,9 +132,17 @@ func (s *reservationFormStore) Save(recs []model.Model, done func(error)) {
 			done(ErrIncompleteSlot)
 			return
 		}
+		resID := r.Id
+		if resID == "" {
+			if idGen, err := unixid.NewUnixID(); err == nil {
+				resID = idGen.NewID()
+				r.Id = resID
+			}
+		}
 		s.caller.Call(
 			qualifiedOp(OpCreateReservation),
 			&CreateReservationArgs{
+				Id:                      resID,
 				TenantId:                s.cfg.TenantId,
 				ClientId:                r.ClientId,
 				CreatorUserId:           s.cfg.ActorId,
@@ -227,16 +237,12 @@ var (
 // dayToUnix convierte "YYYY-MM-DD" a segundos de medianoche UTC — la codificación
 // que usan work_calendar_block.specific_date y los argumentos de op From/To. 0 en caso de fallo.
 func dayToUnix(day string) int64 {
-	nano, err := tinytime.ParseDate(day)
-	if err != nil {
-		return 0
-	}
-	return nano / 1000000000
+	return time.DateKeyToUnix(day)
 }
 
 // minutesOfDay convierte "HH:MM" a minutos desde la medianoche. -1 en caso de fallo.
 func minutesOfDay(hour string) int {
-	min, err := tinytime.ParseTime(hour)
+	min, err := time.ParseTime(hour)
 	if err != nil {
 		return -1
 	}

@@ -10,6 +10,12 @@ import (
 	staffseed "github.com/veltylabs/staff_manager/seed"
 )
 
+// Constantes para IDs determinísticos de demo
+const (
+	DemoReservation1ID = "demo-reservation-1"
+	DemoReservation2ID = "demo-reservation-2"
+)
+
 // maxSeedDays es cuántos días hacia adelante busca Load un día hábil que acepte
 // las reservas de demo.
 const maxSeedDays = 14
@@ -95,10 +101,10 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 	}
 
 	if len(data.ServiceConfigs) == 0 {
-		return data, fmt.Err("no hay configuraciones de servicio creadas")
+		return data, fmt.Err("no service configurations created")
 	}
 	if len(up.Patients.Patients) == 0 {
-		return data, fmt.Err("no hay pacientes en el módulo de pacientes")
+		return data, fmt.Err("no patients found in patient directory module")
 	}
 
 	// 4. Dos reservas para el próximo día hábil que las acepte (09:00 y 09:30
@@ -132,6 +138,7 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 		}
 		daySec = dayNano / 1e9
 		res1, lastErr = m.CreateReservation(ab.CreateReservationCmd{
+			Id:                      DemoReservation1ID,
 			TenantId:                tenantID,
 			ClientId:                patient1ID,
 			EmployeeServiceConfigId: data.ServiceConfigs[0].Id,
@@ -162,6 +169,7 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 
 	// Segunda reserva
 	res2, err := m.CreateReservation(ab.CreateReservationCmd{
+		Id:                      DemoReservation2ID,
 		TenantId:                tenantID,
 		ClientId:                patient2ID,
 		EmployeeServiceConfigId: data.ServiceConfigs[0].Id,

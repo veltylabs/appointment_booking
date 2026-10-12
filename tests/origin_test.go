@@ -116,6 +116,7 @@ func TestCU1_CreateReservation_OriginCounter(t *testing.T) {
 	s, _, cfgID, slotStart := setupBookingService(t)
 
 	cmd := ab.CreateReservationCmd{
+		Id:                      "res-origin-1",
 		TenantId:                "t1",
 		ClientId:                "c1",
 		CreatorUserId:           "u1",
@@ -138,6 +139,7 @@ func TestCU2_CreateReservation_OriginValidation(t *testing.T) {
 
 	// Origin vacio
 	cmdEmpty := ab.CreateReservationCmd{
+		Id:                      "res-origin-2",
 		TenantId:                "t1",
 		ClientId:                "c1",
 		CreatorUserId:           "u1",
@@ -152,6 +154,7 @@ func TestCU2_CreateReservation_OriginValidation(t *testing.T) {
 
 	// Origin inventado
 	cmdInvalid := ab.CreateReservationCmd{
+		Id:                      "res-origin-3",
 		TenantId:                "t1",
 		ClientId:                "c1",
 		CreatorUserId:           "u1",
@@ -223,6 +226,7 @@ func TestCU6_ChangeReservationStatus_ConfirmOnlineHand(t *testing.T) {
 	s, _, cfgID, slotStart := setupBookingService(t)
 
 	cmd := ab.CreateReservationCmd{
+		Id:                      "res-origin-6",
 		TenantId:                "t1",
 		ClientId:                "c1",
 		CreatorUserId:           "u1",

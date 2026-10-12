@@ -97,7 +97,7 @@ El evento `appointment.schedule.changed` lleva un **`ScheduleChangedPayload{Tena
 
 ## 7. Transporte, Identidad, Vista — Raíz de Composición
 
-El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`). Las 23 operaciones (8 de reservas + 11 de calendario + 4 de configuración de servicios) son registradas por un único `*Module`.
+El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg router.OpRegistry)`). Las 25 operaciones (9 de reservas + 12 de calendario + 4 de configuración de servicios) son registradas por un único `*Module`.
 
 ### Ops (vía `MountOps`)
 
@@ -107,7 +107,8 @@ El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg ro
 | `get_employee_service_config` | `r` | `employee_service_config` | Lee una configuración de servicio por ID |
 | `list_employee_service_configs_by_staff` | `r` | `employee_service_config` | Lista todos los servicios que realiza un profesional (activos e inactivos) |
 | `update_employee_service_config` | `u` | `employee_service_config` | Actualiza la configuración completa de servicio de un profesional |
-| `create_reservation` | `c` | `reservation` | Crea una nueva reserva (reprogramación atómica si `RescheduledFromId` está configurado) |
+| `create_reservation` | `c` | `reservation` | Crea una nueva reserva con ID provisto por el cliente (reintento idempotente; reprogramación atómica si `RescheduledFromId` está configurado) |
+| `create_overbooking` | `c` | `overbooking` | Crea una reserva sobrecupada en un slot existente de la jornada, respetando `max_overbook_per_day` e ID del cliente |
 | `get_reservation` | `r` | `reservation` | Obtiene una reserva por ID |
 | `list_reservations_by_staff` | `r` | `reservation` | Lista reservas por ID de personal y rango de fechas |
 | `list_reservations_by_client` | `r` | `reservation` | Lista reservas por ID de cliente |
@@ -115,7 +116,8 @@ El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg ro
 | `expire_pending_reservations` | `u` | `reservation` | Expira reservas pendientes no confirmadas (llamado por un programador externo) |
 | `list_conflicting_reservations` | `r` | `reservation` | La lista de trabajo del administrador: reservas futuras que el horario actual ya no cubre |
 | `recompute_conflicts` | `u` | `reservation` | Reevalúa cada reserva futura en un rango; marca/limpia `CONFLICTED`; idempotente — el disparador para cambios a nivel de establecimiento |
-| `upsert_calendar_config` | `u` | `calendar` | Configura la zona horaria IANA para un miembro del personal |
+| `get_calendar_config` | `r` | `calendar` | Obtiene la configuración de calendario del profesional (zona horaria, estado, max_overbook_per_day) |
+| `upsert_calendar_config` | `u` | `calendar` | Configura la zona horaria IANA y sobrecupos máximos por día para un miembro del personal |
 | `save_day_blocks` | `u` | `calendar` | Reemplaza CADA bloque semanal de un día de la semana — la edición de día completo |
 | `save_date_blocks` | `u` | `calendar` | Reemplaza los bloques datados de UNA fecha (un día marcado que diverge de su ventana común) |
 | `mark_working_days` | `u` | `calendar` | Marca fechas como trabajadas con una ventana común |
@@ -126,6 +128,18 @@ El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg ro
 | `remove_calendar_exception` | `d` | `calendar` | Elimina una excepción de calendario |
 | `list_availability` | `r` | `calendar` | Lista horarios disponibles para un miembro del personal |
 | `list_exceptions` | `r` | `calendar` | Lista excepciones de calendario en un rango de fechas (para el editor de horarios) |
+
+### 8. Idempotencia y Sobrecupos (Overbooking)
+
+1. **IDs acuñados por el cliente:** `create_reservation` y `create_overbooking` exigen que el llamador suministre el `id` (por ejemplo vía `webtyp.com/unixid`).
+   - Si se reintenta una llamada con el mismo ID y el mismo payload, el backend responde con la reserva existente sin crear duplicados ni re-emitir eventos en el broker.
+   - Si se reintenta un ID existente con un cliente o tenant distinto, responde `ErrIdTaken` (HTTP 409).
+2. **Control de Sobrecupos:**
+   - La capacidad máxima de sobrecupo diaria se gobierna por `workcalendar_config.max_overbook_per_day`.
+   - Si `max_overbook_per_day == 0`, cualquier intento falla con `ErrOverbookNotAllowed`.
+   - Los sobrecupos deben caer en un slot válido de la jornada (`scheduleSlots`, retornando `ErrSlotNotInSchedule` si está fuera).
+   - Solo se contabilizan sobrecupos activos (`overbooked: true`, excluyendo `CANCELLED`, `RESCHEDULED`, `EXPIRED`).
+   - El permiso en router está aislado bajo el recurso `"overbooking"` con acción `create`.
 
 ### Vista
 

@@ -27,6 +27,9 @@ const (
 	ErrBlockOnClosedDay          domainError = "appointment_booking: the establishment is closed on that date"
 	ErrNoServiceConfig           domainError = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
 	ErrIncompleteSlot            domainError = "appointment_booking: a booking needs both a day and an hour"
+	ErrIdTaken                   domainError = "reservation id already used"
+	ErrOverbookNotAllowed        domainError = "overbooking not allowed for this professional and day"
+	ErrSlotNotInSchedule         domainError = "appointment_booking: slot is not within professional's scheduled blocks"
 )
 
 // Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).
@@ -141,6 +144,7 @@ type SchedulingService interface {
 	UpdateEmployeeServiceConfig(cfg EmployeeServiceConfig) error
 
 	// Gestión de calendario
+	GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error)
 	UpsertCalendarConfig(cfg WorkCalendarConfig) error
 	SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error
 	SaveDateBlocks(tenantId, staffId string, date int64, blocks []WorkCalendarBlock) error
@@ -157,6 +161,7 @@ type SchedulingService interface {
 
 	// Reservas
 	CreateReservation(cmd CreateReservationCmd) (Reservation, error)
+	CreateOverbooking(cmd CreateReservationCmd) (Reservation, error)
 	GetReservation(tenantId, id string) (Reservation, error)
 	ListReservationsByStaff(tenantId, staffId string, from, to int64) ([]Reservation, error)
 	ListReservationsByClient(tenantId, clientId string) ([]Reservation, error)
@@ -169,6 +174,7 @@ type SchedulingService interface {
 }
 
 type CreateReservationCmd struct {
+	Id                      string
 	TenantId                string
 	ClientId                string
 	CreatorUserId           string
@@ -178,6 +184,8 @@ type CreateReservationCmd struct {
 	RescheduledFromId       string
 	Origin                  string
 }
+
+type CreateOverbookingCmd = CreateReservationCmd
 
 type ChangeStatusCmd struct {
 	TenantId  string
@@ -263,7 +271,14 @@ func (m *Module) UpdateEmployeeServiceConfig(cfg EmployeeServiceConfig) error {
 	return m.repo.UpdateEmployeeServiceConfig(cfg)
 }
 
+func (m *Module) GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error) {
+	return m.requireCalendarConfig(tenantId, staffId)
+}
+
 func (m *Module) UpsertCalendarConfig(cfg WorkCalendarConfig) error {
+	if cfg.MaxOverbookPerDay < 0 {
+		return ErrMissingArgs
+	}
 	return m.repo.UpsertCalendarConfig(cfg)
 }
 
@@ -665,44 +680,7 @@ func fitsWindow(windows []dayWindow, startUtc, span int64) bool {
 	return false
 }
 
-func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to int64) ([]TimeSlot, error) {
-	cfg, err := m.requireCalendarConfig(tenantId, staffId)
-	if err != nil {
-		return nil, err
-	}
-	if !cfg.IsActive {
-		return []TimeSlot{}, nil
-	}
-
-	blocks, err := m.repo.ListBlocks(tenantId, staffId)
-	if err != nil {
-		return nil, err
-	}
-
-	exceptions, err := m.repo.ListExceptions(tenantId, staffId, from, to)
-	if err != nil {
-		return nil, err
-	}
-
-	reservations, err := m.repo.ListReservationsByStaff(tenantId, staffId, from, to)
-	if err != nil {
-		return nil, err
-	}
-	activeReservations := []Reservation{}
-	for _, r := range reservations {
-		if r.Status != StatusCancelled && r.Status != StatusRescheduled && r.Status != StatusExpired {
-			activeReservations = append(activeReservations, r)
-		}
-	}
-
-	empSvcCfg, err := m.repo.GetEmployeeServiceConfig(configId)
-	if err != nil {
-		return nil, err
-	}
-	if !empSvcCfg.IsActive || empSvcCfg.TenantId != tenantId {
-		return []TimeSlot{}, nil
-	}
-
+func (m *Module) scheduleSlots(from, to int64, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, empSvcCfg EmployeeServiceConfig, activeReservations []Reservation) ([]TimeSlot, error) {
 	durationMin := int(empSvcCfg.DurationMin)
 	bufferMin := int(empSvcCfg.BufferMin)
 
@@ -756,9 +734,63 @@ func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to i
 	return slots, nil
 }
 
+func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to int64) ([]TimeSlot, error) {
+	cfg, err := m.requireCalendarConfig(tenantId, staffId)
+	if err != nil {
+		return nil, err
+	}
+	if !cfg.IsActive {
+		return []TimeSlot{}, nil
+	}
+
+	blocks, err := m.repo.ListBlocks(tenantId, staffId)
+	if err != nil {
+		return nil, err
+	}
+
+	exceptions, err := m.repo.ListExceptions(tenantId, staffId, from, to)
+	if err != nil {
+		return nil, err
+	}
+
+	reservations, err := m.repo.ListReservationsByStaff(tenantId, staffId, from, to)
+	if err != nil {
+		return nil, err
+	}
+	activeReservations := []Reservation{}
+	for _, r := range reservations {
+		if r.Status != StatusCancelled && r.Status != StatusRescheduled && r.Status != StatusExpired {
+			activeReservations = append(activeReservations, r)
+		}
+	}
+
+	empSvcCfg, err := m.repo.GetEmployeeServiceConfig(configId)
+	if err != nil {
+		return nil, err
+	}
+	if !empSvcCfg.IsActive || empSvcCfg.TenantId != tenantId {
+		return []TimeSlot{}, nil
+	}
+
+	return m.scheduleSlots(from, to, blocks, exceptions, cfg, empSvcCfg, activeReservations)
+}
+
 func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error) {
+	if cmd.Id == "" {
+		return Reservation{}, ErrMissingArgs
+	}
 	if cmd.Origin != OriginCounter && cmd.Origin != OriginOnline {
 		return Reservation{}, ErrMissingArgs
+	}
+
+	existing, err := m.repo.GetReservation(cmd.Id)
+	if err == nil {
+		if existing.TenantId == cmd.TenantId && existing.ClientId == cmd.ClientId {
+			return existing, nil
+		}
+		return Reservation{}, ErrIdTaken
+	} else if de, ok := err.(domainError); !ok || de != ErrNotFound {
+		return Reservation{}, err
 	}
 
 	// 1. Cargar EmployeeServiceConfig
@@ -828,6 +860,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 		now := tinytime.Now()
 
 		newReservation = Reservation{
+			Id:                      cmd.Id,
 			TenantId:                cmd.TenantId,
 			ClientId:                cmd.ClientId,
 			CreatorUserId:           cmd.CreatorUserId,
@@ -845,6 +878,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			Origin:                  cmd.Origin,
 			RescheduledFromId:       cmd.RescheduledFromId,
 			Notes:                   cmd.Notes,
+			Overbooked:              false,
 			UpdatedAt:               now,
 			UpdatedBy:               cmd.CreatorUserId, // Usar CreatorUserId como ActorID al momento de la creación
 			Revision:                0,
@@ -868,9 +902,191 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			}
 		}
 
-		newReservation.Id = m.ids.NewID()
-
 		// Hacer un insert dentro de la tx en vez de repo.InsertReservation, que usa db.Create
+		err = tx.Create(&newReservation)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return Reservation{}, err
+	}
+
+	if m.pub != nil {
+		m.pub.Publish(events.Event{Topic: EventReservationCreated, Payload: &newReservation})
+		if originalReservation != nil {
+			m.pub.Publish(events.Event{Topic: EventReservationRescheduled, Payload: originalReservation})
+		}
+	}
+
+	return newReservation, nil
+}
+
+func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error) {
+	if cmd.Id == "" {
+		return Reservation{}, ErrMissingArgs
+	}
+	if cmd.Origin != OriginCounter && cmd.Origin != OriginOnline {
+		return Reservation{}, ErrMissingArgs
+	}
+
+	existing, err := m.repo.GetReservation(cmd.Id)
+	if err == nil {
+		if existing.TenantId == cmd.TenantId && existing.ClientId == cmd.ClientId {
+			return existing, nil
+		}
+		return Reservation{}, ErrIdTaken
+	} else if de, ok := err.(domainError); !ok || de != ErrNotFound {
+		return Reservation{}, err
+	}
+
+	// 1. Cargar EmployeeServiceConfig
+	empSvcCfg, err := m.repo.GetEmployeeServiceConfig(cmd.EmployeeServiceConfigId)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if !empSvcCfg.IsActive || empSvcCfg.TenantId != cmd.TenantId {
+		return Reservation{}, ErrNotFound
+	}
+
+	// 2. Validar cliente
+	clientExists, err := m.directory.ClientExists(cmd.TenantId, cmd.ClientId)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if !clientExists {
+		return Reservation{}, fmt.Err("client", "not", "found")
+	}
+
+	// 3. Validar staff
+	staffExists, err := m.staff.StaffExists(cmd.TenantId, empSvcCfg.StaffId)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if !staffExists {
+		return Reservation{}, fmt.Err("staff", "not", "found")
+	}
+
+	// 4. Validar servicio
+	serviceExists, err := m.catalog.ServiceExists(cmd.TenantId, empSvcCfg.ServiceId)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if !serviceExists {
+		return Reservation{}, fmt.Err("service", "not", "found")
+	}
+
+	// 5. Verificar que la hora pedida coincide con el inicio de un slot habilitado del horario del día
+	targetDay := tinytime.MidnightUTC(cmd.SlotStartUtc)
+	fromDay := targetDay - 86400
+	toDay := targetDay + 86400
+
+	calCfg, err := m.requireCalendarConfig(cmd.TenantId, empSvcCfg.StaffId)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if !calCfg.IsActive {
+		return Reservation{}, ErrSlotNotInSchedule
+	}
+
+	blocks, err := m.repo.ListBlocks(cmd.TenantId, empSvcCfg.StaffId)
+	if err != nil {
+		return Reservation{}, err
+	}
+
+	exceptions, err := m.repo.ListExceptions(cmd.TenantId, empSvcCfg.StaffId, fromDay, toDay)
+	if err != nil {
+		return Reservation{}, err
+	}
+
+	slots, err := m.scheduleSlots(fromDay, toDay, blocks, exceptions, calCfg, empSvcCfg, nil)
+	if err != nil {
+		return Reservation{}, err
+	}
+
+	matchesSchedule := false
+	for _, slot := range slots {
+		if slot.StartUtc == cmd.SlotStartUtc {
+			matchesSchedule = true
+			break
+		}
+	}
+	if !matchesSchedule {
+		return Reservation{}, ErrSlotNotInSchedule
+	}
+
+	// 6. Validar tope de sobrecupo (cerrado si MaxOverbookPerDay == 0)
+	if calCfg.MaxOverbookPerDay == 0 {
+		return Reservation{}, ErrOverbookNotAllowed
+	}
+
+	// Contar sobrecupos activos en ese día
+	dayReservations, err := m.repo.ListReservationsByStaff(cmd.TenantId, empSvcCfg.StaffId, targetDay, targetDay)
+	if err != nil {
+		return Reservation{}, err
+	}
+	overbookCount := int64(0)
+	for _, r := range dayReservations {
+		if r.Overbooked && r.Status != StatusCancelled && r.Status != StatusRescheduled && r.Status != StatusExpired {
+			overbookCount++
+		}
+	}
+	if overbookCount >= calCfg.MaxOverbookPerDay {
+		return Reservation{}, ErrOverbookNotAllowed
+	}
+
+	var newReservation Reservation
+	var originalReservation *Reservation
+
+	err = m.db.Tx(func(tx *orm.DB) error {
+		now := tinytime.Now()
+
+		newReservation = Reservation{
+			Id:                      cmd.Id,
+			TenantId:                cmd.TenantId,
+			ClientId:                cmd.ClientId,
+			CreatorUserId:           cmd.CreatorUserId,
+			EmployeeServiceConfigId: cmd.EmployeeServiceConfigId,
+			StaffIdsnapshot:         empSvcCfg.StaffId,
+			ServiceIdsnapshot:       empSvcCfg.ServiceId,
+			DurationMinSnapshot:     empSvcCfg.DurationMin,
+			PriceSnapshot:           empSvcCfg.PriceOverride,
+			CurrencySnapshot:        "CLP", // default
+			ReservationDate:         targetDay,
+			ReservationTime:         cmd.SlotStartUtc,
+			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc * 1000000000),
+			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc * 1000000000),
+			Status:                  StatusPending,
+			Origin:                  cmd.Origin,
+			RescheduledFromId:       cmd.RescheduledFromId,
+			Notes:                   cmd.Notes,
+			Overbooked:              true,
+			UpdatedAt:               now,
+			UpdatedBy:               cmd.CreatorUserId,
+			Revision:                0,
+		}
+
+		if cmd.RescheduledFromId != "" {
+			orig, err := m.repo.GetReservationTx(tx, cmd.TenantId, cmd.RescheduledFromId)
+			if err != nil {
+				return err
+			}
+			originalReservation = &orig
+
+			_, err = Transition(orig.Status, EventReschedule)
+			if err != nil {
+				return err
+			}
+
+			err = m.repo.UpdateReservationStatusTx(tx, orig.Id, StatusRescheduled, cmd.CreatorUserId, now, orig.Revision)
+			if err != nil {
+				return err
+			}
+		}
+
 		err = tx.Create(&newReservation)
 		if err != nil {
 			return err

@@ -116,6 +116,7 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 	// Create a reservation via caller first
 	// 1736154000 = Mon Jan 06 2025 09:00:00 UTC
 	createRes := ab.CreateReservationArgs{
+		Id:                      "res-bf-1",
 		TenantId:                "t1",
 		ClientId:                "c1",
 		CreatorUserId:           "u1",
