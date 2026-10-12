@@ -8,8 +8,8 @@ github.com/veltylabs/item_catalog v0.3.63 h1:TfxWI8dxr/4kdw276LLdjYLrnOll/0bzWhJ
 github.com/veltylabs/item_catalog v0.3.63/go.mod h1:KlFJdux3cEszxkgqdAPdIzzwrSFSv9i+GAQLhmBdJC8=
 github.com/veltylabs/patient_directory v0.1.11 h1:apux22nkkUA3bH4JD2vpxWE4680UOJB3NcZ0VMQ9gSc=
 github.com/veltylabs/patient_directory v0.1.11/go.mod h1:NcdgHtExefRQ+of237a4eskFpJcEVC3AGcPBpyYoAd4=
-github.com/veltylabs/staff_manager v0.1.84 h1:UndLhzAvvlv2TQ2TtvKbx06Z2GCT0V8p4gMEzK9YZ3M=
-github.com/veltylabs/staff_manager v0.1.84/go.mod h1:xA8Lg8ajPF328ZiHA74zv/6+p/KqRyzFvzZhfUWnRfQ=
+github.com/veltylabs/staff_manager v0.1.85 h1:YAYNUmdOLnsrtBTrUADv26i1aKd8k7ncPeDOhimLM20=
+github.com/veltylabs/staff_manager v0.1.85/go.mod h1:xA8Lg8ajPF328ZiHA74zv/6+p/KqRyzFvzZhfUWnRfQ=
 golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/image v0.45.0 h1:FMb1nTbH5H9vF55SriQHgFw5GnNL9Jg6L25BwXKzhB0=
 golang.org/x/image v0.45.0/go.mod h1:n62x/7RqlwXDvGsSU4u6IUTUf6KghUZ9Bt7cG/T9Fx4=
