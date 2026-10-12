@@ -77,7 +77,9 @@ func (r *Reservation) Item() view.Item {
 
 // Item implementa view.Itemizer. LeadMain es la hora porque la lista de reservas
 // se lee hacia abajo en una columna de horas; un widget de lista que encabeza con una hora
-// (webtyp/components targethour) se vincula a este campo.
+// (webtyp/components targethour) se vincula a este campo. LeadTop lleva el día
+// "YYYY-MM-DD", que es lo que usa una pantalla de reservas para mostrar solo
+// las horas del día elegido.
 func (r *ReservationForm) Item() view.Item {
 	desc := reservationStanding(r.Status, r.Origin)
 	if r.Overbooked {
@@ -85,6 +87,7 @@ func (r *ReservationForm) Item() view.Item {
 	}
 	return view.Item{
 		ID:          r.Id,
+		LeadTop:     r.Day,
 		LeadMain:    r.Hour,
 		Label:       r.ClientId,
 		Description: desc,
