@@ -18,7 +18,7 @@ require (
 	webtyp.com/html v0.0.27
 	webtyp.com/input v0.0.18
 	webtyp.com/json v0.5.29
-	webtyp.com/lang v0.1.4
+	webtyp.com/lang v0.1.5
 	webtyp.com/layout v0.3.41
 	webtyp.com/model v0.2.2
 	webtyp.com/orm v0.12.9
@@ -38,7 +38,7 @@ require (
 
 require (
 	webtyp.com/color v0.1.3 // indirect
-	webtyp.com/date v0.0.10
+	webtyp.com/date v0.0.10 // indirect
 	webtyp.com/escape v0.1.0 // indirect
 	webtyp.com/font v0.0.6 // indirect
 	webtyp.com/form v0.4.34 // indirect
