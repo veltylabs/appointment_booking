@@ -10,14 +10,14 @@ require (
 	github.com/veltylabs/staff_manager v0.1.85
 	webtyp.com/auth v0.0.72
 	webtyp.com/components v0.8.24
-	webtyp.com/css v0.4.30
-	webtyp.com/ddl v0.0.23
+	webtyp.com/css v0.4.31
+	webtyp.com/ddl v0.0.24
 	webtyp.com/dom v0.13.25
 	webtyp.com/events v0.0.6
 	webtyp.com/fmt v1.0.0
 	webtyp.com/html v0.0.27
 	webtyp.com/input v0.0.20
-	webtyp.com/json v0.5.29
+	webtyp.com/json v0.5.30
 	webtyp.com/lang v0.1.6
 	webtyp.com/layout v0.3.45
 	webtyp.com/model v0.2.3
