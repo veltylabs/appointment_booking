@@ -239,11 +239,9 @@ nunca ejecuta `codejob` o `gopush` él mismo — el despacho y el cierre son dec
 
 ---
 
-## Notas específicas del dominio
+## Notas específicas del dominio (editar por módulo — nada por encima de esta línea)
 
-- `ui/` incrusta `payment_manager/ui.PaymentStep`.
-- El paquete raíz solo conoce `PaymentReader`.
- (editar por módulo — nada por encima de esta línea)
+- `ui/` incrusta `payment_manager/ui.PaymentStep`; el paquete raíz solo conoce `PaymentReader`.
 
 `appointment_booking` es el módulo más complejo del lote: 5 entidades propias, una FSM de estado
 de reserva aplicada en código, instantáneas (snapshotting), concurrencia optimista y un algoritmo

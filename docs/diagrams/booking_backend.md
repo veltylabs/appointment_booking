@@ -20,18 +20,22 @@ flowchart TD
 
 ## 2. `ListBookableServices(tenant, especialidad)`
 
+"No existe" se pregunta con `StaffExists`/`ServiceExists`, que lo responden como
+`(false, nil)`: el `ErrNotFound` de otro módulo es de otro tipo y no se puede
+comparar aquí.
+
 ```mermaid
 flowchart TD
     A[configs activas del tenant] --> B1{B1: ¿error de base?}
     B1 -- sí --> E0[error]
     B1 -- no --> L[para cada config]
-    L --> B2{B2: ¿StaffCard falla?}
-    B2 -- ErrNotFound --> SKIP1[omitir]
+    L --> B2{B2: ¿StaffExists / StaffCard?}
+    B2 -- no existe --> SKIP1[omitir]
     B2 -- otro error --> E1[error]
     B2 -- ok --> B3{B3: ¿profesional activo y<br>especialidad coincide o filtro vacío?}
     B3 -- no --> SKIP2[omitir]
-    B3 -- sí --> B4{B4: ¿ServiceCard falla?}
-    B4 -- ErrNotFound --> SKIP3[omitir]
+    B3 -- sí --> B4{B4: ¿ServiceExists / ServiceCard?}
+    B4 -- no existe --> SKIP3[omitir]
     B4 -- otro error --> E2[error]
     B4 -- ok --> B5{B5: ¿servicio activo?}
     B5 -- no --> SKIP4[omitir]

@@ -174,6 +174,23 @@ broker.Subscribe(businesscalendar.EventCalendarChanged, func(ev events.Event) {
 > `list_blocks` y `list_exceptions` son las lecturas directas que necesita un editor de horarios; la vista orientada al llamador
 > es `NewScheduleClient` (ver abajo).
 
+## Reserva en 6 pasos — las pantallas
+
+| Pantalla | Constructor | Quién la usa |
+|---|---|---|
+| Reserva Hora | `ui.Browser` / `ui.NewBookingView(caller, ids, tenantID)` | recepción (mesón): sobrecupo, cobro en mesón con `payment_manager` |
+| Reserva online | `ui.OnlineBrowser` | paciente invitado: retiene la hora y paga en la pasarela |
+
+Pasos: especialidad y servicio → profesional ("cualquiera" si hay varios) → fecha y hora →
+paciente → resumen (aquí se crea la reserva) → pago y confirmación. Flujo y ramas:
+[`docs/diagrams/booking_flow.md`](docs/diagrams/booking_flow.md); servidor:
+[`docs/diagrams/booking_backend.md`](docs/diagrams/booking_backend.md).
+
+La raíz de composición cruza los dos módulos (`web/client.go` es el ejemplo):
+`payment_manager` pregunta el monto con `Charge`, y al recibir `payment.paid` llama
+`ConfirmPaidReservation`; si devuelve `ErrReservationNotPayable` (la retención venció),
+devuelve el pago.
+
 ## ScheduleClient — la cara para el editor de horarios
 
 `NewScheduleClient(caller router.Caller, tenantId, staffId string) *ScheduleClient` es un cliente tipado
