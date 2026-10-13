@@ -100,40 +100,50 @@ var _ router.OperationModule = (*Module)(nil)
 // Convención de mapeo (la misma para todos los módulos del ecosistema — nunca colapsar todo a
 // 500, eso es el "runtime mystery" que CONSTRUCTION_HARNESS prohíbe):
 //   400 = decode/validación/precondición inválida · 404 = no existe · 409 = conflicto · 500 = resto.
+// badRequest is a payload the operation could not read, or one that failed the constraints its
+// Definition declares: 400, with the decoder's or the validation's own text.
+type badRequest struct{ err error }
+
+func (b badRequest) Error() string { return b.err.Error() }
+
+// writeError answers every refusal with its status and its text: a client (rpc, a sync engine's
+// conflict tray) shows the text, so an empty body is never an answer.
 func writeError(ctx router.Context, err error) {
-	if e, ok := err.(domainError); ok {
+	ctx.WriteStatus(statusOf(err))
+	ctx.Write([]byte(err.Error()))
+}
+
+func statusOf(err error) int {
+	switch e := err.(type) {
+	case badRequest:
+		return 400
+	case domainError:
 		switch e {
 		case ErrNotFound, ErrClientNotFound:
-			ctx.WriteStatus(404)
+			return 404
 		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap, ErrIdTaken, ErrOverbookNotAllowed:
-			ctx.WriteStatus(409)
+			return 409
 		case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
 			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot, ErrSlotNotInSchedule:
-			ctx.WriteStatus(400)
-		default:
-			ctx.WriteStatus(500)
+			return 400
 		}
-		ctx.Write([]byte(e.Error()))
-		return
 	}
 	if orm.IsNotFound(err) {
-		ctx.WriteStatus(404)
-		ctx.Write([]byte("not found"))
-		return
+		return 404
 	}
-	ctx.WriteStatus(500)
+	return 500
 }
 
 func (m *Module) opCreateReservation(ctx router.Context) {
 	var args CreateReservationArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	// Doctrina fail-closed: decode → validate → servicio. Validate ejecuta las constraints
 	// declaradas en la Definition (método generado por ormc — nunca re-implementado a mano).
 	if err := args.Validate(model.ActionCreate); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	cmd := CreateReservationCmd{
@@ -153,18 +163,18 @@ func (m *Module) opCreateReservation(ctx router.Context) {
 		return
 	}
 	if err := ctx.Encode(&res); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opCreateOverbooking(ctx router.Context) {
 	var args CreateOverbookingArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	if err := args.Validate(model.ActionCreate); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	cmd := CreateReservationCmd{
@@ -184,14 +194,14 @@ func (m *Module) opCreateOverbooking(ctx router.Context) {
 		return
 	}
 	if err := ctx.Encode(&res); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opGetReservation(ctx router.Context) {
 	var args GetReservationArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	res, err := m.GetReservation(args.TenantId, args.Id)
@@ -200,14 +210,14 @@ func (m *Module) opGetReservation(ctx router.Context) {
 		return
 	}
 	if err := ctx.Encode(&res); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opListReservationsByStaff(ctx router.Context) {
 	var args ListReservationsByStaffArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	res, err := m.ListReservationsByStaff(args.TenantId, args.StaffId, args.From, args.To)
@@ -220,14 +230,14 @@ func (m *Module) opListReservationsByStaff(ctx router.Context) {
 		list[i] = &res[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opListReservationsByClient(ctx router.Context) {
 	var args ListReservationsByClientArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	res, err := m.ListReservationsByClient(args.TenantId, args.ClientId)
@@ -240,14 +250,14 @@ func (m *Module) opListReservationsByClient(ctx router.Context) {
 		list[i] = &res[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opChangeReservationStatus(ctx router.Context) {
 	var args ChangeReservationStatusArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	cmd := ChangeStatusCmd{
@@ -268,7 +278,7 @@ func (m *Module) opChangeReservationStatus(ctx router.Context) {
 func (m *Module) opExpirePendingReservations(ctx router.Context) {
 	var args ExpirePendingReservationsArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	count, err := m.ExpirePendingReservations(args.TenantId, args.Before)
@@ -282,7 +292,7 @@ func (m *Module) opExpirePendingReservations(ctx router.Context) {
 func (m *Module) opCreateEmployeeServiceConfig(ctx router.Context) {
 	var args CreateEmployeeServiceConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	cfg, err := m.CreateEmployeeServiceConfig(EmployeeServiceConfig{
@@ -295,14 +305,14 @@ func (m *Module) opCreateEmployeeServiceConfig(ctx router.Context) {
 		return
 	}
 	if err := ctx.Encode(&cfg); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opGetEmployeeServiceConfig(ctx router.Context) {
 	var args GetEmployeeServiceConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	cfg, err := m.GetEmployeeServiceConfig(args.Id)
@@ -311,14 +321,14 @@ func (m *Module) opGetEmployeeServiceConfig(ctx router.Context) {
 		return
 	}
 	if err := ctx.Encode(&cfg); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opListEmployeeServiceConfigsByStaff(ctx router.Context) {
 	var args ListEmployeeServiceConfigsByStaffArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	rows, err := m.ListEmployeeServiceConfigByStaff(args.TenantId, args.StaffId)
@@ -331,14 +341,14 @@ func (m *Module) opListEmployeeServiceConfigsByStaff(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opUpdateEmployeeServiceConfig(ctx router.Context) {
 	var cfg EmployeeServiceConfig
 	if err := ctx.Decode(&cfg); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	if err := m.UpdateEmployeeServiceConfig(cfg); err != nil {
@@ -351,7 +361,7 @@ func (m *Module) opUpdateEmployeeServiceConfig(ctx router.Context) {
 func (m *Module) opGetCalendarConfig(ctx router.Context) {
 	var args GetCalendarConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	cfg, err := m.GetCalendarConfig(args.TenantId, args.StaffId)
@@ -360,14 +370,14 @@ func (m *Module) opGetCalendarConfig(ctx router.Context) {
 		return
 	}
 	if err := ctx.Encode(&cfg); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 	var args UpsertCalendarConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	cfg := WorkCalendarConfig{
@@ -387,7 +397,7 @@ func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 func (m *Module) opSaveDayBlocks(ctx router.Context) {
 	var args SaveDayBlocksArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	if err := m.SaveDayBlocks(args.TenantId, args.StaffId, int(args.DayOfWeek), args.Blocks); err != nil {
@@ -400,7 +410,7 @@ func (m *Module) opSaveDayBlocks(ctx router.Context) {
 func (m *Module) opSaveDateBlocks(ctx router.Context) {
 	var args SaveDateBlocksArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	if err := m.SaveDateBlocks(args.TenantId, args.StaffId, args.SpecificDate, args.Blocks); err != nil {
@@ -413,7 +423,7 @@ func (m *Module) opSaveDateBlocks(ctx router.Context) {
 func (m *Module) opMarkWorkingDays(ctx router.Context) {
 	var args MarkWorkingDaysArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	dates := make([]int64, len(args.Dates))
@@ -430,7 +440,7 @@ func (m *Module) opMarkWorkingDays(ctx router.Context) {
 func (m *Module) opUnmarkWorkingDays(ctx router.Context) {
 	var args UnmarkWorkingDaysArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	dates := make([]int64, len(args.Dates))
@@ -447,7 +457,7 @@ func (m *Module) opUnmarkWorkingDays(ctx router.Context) {
 func (m *Module) opListBlocks(ctx router.Context) {
 	var args ListBlocksArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	rows, err := m.ListBlocks(args.TenantId, args.StaffId)
@@ -460,14 +470,14 @@ func (m *Module) opListBlocks(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opGetDayBounds(ctx router.Context) {
 	var args GetDayBoundsArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	b, err := m.GetDayBounds(args.Date)
@@ -477,14 +487,14 @@ func (m *Module) opGetDayBounds(ctx router.Context) {
 	}
 	res := DayBoundsResult{Open: b.Open, OpenMin: int64(b.OpenMin), CloseMin: int64(b.CloseMin)}
 	if err := ctx.Encode(&res); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opAddCalendarException(ctx router.Context) {
 	var args AddCalendarExceptionArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	exc := WorkCalendarException{
@@ -502,7 +512,7 @@ func (m *Module) opAddCalendarException(ctx router.Context) {
 func (m *Module) opRemoveCalendarException(ctx router.Context) {
 	var args RemoveCalendarExceptionArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	if err := m.RemoveException(args.TenantId, args.ExceptionId); err != nil {
@@ -515,7 +525,7 @@ func (m *Module) opRemoveCalendarException(ctx router.Context) {
 func (m *Module) opListAvailability(ctx router.Context) {
 	var args ListAvailabilityArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	slots, err := m.ListAvailability(args.TenantId, args.StaffId, args.ConfigId, args.From, args.To)
@@ -528,14 +538,14 @@ func (m *Module) opListAvailability(ctx router.Context) {
 		list[i] = &slots[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opListExceptions(ctx router.Context) {
 	var args ListExceptionsArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	rows, err := m.ListExceptions(args.TenantId, args.StaffId, args.From, args.To)
@@ -548,14 +558,14 @@ func (m *Module) opListExceptions(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opListConflictingReservations(ctx router.Context) {
 	var args ListConflictingReservationsArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	rows, err := m.ListConflictingReservations(args.TenantId, args.StaffId, args.From)
@@ -568,14 +578,14 @@ func (m *Module) opListConflictingReservations(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		ctx.WriteStatus(500)
+		writeError(ctx, err)
 	}
 }
 
 func (m *Module) opRecomputeConflicts(ctx router.Context) {
 	var args RecomputeConflictsArgs
 	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+		writeError(ctx, badRequest{err})
 		return
 	}
 	count, err := m.RecomputeConflicts(args.TenantId, args.From, args.To)
