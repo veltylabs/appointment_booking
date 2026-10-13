@@ -135,3 +135,57 @@ func TestMountOperations_CreateReservation_UnknownClient(t *testing.T) {
 		t.Fatalf("CreateReservation: err = %v, want ErrClientNotFound", err)
 	}
 }
+
+// Every refusal says why. A 400 used to go out with an empty body on a bad payload or a failed
+// validation, so a client (rpc, mjosefa-cms tests, a sync engine's conflict tray) saw "rpc: 400"
+// and had to guess which field was wrong.
+func TestMountOperations_EveryRefusalHasAText(t *testing.T) {
+	m, err := ab.New(orm.New(mem.New()), SetupDependencies())
+	if err != nil {
+		t.Fatalf("ab.New: %v", err)
+	}
+	reg := &mock.Router{}
+	reg.Configure(mock.Config{
+		Authorize: func(string, model.Resource, model.Action) bool { return true },
+	})
+	m.MountOperations(reg)
+
+	for _, body := range []string{`{`, `{}`} {
+		for _, r := range reg.Routes() {
+			ctx := &mock.Context{InBody: []byte(body)}
+			ctx.SetUserID("u1")
+			reg.Invoke(r.Method, r.Path, ctx)
+			if ctx.Status >= 400 && len(ctx.ResponseBody()) == 0 {
+				t.Errorf("%s with %s: %d and no text", r.Path, body, ctx.Status)
+			}
+		}
+	}
+}
+
+// A create_reservation without its id is refused with the validation's own text.
+func TestMountOperations_CreateReservation_InvalidArgsSaysWhy(t *testing.T) {
+	m, err := ab.New(orm.New(mem.New()), SetupDependencies())
+	if err != nil {
+		t.Fatalf("ab.New: %v", err)
+	}
+	reg := &mock.Router{}
+	reg.Configure(mock.Config{
+		Authorize: func(string, model.Resource, model.Action) bool { return true },
+	})
+	m.MountOperations(reg)
+
+	args := ab.CreateReservationArgs{TenantId: "t1", ClientId: "c1", EmployeeServiceConfigId: "cfg1",
+		SlotStartUtc: 1736154000, Origin: ab.OriginCounter}
+	want := args.Validate(model.ActionCreate)
+	if want == nil {
+		t.Fatal("args without id must not validate")
+	}
+	body := []byte(`{"tenant_id":"t1","client_id":"c1","employee_service_config_id":"cfg1",` +
+		`"slot_start_utc":1736154000,"origin":"` + ab.OriginCounter + `"}`)
+	ctx := &mock.Context{InBody: body}
+	ctx.SetUserID("u1")
+	reg.Invoke("OP", "/"+ab.OpCreateReservation, ctx)
+	if ctx.Status != 400 || string(ctx.ResponseBody()) != want.Error() {
+		t.Fatalf("got %d %q, want 400 %q", ctx.Status, ctx.ResponseBody(), want.Error())
+	}
+}
