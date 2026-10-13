@@ -107,11 +107,17 @@ func (p *ScheduleChangedPayload) DecodeFields(r model.FieldReader) {
 // StaffReader verifica que un miembro del staff existe y pertenece al tenant.
 type StaffReader interface {
 	StaffExists(tenantId, staffId string) (bool, error)
+	StaffCard(tenantId, staffId string) (name, specialty string, active bool, err error)
 }
 
 // CatalogReader verifica que un servicio existe y pertenece al tenant.
 type CatalogReader interface {
 	ServiceExists(tenantId, serviceId string) (bool, error)
+	ServiceCard(tenantId, serviceId string) (name string, price float64, currency string, active bool, err error)
+}
+
+type PaymentReader interface {
+	PaidAmount(tenantId, paymentId, referenceModule, referenceId string) (amount int64, currency string, err error)
 }
 
 // DirectoryReader verifica que un cliente existe y pertenece al tenant.
@@ -184,6 +190,7 @@ type CreateReservationCmd struct {
 	Notes                   string
 	RescheduledFromId       string
 	Origin                  string
+	HoldUntil               int64
 }
 
 type CreateOverbookingCmd = CreateReservationCmd
@@ -194,6 +201,7 @@ type ChangeStatusCmd struct {
 	Event     string
 	ActorId   string
 	PaymentId string
+	Reason    string
 	Revision  int
 }
 
@@ -206,6 +214,7 @@ type Module struct {
 	directory DirectoryReader
 	pub       events.Publisher
 	bounds    BoundsReader
+	payments  PaymentReader
 }
 
 type Deps struct {
@@ -218,6 +227,7 @@ type Deps struct {
 	// OPTIONAL: nil means unbounded, which is correct for an app with no
 	// institution above the professional (a freelancer's booking page).
 	Bounds BoundsReader
+	Payments PaymentReader
 }
 
 func New(db *orm.DB, deps Deps) (*Module, error) {
@@ -238,6 +248,7 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 		directory: deps.Directory,
 		pub:       deps.Publisher,
 		bounds:    deps.Bounds,
+		payments:  deps.Payments,
 	}, nil
 }
 
@@ -776,6 +787,13 @@ func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to i
 	return m.scheduleSlots(from, to, blocks, exceptions, cfg, empSvcCfg, activeReservations)
 }
 
+func (m *Module) priceFor(tenantId string, cfg EmployeeServiceConfig) (price float64, currency string, err error) {
+	if cfg.PriceOverride > 0 { return cfg.PriceOverride, "CLP", nil }
+	_, catPrice, catCurrency, _, err := m.catalog.ServiceCard(tenantId, cfg.ServiceId)
+	if err != nil { return 0, "", err }
+	if catCurrency == "" { catCurrency = "CLP" }
+	return catPrice, catCurrency, nil
+}
 func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error) {
 	if cmd.Id == "" {
 		return Reservation{}, ErrMissingArgs
@@ -854,6 +872,10 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, ErrSlotTaken
 	}
 
+	price, currency, err := m.priceFor(cmd.TenantId, empSvcCfg)
+	if err != nil {
+		return Reservation{}, err
+	}
 	var newReservation Reservation
 	var originalReservation *Reservation
 
@@ -869,13 +891,14 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			StaffIdsnapshot:         empSvcCfg.StaffId,
 			ServiceIdsnapshot:       empSvcCfg.ServiceId,
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           empSvcCfg.PriceOverride,
-			CurrencySnapshot:        "CLP", // default
+			PriceSnapshot:           price,
+			CurrencySnapshot:        currency, // default
 			ReservationDate:         targetDay,
 			ReservationTime:         cmd.SlotStartUtc,
 			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc * 1000000000),
 			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc * 1000000000),
 			Status:                  StatusPending,
+			HoldUntil:               cmd.HoldUntil,
 			Origin:                  cmd.Origin,
 			RescheduledFromId:       cmd.RescheduledFromId,
 			Notes:                   cmd.Notes,
@@ -1039,6 +1062,10 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, ErrOverbookNotAllowed
 	}
 
+	price, currency, err := m.priceFor(cmd.TenantId, empSvcCfg)
+	if err != nil {
+		return Reservation{}, err
+	}
 	var newReservation Reservation
 	var originalReservation *Reservation
 
@@ -1054,13 +1081,14 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 			StaffIdsnapshot:         empSvcCfg.StaffId,
 			ServiceIdsnapshot:       empSvcCfg.ServiceId,
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           empSvcCfg.PriceOverride,
-			CurrencySnapshot:        "CLP", // default
+			PriceSnapshot:           price,
+			CurrencySnapshot:        currency, // default
 			ReservationDate:         targetDay,
 			ReservationTime:         cmd.SlotStartUtc,
 			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc * 1000000000),
 			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc * 1000000000),
 			Status:                  StatusPending,
+			HoldUntil:               cmd.HoldUntil,
 			Origin:                  cmd.Origin,
 			RescheduledFromId:       cmd.RescheduledFromId,
 			Notes:                   cmd.Notes,
@@ -1194,38 +1222,138 @@ func (m *Module) ChangeReservationStatus(cmd ChangeStatusCmd) error {
 	return nil
 }
 
-func (m *Module) ExpirePendingReservations(tenantId string, before int64) (int, error) {
-	proxy := &Reservation{}
-	qb := m.db.Query(proxy).
-		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.Status).Eq(StatusPending).
-		Where(Reservation_.ReservationTime).Lt(before)
 
-	rows, err := ReadAllReservation(qb)
-	if err != nil {
-		if orm.IsNotFound(err) {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	expiredCount := 0
-	for _, row := range rows {
-		err := m.ChangeReservationStatus(ChangeStatusCmd{
-			TenantId: tenantId,
-			Id:       row.Id,
-			Event:    EventExpire,
-			ActorId:  "system",
-			Revision: int(row.Revision),
+func (m *Module) ListBookableServices(tenantId, specialty string) ([]BookableService, error) {
+	proxy := &EmployeeServiceConfig{}
+	qb := m.db.Query(proxy).Where(EmployeeServiceConfig_.TenantId).Eq(tenantId).Where(EmployeeServiceConfig_.IsActive).Eq(true)
+	cfgs, err := ReadAllEmployeeServiceConfig(qb)
+	if err != nil { return nil, err }
+	out := []BookableService{}
+	for _, cfg := range cfgs {
+		name, spec, active, err := m.staff.StaffCard(tenantId, cfg.StaffId)
+		if err == ErrNotFound { continue } else if err != nil { return nil, err }
+		if !active { continue }
+		if specialty != "" && spec != specialty { continue }
+		sName, sPrice, sCur, sActive, err := m.catalog.ServiceCard(tenantId, cfg.ServiceId)
+		if err == ErrNotFound { continue } else if err != nil { return nil, err }
+		if !sActive { continue }
+		if cfg.PriceOverride > 0 { sPrice = cfg.PriceOverride; sCur = "CLP" } else if sCur == "" { sCur = "CLP" }
+		out = append(out, BookableService{
+			ConfigId: cfg.Id, StaffId: cfg.StaffId, StaffName: name, Specialty: spec, ServiceId: cfg.ServiceId,
+			ServiceName: sName, DurationMin: cfg.DurationMin, Price: sPrice, Currency: sCur, PaymentRequired: cfg.PaymentRequired,
 		})
-		if err != nil {
-			return expiredCount, err
-		}
-		expiredCount++
 	}
+	if out == nil { out = []BookableService{} }
+	return out, nil
+}
 
+func (m *Module) ListServiceAvailability(a ListServiceAvailabilityArgs) ([]BookableSlot, error) {
+	proxy := &EmployeeServiceConfig{}
+	qb := m.db.Query(proxy).Where(EmployeeServiceConfig_.TenantId).Eq(a.TenantId).
+		Where(EmployeeServiceConfig_.ServiceId).Eq(a.ServiceId).Where(EmployeeServiceConfig_.IsActive).Eq(true)
+	if a.StaffId != "" { qb = qb.Where(EmployeeServiceConfig_.StaffId).Eq(a.StaffId) }
+	cfgs, err := ReadAllEmployeeServiceConfig(qb)
+	if err != nil { return nil, err }
+	out := []BookableSlot{}
+	for _, cfg := range cfgs {
+		slots, err := m.ListAvailability(a.TenantId, cfg.StaffId, cfg.Id, a.From, a.To)
+		if err != nil { return nil, err }
+		var taken []Reservation
+		if a.IncludeTaken && a.StaffId != "" {
+			rQb := m.db.Query(&Reservation{}).Where(Reservation_.TenantId).Eq(a.TenantId).Where(Reservation_.StaffIdsnapshot).Eq(cfg.StaffId).Where(Reservation_.ReservationDate).Gte(a.From).Where(Reservation_.ReservationDate).Lte(a.To)
+			allRsv, _ := ReadAllReservation(rQb)
+			for _, r := range allRsv { if r.Status == StatusPending || r.Status == StatusConfirmed { taken = append(taken, *r) } }
+		}
+		for _, s := range slots {
+			found := false
+			for i := range out { if out[i].StartUtc == s.StartUtc { found = true; break } }
+			if found { continue }
+			isTaken := false
+			if a.IncludeTaken && a.StaffId != "" {
+				for _, tRsv := range taken { if tRsv.ReservationTime == s.StartUtc { isTaken = true; break } }
+			}
+			out = append(out, BookableSlot{ StartUtc: s.StartUtc, EndUtc: s.EndUtc, StaffId: cfg.StaffId, ConfigId: cfg.Id, Taken: isTaken })
+		}
+	}
+	if out == nil { out = []BookableSlot{} }
+	return out, nil
+}
+
+func (m *Module) CreateOnlineReservation(cmd CreateReservationCmd) (Reservation, error) {
+	if m.payments == nil { return Reservation{}, ErrPaymentsUnavailable }
+	proxy := &Reservation{}
+	qb := m.db.Query(proxy).Where(Reservation_.TenantId).Eq(cmd.TenantId).Where(Reservation_.ClientId).Eq(cmd.ClientId).Where(Reservation_.Status).Eq(StatusPending)
+	holds, err := ReadAllReservation(qb)
+	if err != nil && err != ErrNotFound { return Reservation{}, err }
+	nowSecs := tinytime.Now() / 1000000000
+	activeHolds := 0
+	for _, h := range holds { if h.HoldUntil > nowSecs { activeHolds++ } }
+	if activeHolds >= MaxOnlineHolds { return Reservation{}, ErrTooManyHolds }
+	cmd.Origin = OriginOnline
+	cmd.HoldUntil = nowSecs + OnlineHoldSeconds
+	return m.CreateReservation(cmd)
+}
+
+func (m *Module) Charge(tenantId, reservationId string) (amount int64, currency string, payable bool, err error) {
+	res, err := m.GetReservation(tenantId, reservationId)
+	if err != nil { return 0, "", false, err }
+	if res.Status == StatusCancelled || res.PaymentId != "" || res.PriceSnapshot == 0 { return 0, res.CurrencySnapshot, false, nil }
+	if res.Origin == OriginOnline {
+		nowSecs := tinytime.Now() / 1000000000
+		if res.HoldUntil-nowSecs < PaymentWindowSeconds { return 0, res.CurrencySnapshot, false, nil }
+	}
+	cur := res.CurrencySnapshot
+	if cur == "CLP" { amount = int64(res.PriceSnapshot) } else if cur == "USD" || cur == "EUR" { amount = int64(res.PriceSnapshot*100 + 0.5) } else { return 0, "", false, ErrUnsupportedCurrency }
+	return amount, cur, true, nil
+}
+
+func (m *Module) ConfirmPaidReservation(tenantId, reservationId, paymentId string) error {
+	if m.payments == nil { return ErrPaymentsUnavailable }
+	res, err := m.GetReservation(tenantId, reservationId)
+	if err != nil { return err }
+	if res.PaymentId == paymentId { return nil }
+	if res.PaymentId != "" { return ErrAlreadyPaid }
+	amount, cur, payable, err := m.Charge(tenantId, reservationId)
+	if err != nil { return err }
+	if !payable { return ErrReservationNotPayable }
+	paidAmt, paidCur, err := m.payments.PaidAmount(tenantId, paymentId, ModelName, reservationId)
+	if err != nil || paidCur != cur || paidAmt < amount { return ErrPaymentNotVerified }
+	err = m.db.Tx(func(tx *orm.DB) error {
+		now := tinytime.Now()
+		current := &Reservation{}
+		qb := tx.Query(current).Where(Reservation_.Id).Eq(reservationId).Where(Reservation_.TenantId).Eq(tenantId)
+		got, err := ReadOneReservation(qb, current)
+		if err != nil { return err }
+		if got.Revision != res.Revision { return ErrConflict }
+		got.PaymentId = paymentId
+		got.HoldUntil = 0
+		got.UpdatedAt = now
+		got.UpdatedBy = "payment_manager"
+		if got.Status == StatusPending { got.Status = StatusConfirmed }
+		return tx.Update(got, orm.Eq(Reservation_.Id, got.Id), orm.Eq(Reservation_.TenantId, tenantId))
+	})
+	if err == nil && m.pub != nil { m.pub.Publish(events.Event{ Topic: EventReservationConfirmed, Payload: &Reservation{Id: reservationId, TenantId: tenantId} }) }
+	return err
+}
+
+func (m *Module) ExpirePendingReservations(tenantId string, now int64) (int, error) {
+	proxy := &Reservation{}
+	qb := m.db.Query(proxy).Where(Reservation_.TenantId).Eq(tenantId).Where(Reservation_.Status).Eq(StatusPending)
+	rows, err := ReadAllReservation(qb)
+	if err != nil { if orm.IsNotFound(err) { return 0, nil }; return 0, err }
+	expiredCount := 0
+	for _, r := range rows {
+		expired := false
+		if r.Origin == OriginCounter { if r.ReservationTime < now { expired = true }
+		} else if r.Origin == OriginOnline { if r.HoldUntil > 0 && r.HoldUntil < now { expired = true } }
+		if expired {
+			err := m.ChangeReservationStatus(ChangeStatusCmd{ TenantId: tenantId, Id: r.Id, Event: EventExpire, ActorId: "system", Reason: "expired" })
+			if err == nil { expiredCount++ }
+		}
+	}
 	return expiredCount, nil
 }
+
 
 // ///////////////////////////////////////////////////////////////////////////
 // Stage 5 — conflicts (§8)

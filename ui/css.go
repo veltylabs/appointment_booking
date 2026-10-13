@@ -33,15 +33,3 @@ func (s *ServiceConfigView) RenderCSS() *css.Stylesheet {
 		Stylesheet()
 }
 
-// RenderCSS es el chrome de la pantalla "Reserva Hora".
-func (v *BookingView) RenderCSS() *css.Stylesheet {
-	return style.For(v).
-		Root(
-			style.Fill(),
-		).
-		Part(PartBookingHeader,
-			style.Row(style.Space3),
-			style.CenterContent(),
-		).
-		Stylesheet()
-}

@@ -13,6 +13,17 @@ const (
 	OriginCounter = "COUNTER" // la crea y la confirma el personal, en el mostrador
 	OriginOnline  = "ONLINE"  // la crea el paciente y la confirma él mismo por su vía
 )
+const (
+	OnlineHoldSeconds    = 900 // la hora online queda retenida 15 min
+	PaymentWindowSeconds = 600 // mínimo de retención restante para empezar a pagar
+	MaxOnlineHolds       = 2   // retenciones online activas por paciente
+)
+
+const (
+	ResourceBookingCatalog    = "booking_catalog"    // lecturas del flujo online
+	ResourceReservationOnline = "reservation_online" // crear reserva online
+)
+
 
 // EmployeeServiceConfigModel: que servicios realiza un profesional, durante cuanto
 // tiempo y a que precio. La política de widgets es POR ROL, la misma regla que cada
@@ -122,6 +133,7 @@ var ReservationModel = model.Definition{
 		// paciente (ver PLAN §8.5).
 		{Name: "status_before_conflict", Type: model.Text()},
 		{Name: "payment_id", Type: model.Text()},
+		{Name: "hold_until", Type: model.Int(), OmitEmpty: true},
 		{Name: "notes", Type: model.Text()},
 		{Name: "overbooked", Type: model.Bool(), NotNull: true},
 		{Name: "updated_at", Type: model.Int()},
@@ -438,5 +450,64 @@ var ListExceptionsArgsModel = model.Definition{
 		{Name: "staff_id", Type: input.Text()},
 		{Name: "from", Type: input.Number()},
 		{Name: "to", Type: input.Number()},
+	},
+}
+
+var ListBookableServicesArgsModel = model.Definition{
+	Name: "list_bookable_services_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: input.Text(), NotNull: true},
+		{Name: "specialty", Type: input.Text()},
+	},
+}
+
+var BookableServiceModel = model.Definition{
+	Name: "bookable_service",
+	Fields: model.Fields{
+		{Name: "config_id", Type: input.Text()},
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "staff_name", Type: input.Text()},
+		{Name: "specialty", Type: input.Text()},
+		{Name: "service_id", Type: input.Text()},
+		{Name: "service_name", Type: input.Text()},
+		{Name: "duration_min", Type: input.Number()},
+		{Name: "price", Type: input.Decimal()},
+		{Name: "currency", Type: input.Text()},
+		{Name: "payment_required", Type: input.Checkbox()},
+	},
+}
+
+var ListServiceAvailabilityArgsModel = model.Definition{
+	Name: "list_service_availability_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: input.Text(), NotNull: true},
+		{Name: "service_id", Type: input.Text(), NotNull: true},
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "from", Type: input.Number(), NotNull: true},
+		{Name: "to", Type: input.Number(), NotNull: true},
+		{Name: "include_taken", Type: input.Checkbox()},
+	},
+}
+
+var BookableSlotModel = model.Definition{
+	Name: "bookable_slot",
+	Fields: model.Fields{
+		{Name: "start_utc", Type: input.Number()},
+		{Name: "end_utc", Type: input.Number()},
+		{Name: "staff_id", Type: input.Text()},
+		{Name: "config_id", Type: input.Text()},
+		{Name: "taken", Type: input.Checkbox()},
+	},
+}
+
+var CreateOnlineReservationArgsModel = model.Definition{
+	Name: "create_online_reservation_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: input.Text(), NotNull: true},
+		{Name: "id", Type: input.Text(), NotNull: true},
+		{Name: "client_id", Type: input.Text(), NotNull: true},
+		{Name: "employee_service_config_id", Type: input.Text(), NotNull: true},
+		{Name: "slot_start_utc", Type: input.Number(), NotNull: true},
+		{Name: "notes", Type: input.Text()},
 	},
 }

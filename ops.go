@@ -7,6 +7,13 @@ import (
 	"webtyp.com/router"
 )
 
+
+const (
+	OpListBookableServices     = "list_bookable_services"
+	OpListServiceAvailability  = "list_service_availability"
+	OpCreateOnlineReservation  = "create_online_reservation"
+)
+
 const (
 	OpCreateReservation          = "create_reservation"
 	OpCreateOverbooking          = "create_overbooking"
@@ -60,6 +67,11 @@ func qualifiedOp(name string) string {
 }
 
 func (m *Module) MountOperations(reg router.OperationRegistry) {
+
+	reg.Operation(OpListBookableServices, m.opListBookableServices).Requires(ResourceBookingCatalog, model.Read).Accepts(&ListBookableServicesArgs{})
+	reg.Operation(OpListServiceAvailability, m.opListServiceAvailability).Requires(ResourceBookingCatalog, model.Read).Accepts(&ListServiceAvailabilityArgs{})
+	reg.Operation(OpCreateOnlineReservation, m.opCreateOnlineReservation).Requires(ResourceReservationOnline, model.Create).Accepts(&CreateOnlineReservationArgs{})
+
 	reg.Operation(OpCreateReservation, m.opCreateReservation).Requires("reservation", model.Create).Accepts(&CreateReservationArgs{})
 	reg.Operation(OpCreateOverbooking, m.opCreateOverbooking).Requires("overbooking", model.Create).Accepts(&CreateOverbookingArgs{})
 	reg.Operation(OpGetReservation, m.opGetReservation).Requires("reservation", model.Read).Accepts(&GetReservationArgs{})
@@ -123,8 +135,12 @@ func statusOf(err error) int {
 			return 404
 		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap, ErrIdTaken, ErrOverbookNotAllowed:
 			return 409
+		case ErrTooManyHolds, ErrPaymentNotVerified, ErrAlreadyPaid, ErrReservationNotPayable:
+			return 409
+		case ErrPaymentsUnavailable:
+			return 500
 		case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
-			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot, ErrSlotNotInSchedule:
+			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot, ErrSlotNotInSchedule, ErrUnsupportedCurrency:
 			return 400
 		}
 	}
@@ -594,4 +610,36 @@ func (m *Module) opRecomputeConflicts(ctx router.Context) {
 		return
 	}
 	ctx.Write([]byte(fmt.Convert(count).String()))
+}
+func (m *Module) opListBookableServices(ctx router.Context) {
+	var args ListBookableServicesArgs
+	if err := ctx.Decode(&args); err != nil { writeError(ctx, badRequest{err}); return }
+	if err := args.Validate(model.ActionRead); err != nil { writeError(ctx, badRequest{err}); return }
+	list, err := m.ListBookableServices(args.TenantId, args.Specialty)
+	if err != nil { writeError(ctx, err); return }
+	listOut := BookableServiceList{}
+	for i := range list { listOut = append(listOut, &list[i]) }
+	ctx.WriteStatus(200)
+	ctx.Encode(&listOut)
+}
+func (m *Module) opListServiceAvailability(ctx router.Context) {
+	var args ListServiceAvailabilityArgs
+	if err := ctx.Decode(&args); err != nil { writeError(ctx, badRequest{err}); return }
+	if err := args.Validate(model.ActionRead); err != nil { writeError(ctx, badRequest{err}); return }
+	list, err := m.ListServiceAvailability(args)
+	if err != nil { writeError(ctx, err); return }
+	listOut := BookableSlotList{}
+	for i := range list { listOut = append(listOut, &list[i]) }
+	ctx.WriteStatus(200)
+	ctx.Encode(&listOut)
+}
+func (m *Module) opCreateOnlineReservation(ctx router.Context) {
+	var args CreateOnlineReservationArgs
+	if err := ctx.Decode(&args); err != nil { writeError(ctx, badRequest{err}); return }
+	if err := args.Validate(model.ActionCreate); err != nil { writeError(ctx, badRequest{err}); return }
+	cmd := CreateReservationCmd{Id: args.Id, TenantId: args.TenantId, ClientId: args.ClientId, EmployeeServiceConfigId: args.EmployeeServiceConfigId, SlotStartUtc: args.SlotStartUtc, Notes: args.Notes}
+	res, err := m.CreateOnlineReservation(cmd)
+	if err != nil { writeError(ctx, err); return }
+	ctx.WriteStatus(200)
+	ctx.Encode(&res)
 }

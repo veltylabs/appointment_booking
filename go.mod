@@ -9,7 +9,7 @@ require (
 	github.com/veltylabs/patient_directory v0.1.12
 	github.com/veltylabs/staff_manager v0.1.85
 	webtyp.com/auth v0.0.72
-	webtyp.com/components v0.8.24
+	webtyp.com/components v0.8.27
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.24
 	webtyp.com/dom v0.13.25

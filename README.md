@@ -137,7 +137,14 @@ broker.Subscribe(businesscalendar.EventCalendarChanged, func(ev events.Event) {
 })
 ```
 
-### Operaciones disponibles (25 en total)
+### Operaciones
+
+| Op | Permiso (`Resource`) | Acción | Resultado (`Payload`) | Descripción |
+|---|---|---|---|---|
+| `list_bookable_services` | `booking_catalog` | Leer | `[]BookableService` | Lista servicios reservables. |
+| `list_service_availability` | `booking_catalog` | Leer | `[]BookableSlot` | Lista horarios disponibles. |
+| `create_online_reservation` | `reservation_online` | Crear | `Reservation` | Crea una reserva online con retención. |
+ disponibles (25 en total)
 
 `create_reservation`, `create_overbooking`, `get_reservation`, `list_reservations_by_staff`, `list_reservations_by_client`,
 `change_reservation_status`, `expire_pending_reservations`, `list_conflicting_reservations`,

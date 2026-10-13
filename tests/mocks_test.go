@@ -9,21 +9,37 @@ import (
 )
 
 type MockStaffReader struct {
-	Exists bool
-	Err    error
+	Exists    bool
+	Err       error
+	Name      string
+	Specialty string
+	Active    bool
 }
 
 func (m *MockStaffReader) StaffExists(tenantID, staffID string) (bool, error) {
 	return m.Exists, m.Err
 }
 
+func (m *MockStaffReader) StaffCard(tenantId, staffId string) (name, specialty string, active bool, err error) {
+	return m.Name, m.Specialty, m.Active, m.Err
+}
+
 type MockCatalogReader struct {
-	Exists bool
-	Err    error
+	Exists   bool
+	Err      error
+	CardErr  error
+	Name     string
+	Price    float64
+	Currency string
+	Active   bool
 }
 
 func (m *MockCatalogReader) ServiceExists(tenantID, serviceID string) (bool, error) {
 	return m.Exists, m.Err
+}
+
+func (m *MockCatalogReader) ServiceCard(tenantId, serviceId string) (name string, price float64, currency string, active bool, err error) {
+	return m.Name, m.Price, m.Currency, m.Active, m.CardErr
 }
 
 type MockDirectoryReader struct {

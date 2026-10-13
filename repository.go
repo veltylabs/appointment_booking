@@ -9,6 +9,12 @@ import (
 const (
 	ErrNotFound domainError = "record not found"
 	ErrConflict domainError = "optimistic concurrency conflict"
+	ErrPaymentsUnavailable   domainError = "payments are not configured"
+	ErrTooManyHolds          domainError = "too many online reservations awaiting payment"
+	ErrPaymentNotVerified    domainError = "payment could not be verified for this reservation"
+	ErrAlreadyPaid           domainError = "reservation already has a payment"
+	ErrReservationNotPayable domainError = "reservation can no longer be paid"
+	ErrUnsupportedCurrency   domainError = "unsupported currency"
 )
 
 // Repository provee operaciones CRUD para todas las tablas de appointment-booking.

@@ -29,6 +29,9 @@ import (
 	patientseed "github.com/veltylabs/patient_directory/seed"
 	staffmanager "github.com/veltylabs/staff_manager"
 	staffseed "github.com/veltylabs/staff_manager/seed"
+	paymentmanager "github.com/veltylabs/payment_manager"
+	paymentmanagerui "github.com/veltylabs/payment_manager/ui"
+	"github.com/veltylabs/payment_manager/sandbox"
 )
 
 // demoTenantID es el único tenant de esta demo interactiva en navegador.
@@ -41,6 +44,14 @@ func (demoUser) UserName() string    { return "Demo" }
 func (demoUser) UserAvatar() string  { return "" }
 func (demoUser) UserRoles() []string { return []string{"Administrador"} }
 
+
+var abMod *ab.Module
+
+type chargeViaBooking struct{}
+
+func (c chargeViaBooking) Charge(tenantId, referenceId string) (int64, string, bool, error) {
+	return abMod.Charge(tenantId, referenceId)
+}
 func main() {
 	lang.OutLang("es")
 
@@ -82,7 +93,29 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	abMod, err := ab.New(db, ab.Deps{
+	pm, _ := paymentmanager.New(db, paymentmanager.Deps{
+		Publisher: broker,
+		Gateway:   sandbox.New("/"),
+		ReturnURL: "/",
+		Charges: []paymentmanager.ChargeSource{
+			{Module: ab.ModelName, Reader: chargeViaBooking{}},
+		},
+	})
+
+	broker.Subscribe(func(e events.Event) {
+		if e.Topic == paymentmanager.EventPaymentPaid {
+			if p, ok := e.Payload.(*paymentmanager.Payment); ok && p.ReferenceModule == ab.ModelName {
+				err := abMod.ConfirmPaidReservation(p.TenantId, p.ReferenceId, p.Id)
+				if err == ab.ErrReservationNotPayable {
+					pm.RefundPayment(p.TenantId, p.Id, p.Amount, "reservation expired before payment")
+				}
+			}
+		}
+	})
+
+	abMod, err = ab.New(db, ab.Deps{
+		Staff: sm, Catalog: ic, Directory: pd, Bounds: bc, IDs: ids, Publisher: broker, Payments: pm,
+	})
 		Staff: sm, Catalog: ic, Directory: pd, Bounds: bc, IDs: ids, Publisher: broker,
 	})
 	if err != nil {

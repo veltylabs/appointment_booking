@@ -1,135 +1,476 @@
 {
   "default": "es",
-  "languages": ["es"],
+  "languages": [
+    "es"
+  ],
   "keys": {
-    "April": ["Abril"],
-    "August": ["Agosto"],
-    "Awaiting patient": ["En espera del paciente"],
-    "Back": ["Atrás"],
-    "Calendar": ["Calendario"],
-    "Cancel": ["Cancelar"],
-    "Cancelled": ["Cancelada"],
-    "Completed": ["Completada"],
-    "Confirm": ["Confirmar"],
-    "Confirmed": ["Confirmada"],
-    "Conflicted": ["En conflicto"],
-    "Date": ["Fecha"],
-    "December": ["Diciembre"],
-    "Edit": ["Editar"],
-    "Expired": ["Expirada"],
-    "February": ["Febrero"],
-    "Friday": ["Viernes"],
-    "Fri": ["Vie"],
-    "From": ["Desde"],
-    "January": ["Enero"],
-    "July": ["Julio"],
-    "June": ["Junio"],
-    "March": ["Marzo"],
-    "May": ["Mayo"],
-    "Monday": ["Lunes"],
-    "Mon": ["Lun"],
-    "Next": ["Siguiente"],
-    "Next month": ["Mes siguiente"],
-    "No show": ["No asistió"],
-    "Notes": ["Notas"],
-    "November": ["Noviembre"],
-    "October": ["Octubre"],
-    "Overbooked": ["Sobrecupo"],
-    "Pending": ["Pendiente"],
-    "Pending confirmation": ["Pendiente de confirmación"],
-    "Previous month": ["Mes anterior"],
-    "Reason": ["Motivo"],
-    "Rescheduled": ["Reprogramada"],
-    "Saturday": ["Sábado"],
-    "Sat": ["Sáb"],
-    "Search…": ["Buscar…"],
-    "Select date": ["Elegir fecha"],
-    "September": ["Septiembre"],
-    "Submit": ["Enviar"],
-    "Sunday": ["Domingo"],
-    "Sun": ["Dom"],
-    "Thursday": ["Jueves"],
-    "Thu": ["Jue"],
-    "To": ["Hasta"],
-    "Today": ["Hoy"],
-    "Tuesday": ["Martes"],
-    "Tue": ["Mar"],
-    "Wednesday": ["Miércoles"],
-    "Wed": ["Mié"],
-    "actor id": ["id de actor"],
-    "appointment_booking: Deps.IDs is required": ["appointment_booking: Deps.IDs es requerido"],
-    "appointment_booking: save: empty records": ["appointment_booking: guardar: registros vacíos"],
-    "appointment_booking: save: expected *EmployeeServiceConfig": ["appointment_booking: guardar: se esperaba *EmployeeServiceConfig"],
-    "appointment_booking: save: expected *ReservationForm": ["appointment_booking: guardar: se esperaba *ReservationForm"],
-    "before": ["antes"],
-    "blocks": ["bloques"],
-    "buffer min": ["minutos de amortiguación"],
-    "byDay: underlying presenter cannot save": ["byDay: el presentador subyacente no puede guardar"],
-    "client": ["Paciente"],
-    "client id": ["Paciente"],
-    "close min": ["minuto de cierre"],
-    "config id": ["id de configuración"],
-    "creator user id": ["id de usuario creador"],
-    "currency snapshot": ["moneda instantánea"],
-    "date": ["fecha"],
-    "dates": ["fechas"],
-    "day": ["Día"],
-    "day of week": ["día de la semana"],
-    "duration min": ["duración en minutos"],
-    "duration min snapshot": ["duración en minutos instantánea"],
-    "employee service config id": ["id de configuración de servicio del empleado"],
-    "end min": ["minuto de fin"],
-    "end time": ["hora de fin"],
-    "end utc": ["fin utc"],
-    "event": ["evento"],
-    "exception id": ["id de excepción"],
-    "exception type": ["tipo de excepción"],
-    "formato hora: HH:MM": ["Hora"],
-    "found": ["encontrado"],
-    "from": ["desde"],
-    "hour": ["Hora"],
-    "id": ["id"],
-    "is active": ["está activo"],
-    "local string date": ["fecha local"],
-    "local string time": ["hora local"],
-    "max overbook per day": ["sobrecupo máximo por día"],
-    "no patients found in patient directory module": ["no hay pacientes en el módulo de pacientes"],
-    "no service configurations created": ["no hay configuraciones de servicio creadas"],
-    "not": ["no"],
-    "notes": ["Notas"],
-    "occupied": ["ocupado"],
-    "open": ["abierto"],
-    "open min": ["minuto de apertura"],
-    "origin": ["origen"],
-    "overbooked": ["sobrecupo"],
-    "payment id": ["id de pago"],
-    "payment required": ["pago requerido"],
-    "price override": ["anulación de precio"],
-    "price snapshot": ["precio instantáneo"],
-    "reason": ["motivo"],
-    "rescheduled from id": ["reprogramada desde id"],
-    "reservation date": ["fecha de reserva"],
-    "reservation id": ["id de reserva"],
-    "reservation time": ["hora de reserva"],
-    "revision": ["revisión"],
-    "service": ["servicio"],
-    "service id": ["id de servicio"],
-    "service idsnapshot": ["id de servicio instantáneo"],
-    "slot start utc": ["inicio de slot utc"],
-    "specific date": ["fecha específica"],
-    "staff": ["personal"],
-    "staff id": ["id de personal"],
-    "staff idsnapshot": ["id de personal instantáneo"],
-    "start min": ["minuto de inicio"],
-    "start time": ["hora de inicio"],
-    "start utc": ["inicio utc"],
-    "starts at": ["comienza a las"],
-    "status": ["estado"],
-    "status before conflict": ["estado antes del conflicto"],
-    "tenant id": ["id de tenant"],
-    "timezone": ["zona horaria"],
-    "to": ["hasta"],
-    "updated at": ["actualizado el"],
-    "updated by": ["actualizado por"]
+    "April": [
+      "Abril"
+    ],
+    "August": [
+      "Agosto"
+    ],
+    "Awaiting patient": [
+      "En espera del paciente"
+    ],
+    "Back": [
+      "Atrás"
+    ],
+    "Calendar": [
+      "Calendario"
+    ],
+    "Cancel": [
+      "Cancelar"
+    ],
+    "Cancelled": [
+      "Cancelada"
+    ],
+    "Completed": [
+      "Completada"
+    ],
+    "Confirm": [
+      "Confirmar"
+    ],
+    "Confirmed": [
+      "Confirmada"
+    ],
+    "Conflicted": [
+      "En conflicto"
+    ],
+    "Date": [
+      "Fecha"
+    ],
+    "December": [
+      "Diciembre"
+    ],
+    "Edit": [
+      "Editar"
+    ],
+    "Expired": [
+      "Expirada"
+    ],
+    "February": [
+      "Febrero"
+    ],
+    "Friday": [
+      "Viernes"
+    ],
+    "Fri": [
+      "Vie"
+    ],
+    "From": [
+      "Desde"
+    ],
+    "January": [
+      "Enero"
+    ],
+    "July": [
+      "Julio"
+    ],
+    "June": [
+      "Junio"
+    ],
+    "March": [
+      "Marzo"
+    ],
+    "May": [
+      "Mayo"
+    ],
+    "Monday": [
+      "Lunes"
+    ],
+    "Mon": [
+      "Lun"
+    ],
+    "Next": [
+      "Siguiente"
+    ],
+    "Next month": [
+      "Mes siguiente"
+    ],
+    "No show": [
+      "No asistió"
+    ],
+    "Notes": [
+      "Notas"
+    ],
+    "November": [
+      "Noviembre"
+    ],
+    "October": [
+      "Octubre"
+    ],
+    "Overbooked": [
+      "Sobrecupo"
+    ],
+    "Pending": [
+      "Pendiente"
+    ],
+    "Pending confirmation": [
+      "Pendiente de confirmación"
+    ],
+    "Previous month": [
+      "Mes anterior"
+    ],
+    "Reason": [
+      "Motivo"
+    ],
+    "Rescheduled": [
+      "Reprogramada"
+    ],
+    "Saturday": [
+      "Sábado"
+    ],
+    "Sat": [
+      "Sáb"
+    ],
+    "Search…": [
+      "Buscar…"
+    ],
+    "Select date": [
+      "Elegir fecha"
+    ],
+    "September": [
+      "Septiembre"
+    ],
+    "Submit": [
+      "Enviar"
+    ],
+    "Sunday": [
+      "Domingo"
+    ],
+    "Sun": [
+      "Dom"
+    ],
+    "Thursday": [
+      "Jueves"
+    ],
+    "Thu": [
+      "Jue"
+    ],
+    "To": [
+      "Hasta"
+    ],
+    "Today": [
+      "Hoy"
+    ],
+    "Tuesday": [
+      "Martes"
+    ],
+    "Tue": [
+      "Mar"
+    ],
+    "Wednesday": [
+      "Miércoles"
+    ],
+    "Wed": [
+      "Mié"
+    ],
+    "actor id": [
+      "id de actor"
+    ],
+    "appointment_booking: Deps.IDs is required": [
+      "appointment_booking: Deps.IDs es requerido"
+    ],
+    "appointment_booking: save: empty records": [
+      "appointment_booking: guardar: registros vacíos"
+    ],
+    "appointment_booking: save: expected *EmployeeServiceConfig": [
+      "appointment_booking: guardar: se esperaba *EmployeeServiceConfig"
+    ],
+    "appointment_booking: save: expected *ReservationForm": [
+      "appointment_booking: guardar: se esperaba *ReservationForm"
+    ],
+    "before": [
+      "antes"
+    ],
+    "blocks": [
+      "bloques"
+    ],
+    "buffer min": [
+      "minutos de amortiguación"
+    ],
+    "byDay: underlying presenter cannot save": [
+      "byDay: el presentador subyacente no puede guardar"
+    ],
+    "client": [
+      "Paciente"
+    ],
+    "client id": [
+      "Paciente"
+    ],
+    "close min": [
+      "minuto de cierre"
+    ],
+    "config id": [
+      "id de configuración"
+    ],
+    "creator user id": [
+      "id de usuario creador"
+    ],
+    "currency snapshot": [
+      "moneda instantánea"
+    ],
+    "date": [
+      "fecha"
+    ],
+    "dates": [
+      "fechas"
+    ],
+    "day": [
+      "Día"
+    ],
+    "day of week": [
+      "día de la semana"
+    ],
+    "duration min": [
+      "duración en minutos"
+    ],
+    "duration min snapshot": [
+      "duración en minutos instantánea"
+    ],
+    "employee service config id": [
+      "id de configuración de servicio del empleado"
+    ],
+    "end min": [
+      "minuto de fin"
+    ],
+    "end time": [
+      "hora de fin"
+    ],
+    "end utc": [
+      "fin utc"
+    ],
+    "event": [
+      "evento"
+    ],
+    "exception id": [
+      "id de excepción"
+    ],
+    "exception type": [
+      "tipo de excepción"
+    ],
+    "formato hora: HH:MM": [
+      "Hora"
+    ],
+    "found": [
+      "encontrado"
+    ],
+    "from": [
+      "desde"
+    ],
+    "hour": [
+      "Hora"
+    ],
+    "id": [
+      "id"
+    ],
+    "is active": [
+      "está activo"
+    ],
+    "local string date": [
+      "fecha local"
+    ],
+    "local string time": [
+      "hora local"
+    ],
+    "max overbook per day": [
+      "sobrecupo máximo por día"
+    ],
+    "no patients found in patient directory module": [
+      "no hay pacientes en el módulo de pacientes"
+    ],
+    "no service configurations created": [
+      "no hay configuraciones de servicio creadas"
+    ],
+    "not": [
+      "no"
+    ],
+    "notes": [
+      "Notas"
+    ],
+    "occupied": [
+      "ocupado"
+    ],
+    "open": [
+      "abierto"
+    ],
+    "open min": [
+      "minuto de apertura"
+    ],
+    "origin": [
+      "origen"
+    ],
+    "overbooked": [
+      "sobrecupo"
+    ],
+    "payment id": [
+      "id de pago"
+    ],
+    "payment required": [
+      "pago requerido"
+    ],
+    "price override": [
+      "anulación de precio"
+    ],
+    "price snapshot": [
+      "precio instantáneo"
+    ],
+    "reason": [
+      "motivo"
+    ],
+    "rescheduled from id": [
+      "reprogramada desde id"
+    ],
+    "reservation date": [
+      "fecha de reserva"
+    ],
+    "reservation id": [
+      "id de reserva"
+    ],
+    "reservation time": [
+      "hora de reserva"
+    ],
+    "revision": [
+      "revisión"
+    ],
+    "service": [
+      "servicio"
+    ],
+    "service id": [
+      "id de servicio"
+    ],
+    "service idsnapshot": [
+      "id de servicio instantáneo"
+    ],
+    "slot start utc": [
+      "inicio de slot utc"
+    ],
+    "specific date": [
+      "fecha específica"
+    ],
+    "staff": [
+      "personal"
+    ],
+    "staff id": [
+      "id de personal"
+    ],
+    "staff idsnapshot": [
+      "id de personal instantáneo"
+    ],
+    "start min": [
+      "minuto de inicio"
+    ],
+    "start time": [
+      "hora de inicio"
+    ],
+    "start utc": [
+      "inicio utc"
+    ],
+    "starts at": [
+      "comienza a las"
+    ],
+    "status": [
+      "estado"
+    ],
+    "status before conflict": [
+      "estado antes del conflicto"
+    ],
+    "tenant id": [
+      "id de tenant"
+    ],
+    "timezone": [
+      "zona horaria"
+    ],
+    "to": [
+      "hasta"
+    ],
+    "updated at": [
+      "actualizado el"
+    ],
+    "updated by": [
+      "actualizado por"
+    ],
+    "Specialty and service": [
+      "Especialidad y servicio"
+    ],
+    "Professional": [
+      "Profesional"
+    ],
+    "Date and time": [
+      "Fecha y hora"
+    ],
+    "Summary": [
+      "Resumen"
+    ],
+    "Patient": [
+      "Paciente"
+    ],
+    "Payment and confirmation": [
+      "Pago y confirmación"
+    ],
+    "Any available professional": [
+      "Cualquier profesional disponible"
+    ],
+    "No services to book": [
+      "No hay servicios para reservar"
+    ],
+    "No times available": [
+      "No hay horas disponibles"
+    ],
+    "Overbooking": [
+      "Sobrecupo"
+    ],
+    "Search": [
+      "Buscar"
+    ],
+    "Register patient": [
+      "Registrar paciente"
+    ],
+    "Continue": [
+      "Continuar"
+    ],
+    "Confirm booking": [
+      "Confirmar reserva"
+    ],
+    "Booking confirmed": [
+      "Reserva confirmada"
+    ],
+    "New booking": [
+      "Nueva reserva"
+    ],
+    "Retry": [
+      "Reintentar"
+    ],
+    "That time was just taken": [
+      "Esa hora se acaba de tomar"
+    ],
+    "You already have bookings awaiting payment": [
+      "Ya tiene horas pendientes de pago"
+    ],
+    "Payment registered; confirming…": [
+      "Pago registrado; confirmando…"
+    ],
+    "The payment was not completed; the time will be released": [
+      "No se completó el pago; la hora se liberará"
+    ],
+    "We could not confirm the payment; please call the clinic": [
+      "No pudimos confirmar el pago; llame a la clínica"
+    ],
+    "Start again": [
+      "Empezar de nuevo"
+    ],
+    "Online booking": [
+      "Reserva online"
+    ],
+    "Full name": [
+      "Nombre completo"
+    ],
+    "Email": [
+      "Correo"
+    ],
+    "Phone": [
+      "Teléfono"
+    ]
   }
 }
