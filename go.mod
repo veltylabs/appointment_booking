@@ -7,13 +7,13 @@ require (
 	github.com/veltylabs/device_manager v0.2.22
 	github.com/veltylabs/item_catalog v0.3.64
 	github.com/veltylabs/patient_directory v0.1.12
-	github.com/veltylabs/payment_manager v0.1.0
+	github.com/veltylabs/payment_manager v0.1.2
 	github.com/veltylabs/staff_manager v0.1.85
 	webtyp.com/auth v0.0.72
 	webtyp.com/components v0.8.27
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.24
-	webtyp.com/dom v0.13.25
+	webtyp.com/dom v0.13.26
 	webtyp.com/events v0.0.6
 	webtyp.com/fmt v1.0.0
 	webtyp.com/html v0.0.27
@@ -49,3 +49,7 @@ require (
 	webtyp.com/network v0.1.2 // indirect
 	webtyp.com/user v0.3.14 // indirect
 )
+
+replace webtyp.com/components => ../../../webtyp/components
+
+replace github.com/veltylabs/payment_manager => ../payment_manager

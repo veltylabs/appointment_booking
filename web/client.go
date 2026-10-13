@@ -27,11 +27,11 @@ import (
 	catalogseed "github.com/veltylabs/item_catalog/seed"
 	patientdirectory "github.com/veltylabs/patient_directory"
 	patientseed "github.com/veltylabs/patient_directory/seed"
+	paymentmanager "github.com/veltylabs/payment_manager"
+	"github.com/veltylabs/payment_manager/sandbox"
+	paymentmanagerui "github.com/veltylabs/payment_manager/ui"
 	staffmanager "github.com/veltylabs/staff_manager"
 	staffseed "github.com/veltylabs/staff_manager/seed"
-	paymentmanager "github.com/veltylabs/payment_manager"
-	paymentmanagerui "github.com/veltylabs/payment_manager/ui"
-	"github.com/veltylabs/payment_manager/sandbox"
 )
 
 // demoTenantID es el único tenant de esta demo interactiva en navegador.
@@ -44,14 +44,19 @@ func (demoUser) UserName() string    { return "Demo" }
 func (demoUser) UserAvatar() string  { return "" }
 func (demoUser) UserRoles() []string { return []string{"Administrador"} }
 
+// refundReason es el motivo de la devolución automática de un pago que llegó
+// cuando la reserva ya no se podía pagar (su retención venció).
+const refundReason = "reservation expired before payment"
 
-var abMod *ab.Module
-
-type chargeViaBooking struct{}
+// chargeViaBooking resuelve el ciclo de construcción: payment_manager pregunta
+// el monto a appointment_booking, que se construye después con payment_manager
+// como su PaymentReader.
+type chargeViaBooking struct{ booking **ab.Module }
 
 func (c chargeViaBooking) Charge(tenantId, referenceId string) (int64, string, bool, error) {
-	return abMod.Charge(tenantId, referenceId)
+	return (*c.booking).Charge(tenantId, referenceId)
 }
+
 func main() {
 	lang.OutLang("es")
 
@@ -93,30 +98,20 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	pm, _ := paymentmanager.New(db, paymentmanager.Deps{
+	// payment_manager y appointment_booking se necesitan entre sí: pm pregunta
+	// el monto a abMod (Charge) y abMod verifica los pagos con pm (PaidAmount).
+	var abMod *ab.Module
+	pm, err := paymentmanager.New(db, paymentmanager.Deps{
 		Publisher: broker,
 		Gateway:   sandbox.New("/"),
 		ReturnURL: "/",
-		Charges: []paymentmanager.ChargeSource{
-			{Module: ab.ModelName, Reader: chargeViaBooking{}},
-		},
+		Charges:   []paymentmanager.ChargeSource{{Module: ab.ModelName, Reader: chargeViaBooking{&abMod}}},
 	})
-
-	broker.Subscribe(func(e events.Event) {
-		if e.Topic == paymentmanager.EventPaymentPaid {
-			if p, ok := e.Payload.(*paymentmanager.Payment); ok && p.ReferenceModule == ab.ModelName {
-				err := abMod.ConfirmPaidReservation(p.TenantId, p.ReferenceId, p.Id)
-				if err == ab.ErrReservationNotPayable {
-					pm.RefundPayment(p.TenantId, p.Id, p.Amount, "reservation expired before payment")
-				}
-			}
-		}
-	})
-
+	if err != nil {
+		panic(err)
+	}
 	abMod, err = ab.New(db, ab.Deps{
 		Staff: sm, Catalog: ic, Directory: pd, Bounds: bc, IDs: ids, Publisher: broker, Payments: pm,
-	})
-		Staff: sm, Catalog: ic, Directory: pd, Bounds: bc, IDs: ids, Publisher: broker,
 	})
 	if err != nil {
 		panic(err)
@@ -150,17 +145,39 @@ func main() {
 	}
 
 	// 3. Montar módulos en router loopback
-	caller := loopback.WithTenant(demoTenantID, abMod, sm, dm, ic, pd, bc)
+	caller := loopback.WithTenant(demoTenantID, abMod, sm, dm, ic, pd, bc, pm)
 
-	// 4. Suscribir broker a cambios de calendario para recomputar conflictos
+	// 4. Eventos: un cierre del establecimiento recalcula conflictos; un pago
+	// confirma su reserva y, si la reserva ya no se puede pagar, se devuelve.
 	broker.Subscribe(businesscalendar.EventCalendarChanged, func(ev events.Event) {
 		if p, ok := ev.Payload.(*businesscalendar.CalendarChangedPayload); ok && p.Closed {
 			_, _ = abMod.RecomputeConflicts(demoTenantID, p.FromDate, p.ToDate)
 		}
 	})
+	broker.Subscribe(paymentmanager.EventPaymentPaid, func(ev events.Event) {
+		p, ok := ev.Payload.(*paymentmanager.Payment)
+		if !ok || p.ReferenceModule != ab.ModelName {
+			return
+		}
+		err := abMod.ConfirmPaidReservation(p.TenantId, p.ReferenceId, p.Id)
+		if err != nil && err.Error() == ab.ErrReservationNotPayable.Error() {
+			_, _ = pm.RefundPayment(paymentmanager.RefundPaymentArgs{
+				TenantId: p.TenantId, Id: ids.NewID(), PaymentId: p.Id,
+				Amount: p.Amount - p.RefundedAmount, Reason: refundReason, Method: p.Method,
+			})
+		}
+	})
 
 	// 5. Construir vistas del navegador
 	bookingView, err := ui.Browser(caller, ids, demoTenantID)
+	if err != nil {
+		panic(err)
+	}
+	onlineView, err := ui.OnlineBrowser(caller, ids, demoTenantID)
+	if err != nil {
+		panic(err)
+	}
+	paymentsView, err := paymentmanagerui.Browser(caller, ids, demoTenantID)
 	if err != nil {
 		panic(err)
 	}
@@ -172,7 +189,7 @@ func main() {
 	p := &platformd.Platform{
 		AppName:   ui.NavLabel + " — demo",
 		User:      demoUser{},
-		Modules:   []platformd.UIModule{bookingView, personalView},
+		Modules:   []platformd.UIModule{bookingView, onlineView, paymentsView, personalView},
 		DefaultID: ui.ID,
 	}
 	Append("body", p)

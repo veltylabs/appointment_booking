@@ -189,3 +189,19 @@ func TestMountOperations_CreateReservation_InvalidArgsSaysWhy(t *testing.T) {
 		t.Fatalf("got %d %q, want 400 %q", ctx.Status, ctx.ResponseBody(), want.Error())
 	}
 }
+
+// Los ids que llegan a las ops de creación son de otros módulos (pacientes
+// "demo-patient-1", ids de unixid): Validate no puede rechazar su forma. Antes,
+// client_id llevaba el widget input.Text y "-" no pasaba.
+func TestCreateArgs_AcceptForeignIdShapes(t *testing.T) {
+	for _, a := range []interface{ Validate(byte) error }{
+		&ab.CreateReservationArgs{Id: "r-1", TenantId: "t1", ClientId: "demo-patient-1", CreatorUserId: "user.9",
+			EmployeeServiceConfigId: "cfg-1", SlotStartUtc: 1736154000, Notes: "llega tarde; trae exámenes", Origin: ab.OriginCounter},
+		&ab.CreateOverbookingArgs{Id: "r-2", TenantId: "t1", ClientId: "demo-patient-1", CreatorUserId: "user.9",
+			EmployeeServiceConfigId: "cfg-1", SlotStartUtc: 1736154000, Notes: "sobrecupo", Origin: ab.OriginCounter},
+	} {
+		if err := a.Validate(model.ActionCreate); err != nil {
+			t.Errorf("%T: %v", a, err)
+		}
+	}
+}

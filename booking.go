@@ -207,16 +207,17 @@ func (m *Module) Charge(tenantId, reservationId string) (amount int64, currency 
 	if res.Origin == OriginOnline && res.HoldUntil-nowSeconds() < PaymentWindowSeconds { // C3, C4
 		return 0, "", false, nil
 	}
-	amount, err = minorUnits(res.PriceSnapshot, res.CurrencySnapshot)
+	amount, err = MinorUnits(res.PriceSnapshot, res.CurrencySnapshot)
 	if err != nil {
 		return 0, "", false, err
 	}
 	return amount, res.CurrencySnapshot, true, nil
 }
 
-// minorUnits convierte un precio a unidades mínimas (M1): CLP sin decimales,
-// USD en centavos.
-func minorUnits(price float64, currency string) (int64, error) {
+// MinorUnits convierte un precio a unidades mínimas (M1): CLP sin decimales,
+// USD en centavos. Es el monto que cobra payment_manager; la pantalla lo usa
+// para mostrar el precio con paymentmanager.FormatAmount.
+func MinorUnits(price float64, currency string) (int64, error) {
 	switch currency {
 	case CurrencyCLP:
 		return int64(price + 0.5), nil
@@ -245,7 +246,7 @@ func (m *Module) ConfirmPaidReservation(tenantId, reservationId, paymentId strin
 	default:
 		return ErrAlreadyPaid
 	}
-	price, err := minorUnits(res.PriceSnapshot, res.CurrencySnapshot)
+	price, err := MinorUnits(res.PriceSnapshot, res.CurrencySnapshot)
 	if err != nil {
 		return err
 	}

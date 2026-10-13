@@ -193,13 +193,13 @@ var CreateReservationArgsModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "client_id", Type: input.Text()},
-		{Name: "creator_user_id", Type: input.Text()},
-		{Name: "employee_service_config_id", Type: input.Text()},
-		{Name: "slot_start_utc", Type: input.Number()},
-		{Name: "notes", Type: input.Text()},
-		{Name: "rescheduled_from_id", Type: input.Text()},
-		{Name: "origin", Type: input.Text()},
+		{Name: "client_id", Type: model.Text()},
+		{Name: "creator_user_id", Type: model.Text()},
+		{Name: "employee_service_config_id", Type: model.Text()},
+		{Name: "slot_start_utc", Type: model.Int()},
+		{Name: "notes", Type: model.Text()},
+		{Name: "rescheduled_from_id", Type: model.Text()},
+		{Name: "origin", Type: model.Text()},
 	},
 }
 
@@ -208,13 +208,13 @@ var CreateOverbookingArgsModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "client_id", Type: input.Text()},
-		{Name: "creator_user_id", Type: input.Text()},
-		{Name: "employee_service_config_id", Type: input.Text()},
-		{Name: "slot_start_utc", Type: input.Number()},
-		{Name: "notes", Type: input.Text()},
-		{Name: "rescheduled_from_id", Type: input.Text()},
-		{Name: "origin", Type: input.Text()},
+		{Name: "client_id", Type: model.Text()},
+		{Name: "creator_user_id", Type: model.Text()},
+		{Name: "employee_service_config_id", Type: model.Text()},
+		{Name: "slot_start_utc", Type: model.Int()},
+		{Name: "notes", Type: model.Text()},
+		{Name: "rescheduled_from_id", Type: model.Text()},
+		{Name: "origin", Type: model.Text()},
 	},
 }
 

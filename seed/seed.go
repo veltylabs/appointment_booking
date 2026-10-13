@@ -86,13 +86,16 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 			return data, fmt.Err("no se encontró servicio en catálogo para la especialidad " + sm.Specialty + " del profesional " + sm.Name)
 		}
 
+		// El primer profesional cobra en mesón antes de confirmar: la demo
+		// recorre así el pago del paso 6.
 		esc, err := m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{
-			TenantId:    tenantID,
-			StaffId:     sm.Id,
-			ServiceId:   matchedServiceID,
-			DurationMin: 30,
-			BufferMin:   0,
-			IsActive:    true,
+			TenantId:        tenantID,
+			StaffId:         sm.Id,
+			ServiceId:       matchedServiceID,
+			DurationMin:     30,
+			BufferMin:       0,
+			PaymentRequired: len(data.ServiceConfigs) == 0,
+			IsActive:        true,
 		})
 		if err != nil {
 			return data, err
