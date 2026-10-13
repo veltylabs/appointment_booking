@@ -3,8 +3,10 @@ PLAN: "feat!: reserva en 6 pasos (mesón y online), precio desde el catálogo, r
 TAG: v0.3.0
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 6628958671772740169
+PR: https://github.com/veltylabs/appointment_booking/pull/19
+REVIEWED_COMMIT: 2e9cc2b0b99014c8b23fe2a4a635a75ee7829783
 ---
 
 > Este plan se despacha con el flujo CodeJob. Ver skill: agents-workflow.
