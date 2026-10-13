@@ -122,6 +122,13 @@ pantalla vieja) y el `"CLP"` fijo del precio congelado.
 
 ## 2. Etapa 0 — dependencias
 
+Versiones exactas ya publicadas (usar estas o posteriores):
+`webtyp.com/components` v0.8.24, `webtyp.com/lang` v0.1.5, `webtyp.com/dom` v0.13.25,
+`github.com/veltylabs/patient_directory` v0.1.12, `github.com/veltylabs/staff_manager` v0.1.85,
+`github.com/veltylabs/item_catalog` v0.3.64, `github.com/veltylabs/payment_manager` v0.1.0
+(subpaquetes `ui` y `sandbox`).
+
+
 `go get` de las versiones publicadas de A, A3, D, S, I y P (y `webtyp.com/dom` con A2, que P ya
 trae). `go mod tidy`. `gotest` en verde antes de seguir (los mocks de `StaffReader` y
 `CatalogReader` en `tests/mocks_test.go` todavía no cambian).
