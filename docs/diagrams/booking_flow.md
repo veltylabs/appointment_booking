@@ -8,15 +8,19 @@ de trazabilidad de [`docs/PLAN.md`](../PLAN.md) §11 asigna a cada rama su prueb
 
 ```mermaid
 flowchart TD
-    S1["1 · Especialidad y servicio<br>chipgrid de especialidades + targetlist de servicios<br>(list_bookable_services)"] --> S2
-    S2["2 · Profesional<br>targetlist: 'Cualquier profesional disponible' + los que ofrecen el servicio"] --> S3
+    S1["1 · Especialidad y servicio<br>chipgrid de especialidades + chipgrid de servicios<br>(list_bookable_services)"] --> S2
+    S2["2 · Profesional<br>chipgrid: 'Cualquier profesional disponible' + los que ofrecen el servicio"] --> S3
     S3["3 · Fecha y hora<br>calendarslider con ocupación + chipgrid de horas<br>(list_service_availability)"] --> S4
-    S4["4 · Resumen<br>profesional, servicio, precio, día, hora + notas"] --> S5
-    S5["5 · Paciente<br>mesón: RUT → ficha o modal de registro<br>online: RUT, nombre, correo, teléfono"] --> S6
+    S4["4 · Paciente<br>mesón: RUT → ficha o modal de registro<br>online: RUT, nombre, correo, teléfono (link_patient)"] --> S5
+    S5["5 · Resumen<br>profesional, servicio, día, hora, paciente, precio + notas<br>Continuar crea la reserva"] --> S6
     S6["6 · Pago y confirmación"]
 ```
 
 Reabrir un paso (`Editar`) borra todo lo elegido en los pasos siguientes (`OnReopen`).
+El resumen va después del paciente ("revise sus respuestas"): la reserva se crea
+recién ahí, con todo a la vista (decisión del 2026-10-13). Servicio y profesional
+se eligen con `chipgrid`. Las ramas M3/M4 y N3 (crear la reserva) ocurren en el
+paso 5; M1/M2 y N1/N2 (elegir o vincular al paciente), en el 4.
 
 ## 2. Paso 1
 

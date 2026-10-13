@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Repository, db *orm.DB) {

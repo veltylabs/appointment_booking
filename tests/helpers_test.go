@@ -5,10 +5,10 @@ import (
 	"sync/atomic"
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
 	"webtyp.com/storage/mem"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 var testIDCounter int64

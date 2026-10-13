@@ -2,37 +2,43 @@ package appointmentbooking
 
 import (
 	"webtyp.com/fmt"
-	"webtyp.com/orm"
 	"webtyp.com/model"
+	"webtyp.com/orm"
 	"webtyp.com/router"
 )
 
 const (
-	OpCreateReservation          = "create_reservation"
-	OpCreateOverbooking          = "create_overbooking"
-	OpGetReservation             = "get_reservation"
-	OpListReservationsByStaff    = "list_reservations_by_staff"
-	OpListReservationsByClient   = "list_reservations_by_client"
-	OpChangeReservationStatus    = "change_reservation_status"
-	OpExpirePendingReservations  = "expire_pending_reservations"
-	OpGetCalendarConfig          = "get_calendar_config"
-	OpUpsertCalendarConfig       = "upsert_calendar_config"
-	OpSaveDayBlocks              = "save_day_blocks"
-	OpSaveDateBlocks             = "save_date_blocks"
-	OpMarkWorkingDays            = "mark_working_days"
-	OpUnmarkWorkingDays          = "unmark_working_days"
-	OpListBlocks                 = "list_blocks"
-	OpGetDayBounds               = "get_day_bounds"
-	OpAddCalendarException       = "add_calendar_exception"
-	OpRemoveCalendarException    = "remove_calendar_exception"
-	OpListAvailability           = "list_availability"
-	OpListExceptions             = "list_exceptions"
-	OpListConflictingReservations = "list_conflicting_reservations"
-	OpRecomputeConflicts         = "recompute_conflicts"
-	OpCreateEmployeeServiceConfig      = "create_employee_service_config"
-	OpGetEmployeeServiceConfig         = "get_employee_service_config"
+	OpListBookableServices    = "list_bookable_services"
+	OpListServiceAvailability = "list_service_availability"
+	OpCreateOnlineReservation = "create_online_reservation"
+)
+
+const (
+	OpCreateReservation                 = "create_reservation"
+	OpCreateOverbooking                 = "create_overbooking"
+	OpGetReservation                    = "get_reservation"
+	OpListReservationsByStaff           = "list_reservations_by_staff"
+	OpListReservationsByClient          = "list_reservations_by_client"
+	OpChangeReservationStatus           = "change_reservation_status"
+	OpExpirePendingReservations         = "expire_pending_reservations"
+	OpGetCalendarConfig                 = "get_calendar_config"
+	OpUpsertCalendarConfig              = "upsert_calendar_config"
+	OpSaveDayBlocks                     = "save_day_blocks"
+	OpSaveDateBlocks                    = "save_date_blocks"
+	OpMarkWorkingDays                   = "mark_working_days"
+	OpUnmarkWorkingDays                 = "unmark_working_days"
+	OpListBlocks                        = "list_blocks"
+	OpGetDayBounds                      = "get_day_bounds"
+	OpAddCalendarException              = "add_calendar_exception"
+	OpRemoveCalendarException           = "remove_calendar_exception"
+	OpListAvailability                  = "list_availability"
+	OpListExceptions                    = "list_exceptions"
+	OpListConflictingReservations       = "list_conflicting_reservations"
+	OpRecomputeConflicts                = "recompute_conflicts"
+	OpCreateEmployeeServiceConfig       = "create_employee_service_config"
+	OpGetEmployeeServiceConfig          = "get_employee_service_config"
 	OpListEmployeeServiceConfigsByStaff = "list_employee_service_configs_by_staff"
-	OpUpdateEmployeeServiceConfig      = "update_employee_service_config"
+	OpUpdateEmployeeServiceConfig       = "update_employee_service_config"
 )
 
 // ModelName is this module's identity: mcp.HarvestOps qualifies every op
@@ -60,6 +66,11 @@ func qualifiedOp(name string) string {
 }
 
 func (m *Module) MountOperations(reg router.OperationRegistry) {
+
+	reg.Operation(OpListBookableServices, m.opListBookableServices).Requires(ResourceBookingCatalog, model.Read).Accepts(&ListBookableServicesArgs{})
+	reg.Operation(OpListServiceAvailability, m.opListServiceAvailability).Requires(ResourceBookingCatalog, model.Read).Accepts(&ListServiceAvailabilityArgs{})
+	reg.Operation(OpCreateOnlineReservation, m.opCreateOnlineReservation).Requires(ResourceReservationOnline, model.Create).Accepts(&CreateOnlineReservationArgs{})
+
 	reg.Operation(OpCreateReservation, m.opCreateReservation).Requires("reservation", model.Create).Accepts(&CreateReservationArgs{})
 	reg.Operation(OpCreateOverbooking, m.opCreateOverbooking).Requires("overbooking", model.Create).Accepts(&CreateOverbookingArgs{})
 	reg.Operation(OpGetReservation, m.opGetReservation).Requires("reservation", model.Read).Accepts(&GetReservationArgs{})
@@ -99,7 +110,9 @@ var _ router.OperationModule = (*Module)(nil)
 //
 // Convención de mapeo (la misma para todos los módulos del ecosistema — nunca colapsar todo a
 // 500, eso es el "runtime mystery" que CONSTRUCTION_HARNESS prohíbe):
-//   400 = decode/validación/precondición inválida · 404 = no existe · 409 = conflicto · 500 = resto.
+//
+//	400 = decode/validación/precondición inválida · 404 = no existe · 409 = conflicto · 500 = resto.
+//
 // badRequest is a payload the operation could not read, or one that failed the constraints its
 // Definition declares: 400, with the decoder's or the validation's own text.
 type badRequest struct{ err error }
@@ -123,8 +136,12 @@ func statusOf(err error) int {
 			return 404
 		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap, ErrIdTaken, ErrOverbookNotAllowed:
 			return 409
+		case ErrTooManyHolds, ErrPaymentNotVerified, ErrAlreadyPaid, ErrReservationNotPayable:
+			return 409
+		case ErrPaymentsUnavailable:
+			return 500
 		case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
-			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot, ErrSlotNotInSchedule:
+			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot, ErrSlotNotInSchedule, ErrUnsupportedCurrency:
 			return 400
 		}
 	}
@@ -594,4 +611,67 @@ func (m *Module) opRecomputeConflicts(ctx router.Context) {
 		return
 	}
 	ctx.Write([]byte(fmt.Convert(count).String()))
+}
+func (m *Module) opListBookableServices(ctx router.Context) {
+	var args ListBookableServicesArgs
+	if err := ctx.Decode(&args); err != nil {
+		writeError(ctx, badRequest{err})
+		return
+	}
+	if err := args.Validate(model.ActionRead); err != nil {
+		writeError(ctx, badRequest{err})
+		return
+	}
+	list, err := m.ListBookableServices(args.TenantId, args.Specialty)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	listOut := BookableServiceList{}
+	for i := range list {
+		listOut = append(listOut, &list[i])
+	}
+	ctx.WriteStatus(200)
+	ctx.Encode(&listOut)
+}
+func (m *Module) opListServiceAvailability(ctx router.Context) {
+	var args ListServiceAvailabilityArgs
+	if err := ctx.Decode(&args); err != nil {
+		writeError(ctx, badRequest{err})
+		return
+	}
+	if err := args.Validate(model.ActionRead); err != nil {
+		writeError(ctx, badRequest{err})
+		return
+	}
+	list, err := m.ListServiceAvailability(args)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	listOut := BookableSlotList{}
+	for i := range list {
+		listOut = append(listOut, &list[i])
+	}
+	ctx.WriteStatus(200)
+	ctx.Encode(&listOut)
+}
+func (m *Module) opCreateOnlineReservation(ctx router.Context) {
+	var args CreateOnlineReservationArgs
+	if err := ctx.Decode(&args); err != nil {
+		writeError(ctx, badRequest{err})
+		return
+	}
+	if err := args.Validate(model.ActionCreate); err != nil {
+		writeError(ctx, badRequest{err})
+		return
+	}
+	cmd := CreateReservationCmd{Id: args.Id, TenantId: args.TenantId, ClientId: args.ClientId, EmployeeServiceConfigId: args.EmployeeServiceConfigId, SlotStartUtc: args.SlotStartUtc, Notes: args.Notes}
+	res, err := m.CreateOnlineReservation(cmd)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	ctx.WriteStatus(200)
+	ctx.Encode(&res)
 }

@@ -1,8 +1,9 @@
 package tests
 
 import (
-	ab "github.com/veltylabs/appointment_booking"
 	"testing"
+
+	ab "github.com/veltylabs/appointment_booking"
 )
 
 func TestFSM(t *testing.T) {

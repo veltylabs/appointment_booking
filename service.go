@@ -1,8 +1,8 @@
 package appointmentbooking
 
 import (
-	"webtyp.com/fmt"
 	"webtyp.com/events"
+	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/svg"
@@ -18,11 +18,11 @@ type domainError string
 func (e domainError) Error() string { return string(e) }
 
 const (
-	ErrCalendarConfigNotFound domainError = "calendar config not found"
-	ErrSlotTaken              domainError = "slot taken"
-	ErrMissingArgs            domainError = "missing args"
-	ErrInvalidBlock           domainError = "appointment_booking: start_min must be < end_min and both within 0..1439"
-	ErrBlocksOverlap          domainError = "appointment_booking: two blocks of the same day overlap"
+	ErrCalendarConfigNotFound    domainError = "calendar config not found"
+	ErrSlotTaken                 domainError = "slot taken"
+	ErrMissingArgs               domainError = "missing args"
+	ErrInvalidBlock              domainError = "appointment_booking: start_min must be < end_min and both within 0..1439"
+	ErrBlocksOverlap             domainError = "appointment_booking: two blocks of the same day overlap"
 	ErrBlockOutsideBusinessHours domainError = "appointment_booking: block falls outside the establishment's opening hours"
 	ErrBlockOnClosedDay          domainError = "appointment_booking: the establishment is closed on that date"
 	ErrNoServiceConfig           domainError = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
@@ -107,11 +107,19 @@ func (p *ScheduleChangedPayload) DecodeFields(r model.FieldReader) {
 // StaffReader verifica que un miembro del staff existe y pertenece al tenant.
 type StaffReader interface {
 	StaffExists(tenantId, staffId string) (bool, error)
+	StaffCard(tenantId, staffId string) (name, specialty string, active bool, err error)
 }
 
 // CatalogReader verifica que un servicio existe y pertenece al tenant.
 type CatalogReader interface {
 	ServiceExists(tenantId, serviceId string) (bool, error)
+	ServiceCard(tenantId, serviceId string) (name string, price float64, currency string, active bool, err error)
+}
+
+// PaymentReader verifica un pago de payment_manager sin importarlo; lo
+// satisface *paymentmanager.Module estructuralmente.
+type PaymentReader interface {
+	PaidAmount(tenantId, paymentId, referenceModule, referenceId string) (amount int64, currency string, err error)
 }
 
 // DirectoryReader verifica que un cliente existe y pertenece al tenant.
@@ -167,7 +175,7 @@ type SchedulingService interface {
 	ListReservationsByStaff(tenantId, staffId string, from, to int64) ([]Reservation, error)
 	ListReservationsByClient(tenantId, clientId string) ([]Reservation, error)
 	ChangeReservationStatus(cmd ChangeStatusCmd) error
-	ExpirePendingReservations(tenantId string, before int64) (int, error)
+	ExpirePendingReservations(tenantId string, now int64) (int, error)
 
 	// Conflictos
 	ListConflictingReservations(tenantId, staffId string, from int64) ([]ConflictingReservation, error)
@@ -184,6 +192,7 @@ type CreateReservationCmd struct {
 	Notes                   string
 	RescheduledFromId       string
 	Origin                  string
+	HoldUntil               int64
 }
 
 type CreateOverbookingCmd = CreateReservationCmd
@@ -206,6 +215,7 @@ type Module struct {
 	directory DirectoryReader
 	pub       events.Publisher
 	bounds    BoundsReader
+	payments  PaymentReader
 }
 
 type Deps struct {
@@ -217,7 +227,8 @@ type Deps struct {
 	// Bounds constrains every block to the institution's usable window.
 	// OPTIONAL: nil means unbounded, which is correct for an app with no
 	// institution above the professional (a freelancer's booking page).
-	Bounds BoundsReader
+	Bounds   BoundsReader
+	Payments PaymentReader
 }
 
 func New(db *orm.DB, deps Deps) (*Module, error) {
@@ -238,6 +249,7 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 		directory: deps.Directory,
 		pub:       deps.Publisher,
 		bounds:    deps.Bounds,
+		payments:  deps.Payments,
 	}, nil
 }
 
@@ -854,6 +866,10 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, ErrSlotTaken
 	}
 
+	price, currency, err := m.priceFor(cmd.TenantId, empSvcCfg)
+	if err != nil {
+		return Reservation{}, err
+	}
 	var newReservation Reservation
 	var originalReservation *Reservation
 
@@ -869,13 +885,14 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			StaffIdsnapshot:         empSvcCfg.StaffId,
 			ServiceIdsnapshot:       empSvcCfg.ServiceId,
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           empSvcCfg.PriceOverride,
-			CurrencySnapshot:        "CLP", // default
+			PriceSnapshot:           price,
+			CurrencySnapshot:        currency, // default
 			ReservationDate:         targetDay,
 			ReservationTime:         cmd.SlotStartUtc,
 			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc * 1000000000),
 			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc * 1000000000),
 			Status:                  StatusPending,
+			HoldUntil:               cmd.HoldUntil,
 			Origin:                  cmd.Origin,
 			RescheduledFromId:       cmd.RescheduledFromId,
 			Notes:                   cmd.Notes,
@@ -1039,6 +1056,10 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, ErrOverbookNotAllowed
 	}
 
+	price, currency, err := m.priceFor(cmd.TenantId, empSvcCfg)
+	if err != nil {
+		return Reservation{}, err
+	}
 	var newReservation Reservation
 	var originalReservation *Reservation
 
@@ -1054,13 +1075,14 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 			StaffIdsnapshot:         empSvcCfg.StaffId,
 			ServiceIdsnapshot:       empSvcCfg.ServiceId,
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           empSvcCfg.PriceOverride,
-			CurrencySnapshot:        "CLP", // default
+			PriceSnapshot:           price,
+			CurrencySnapshot:        currency, // default
 			ReservationDate:         targetDay,
 			ReservationTime:         cmd.SlotStartUtc,
 			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc * 1000000000),
 			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc * 1000000000),
 			Status:                  StatusPending,
+			HoldUntil:               cmd.HoldUntil,
 			Origin:                  cmd.Origin,
 			RescheduledFromId:       cmd.RescheduledFromId,
 			Notes:                   cmd.Notes,
@@ -1192,39 +1214,6 @@ func (m *Module) ChangeReservationStatus(cmd ChangeStatusCmd) error {
 	}
 
 	return nil
-}
-
-func (m *Module) ExpirePendingReservations(tenantId string, before int64) (int, error) {
-	proxy := &Reservation{}
-	qb := m.db.Query(proxy).
-		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.Status).Eq(StatusPending).
-		Where(Reservation_.ReservationTime).Lt(before)
-
-	rows, err := ReadAllReservation(qb)
-	if err != nil {
-		if orm.IsNotFound(err) {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	expiredCount := 0
-	for _, row := range rows {
-		err := m.ChangeReservationStatus(ChangeStatusCmd{
-			TenantId: tenantId,
-			Id:       row.Id,
-			Event:    EventExpire,
-			ActorId:  "system",
-			Revision: int(row.Revision),
-		})
-		if err != nil {
-			return expiredCount, err
-		}
-		expiredCount++
-	}
-
-	return expiredCount, nil
 }
 
 // ///////////////////////////////////////////////////////////////////////////

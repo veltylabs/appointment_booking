@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	tinytime "webtyp.com/time"
 	ab "github.com/veltylabs/appointment_booking"
+	tinytime "webtyp.com/time"
 )
 
 // openBounds establecimiento típicamente abierto 08:00–20:00.

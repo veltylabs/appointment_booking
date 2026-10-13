@@ -3,11 +3,11 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/router/mock"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func TestCreateOverbooking_MissingId(t *testing.T) {

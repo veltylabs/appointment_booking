@@ -7,7 +7,7 @@ import (
 	"webtyp.com/orm"
 	"webtyp.com/storage/mem"
 
-	"webtyp.com/auth/trusted_ip"
+	trustedip "webtyp.com/auth/trusted_ip"
 
 	ab "github.com/veltylabs/appointment_booking"
 	"github.com/veltylabs/appointment_booking/seed"

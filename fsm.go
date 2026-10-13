@@ -1,6 +1,5 @@
 package appointmentbooking
 
-
 // Estados
 const (
 	StatusPending     = "PENDING"

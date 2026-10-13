@@ -13,6 +13,16 @@ const (
 	OriginCounter = "COUNTER" // la crea y la confirma el personal, en el mostrador
 	OriginOnline  = "ONLINE"  // la crea el paciente y la confirma él mismo por su vía
 )
+const (
+	OnlineHoldSeconds    = 900 // la hora online queda retenida 15 min
+	PaymentWindowSeconds = 600 // mínimo de retención restante para empezar a pagar
+	MaxOnlineHolds       = 2   // retenciones online activas por paciente
+)
+
+const (
+	ResourceBookingCatalog    = "booking_catalog"    // lecturas del flujo online
+	ResourceReservationOnline = "reservation_online" // crear reserva online
+)
 
 // EmployeeServiceConfigModel: que servicios realiza un profesional, durante cuanto
 // tiempo y a que precio. La política de widgets es POR ROL, la misma regla que cada
@@ -56,7 +66,8 @@ var WorkCalendarConfigModel = model.Definition{
 //
 // specific_date == 0 → the block is WEEKLY and applies to day_of_week.
 // specific_date  > 0 → the block is DATED and applies to that date only,
-//                      and day_of_week carries no meaning.
+//
+//	and day_of_week carries no meaning.
 //
 // A dated block OPENS its day whether or not a weekly block covers that
 // weekday. That is what lets an irregular professional mark the days they
@@ -122,6 +133,7 @@ var ReservationModel = model.Definition{
 		// paciente (ver PLAN §8.5).
 		{Name: "status_before_conflict", Type: model.Text()},
 		{Name: "payment_id", Type: model.Text()},
+		{Name: "hold_until", Type: model.Int(), OmitEmpty: true},
 		{Name: "notes", Type: model.Text()},
 		{Name: "overbooked", Type: model.Bool(), NotNull: true},
 		{Name: "updated_at", Type: model.Int()},
@@ -181,13 +193,13 @@ var CreateReservationArgsModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "client_id", Type: input.Text()},
-		{Name: "creator_user_id", Type: input.Text()},
-		{Name: "employee_service_config_id", Type: input.Text()},
-		{Name: "slot_start_utc", Type: input.Number()},
-		{Name: "notes", Type: input.Text()},
-		{Name: "rescheduled_from_id", Type: input.Text()},
-		{Name: "origin", Type: input.Text()},
+		{Name: "client_id", Type: model.Text()},
+		{Name: "creator_user_id", Type: model.Text()},
+		{Name: "employee_service_config_id", Type: model.Text()},
+		{Name: "slot_start_utc", Type: model.Int()},
+		{Name: "notes", Type: model.Text()},
+		{Name: "rescheduled_from_id", Type: model.Text()},
+		{Name: "origin", Type: model.Text()},
 	},
 }
 
@@ -196,13 +208,13 @@ var CreateOverbookingArgsModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "client_id", Type: input.Text()},
-		{Name: "creator_user_id", Type: input.Text()},
-		{Name: "employee_service_config_id", Type: input.Text()},
-		{Name: "slot_start_utc", Type: input.Number()},
-		{Name: "notes", Type: input.Text()},
-		{Name: "rescheduled_from_id", Type: input.Text()},
-		{Name: "origin", Type: input.Text()},
+		{Name: "client_id", Type: model.Text()},
+		{Name: "creator_user_id", Type: model.Text()},
+		{Name: "employee_service_config_id", Type: model.Text()},
+		{Name: "slot_start_utc", Type: model.Int()},
+		{Name: "notes", Type: model.Text()},
+		{Name: "rescheduled_from_id", Type: model.Text()},
+		{Name: "origin", Type: model.Text()},
 	},
 }
 
@@ -438,5 +450,64 @@ var ListExceptionsArgsModel = model.Definition{
 		{Name: "staff_id", Type: input.Text()},
 		{Name: "from", Type: input.Number()},
 		{Name: "to", Type: input.Number()},
+	},
+}
+
+var ListBookableServicesArgsModel = model.Definition{
+	Name: "list_bookable_services_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "specialty", Type: model.Text()},
+	},
+}
+
+var BookableServiceModel = model.Definition{
+	Name: "bookable_service",
+	Fields: model.Fields{
+		{Name: "config_id", Type: model.Text()},
+		{Name: "staff_id", Type: model.Text()},
+		{Name: "staff_name", Type: model.Text()},
+		{Name: "specialty", Type: model.Text()},
+		{Name: "service_id", Type: model.Text()},
+		{Name: "service_name", Type: model.Text()},
+		{Name: "duration_min", Type: model.Int()},
+		{Name: "price", Type: model.Float()},
+		{Name: "currency", Type: model.Text()},
+		{Name: "payment_required", Type: model.Bool()},
+	},
+}
+
+var ListServiceAvailabilityArgsModel = model.Definition{
+	Name: "list_service_availability_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "service_id", Type: model.Text(), NotNull: true},
+		{Name: "staff_id", Type: model.Text()},
+		{Name: "from", Type: model.Int(), NotNull: true},
+		{Name: "to", Type: model.Int(), NotNull: true},
+		{Name: "include_taken", Type: model.Bool()},
+	},
+}
+
+var BookableSlotModel = model.Definition{
+	Name: "bookable_slot",
+	Fields: model.Fields{
+		{Name: "start_utc", Type: model.Int()},
+		{Name: "end_utc", Type: model.Int()},
+		{Name: "staff_id", Type: model.Text()},
+		{Name: "config_id", Type: model.Text()},
+		{Name: "taken", Type: model.Bool()},
+	},
+}
+
+var CreateOnlineReservationArgsModel = model.Definition{
+	Name: "create_online_reservation_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), NotNull: true},
+		{Name: "client_id", Type: model.Text(), NotNull: true},
+		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true},
+		{Name: "slot_start_utc", Type: model.Int(), NotNull: true},
+		{Name: "notes", Type: model.Text()},
 	},
 }

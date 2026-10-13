@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func Date(year, month, day, hour, min, sec, _ int) int64 {
@@ -51,7 +51,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		}
 
 		targetDay := Date(2025, 1, 6, 0, 0, 0, 0) // Jan 6, 2025 is Monday
-		slotStartUTC := targetDay + 540*60 // 09:00 UTC
+		slotStartUTC := targetDay + 540*60        // 09:00 UTC
 
 		// Test ListAvailability
 		slots, err := s.ListAvailability("t1", "s1", cfgID, targetDay, targetDay)
@@ -147,7 +147,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		})
 
 		targetDay := Date(2025, 1, 7, 0, 0, 0, 0) // Jan 7, 2025 is Tuesday
-		slotStartUTC := targetDay + 540*60 // 09:00 UTC
+		slotStartUTC := targetDay + 540*60        // 09:00 UTC
 
 		cmd := ab.CreateReservationCmd{
 			Id:                      "res-setup-2",
@@ -206,7 +206,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		})
 
 		targetDay := Date(2025, 1, 8, 0, 0, 0, 0) // Jan 8, 2025 is Wednesday
-		slotStartUTC := targetDay + 540*60 // 09:00 UTC
+		slotStartUTC := targetDay + 540*60        // 09:00 UTC
 
 		cmd := ab.CreateReservationCmd{
 			Id:                      "res-setup-4",
@@ -224,7 +224,7 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		}
 
 		// Expire everything before slotStartUTC + 1 hour
-		count, err := s.ExpirePendingReservations("t3", slotStartUTC + 3600)
+		count, err := s.ExpirePendingReservations("t3", slotStartUTC+3600)
 		if err != nil {
 			t.Fatalf("ExpirePendingReservations: %v", err)
 		}
