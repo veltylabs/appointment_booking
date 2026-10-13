@@ -1,11 +1,11 @@
 package tests
 
 import (
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/events"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 type MockStaffReader struct {

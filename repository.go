@@ -7,8 +7,8 @@ import (
 
 // Errores sentinela a nivel de paquete
 const (
-	ErrNotFound domainError = "record not found"
-	ErrConflict domainError = "optimistic concurrency conflict"
+	ErrNotFound              domainError = "record not found"
+	ErrConflict              domainError = "optimistic concurrency conflict"
 	ErrPaymentsUnavailable   domainError = "payments are not configured"
 	ErrTooManyHolds          domainError = "too many online reservations awaiting payment"
 	ErrPaymentNotVerified    domainError = "payment could not be verified for this reservation"

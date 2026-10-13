@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
 	"webtyp.com/storage/mem"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func TestTenantIsolation(t *testing.T) {

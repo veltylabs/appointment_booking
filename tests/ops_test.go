@@ -3,11 +3,11 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/router/mock"
 	"webtyp.com/storage/mem"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {

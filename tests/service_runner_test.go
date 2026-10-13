@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func contains(s, substr string) bool {
@@ -491,7 +491,8 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			SlotStartUtc:            slot1,
 			Origin:                  ab.OriginCounter,
 		})
-		for i := 0; i < 1000000; i++ {} // busy wait alternative to avoid nanosecond collision
+		for i := 0; i < 1000000; i++ {
+		} // busy wait alternative to avoid nanosecond collision
 		s.CreateReservation(ab.CreateReservationCmd{
 			Id:                      nextTestID(),
 			TenantId:                "t_uc19",

@@ -3,10 +3,10 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/events"
 	eventmock "webtyp.com/events/mock"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 // newConflictsHarness monta el módulo con un broker que captura payloads y un

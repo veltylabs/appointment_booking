@@ -2117,3 +2117,4 @@ func (s *CreateOnlineReservationArgsList) DecodeFields(_ model.FieldReader) {}
 func (m *CreateOnlineReservationArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
+

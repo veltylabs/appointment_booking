@@ -3,13 +3,13 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/events"
 	"webtyp.com/events/mock"
 	"webtyp.com/orm"
 	"webtyp.com/router/loopback"
 	"webtyp.com/storage/mem"
 	tinytime "webtyp.com/time"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func seedCalendar(t *testing.T, m *ab.Module, tenantId, staffId string) {

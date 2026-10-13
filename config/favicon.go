@@ -18,10 +18,11 @@ import (
 //   - favicon.svg (modern vector icon)
 //
 // To customize:
-//   Replace FaviconSVG below with your own 512x512 square SVG string,
-//   and FaviconRasterBase64 with your 512x512 PNG raster.
-//   Cavities and cutouts should be transparent so the icon adapts cleanly
-//   to both light and dark backgrounds.
+//
+//	Replace FaviconSVG below with your own 512x512 square SVG string,
+//	and FaviconRasterBase64 with your 512x512 PNG raster.
+//	Cavities and cutouts should be transparent so the icon adapts cleanly
+//	to both light and dark backgrounds.
 func Favicon() favicon.Source {
 	raster, _ := base64.StdEncoding.DecodeString(FaviconRasterBase64)
 	return favicon.Source{

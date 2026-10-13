@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
+	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
 	"webtyp.com/storage/mem"
-	ab "github.com/veltylabs/appointment_booking"
 )
 
 func newTestRepo(t *testing.T) *ab.Repository {
@@ -247,11 +247,14 @@ func TestListReservationsByStaff(t *testing.T) {
 	repo := newTestRepo(t)
 
 	repo.InsertReservation(&ab.Reservation{Id: "t1", TenantId: "t1", StaffIdsnapshot: "s1", ReservationDate: 100})
-	for i := 0; i < 1000000; i++ {} // avoid conflict
+	for i := 0; i < 1000000; i++ {
+	} // avoid conflict
 	repo.InsertReservation(&ab.Reservation{Id: "t2", TenantId: "t1", StaffIdsnapshot: "s1", ReservationDate: 200})
-	for i := 0; i < 1000000; i++ {} // avoid conflict
+	for i := 0; i < 1000000; i++ {
+	} // avoid conflict
 	repo.InsertReservation(&ab.Reservation{Id: "t3", TenantId: "t1", StaffIdsnapshot: "s1", ReservationDate: 300})
-	for i := 0; i < 1000000; i++ {} // avoid conflict
+	for i := 0; i < 1000000; i++ {
+	} // avoid conflict
 	repo.InsertReservation(&ab.Reservation{Id: "t4", TenantId: "t1", StaffIdsnapshot: "s2", ReservationDate: 200})
 
 	res, err := repo.ListReservationsByStaff("t1", "s1", 150, 250)
