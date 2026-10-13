@@ -103,7 +103,7 @@ var _ router.OperationModule = (*Module)(nil)
 func writeError(ctx router.Context, err error) {
 	if e, ok := err.(domainError); ok {
 		switch e {
-		case ErrNotFound:
+		case ErrNotFound, ErrClientNotFound:
 			ctx.WriteStatus(404)
 		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap, ErrIdTaken, ErrOverbookNotAllowed:
 			ctx.WriteStatus(409)

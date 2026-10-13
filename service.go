@@ -30,6 +30,7 @@ const (
 	ErrIdTaken                   domainError = "reservation id already used"
 	ErrOverbookNotAllowed        domainError = "overbooking not allowed for this professional and day"
 	ErrSlotNotInSchedule         domainError = "appointment_booking: slot is not within professional's scheduled blocks"
+	ErrClientNotFound            domainError = "client not found"
 )
 
 // Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).
@@ -808,7 +809,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, err
 	}
 	if !clientExists {
-		return Reservation{}, fmt.Err("client", "not", "found")
+		return Reservation{}, ErrClientNotFound
 	}
 
 	// 3. Validar staff
@@ -958,7 +959,7 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, err
 	}
 	if !clientExists {
-		return Reservation{}, fmt.Err("client", "not", "found")
+		return Reservation{}, ErrClientNotFound
 	}
 
 	// 3. Validar staff

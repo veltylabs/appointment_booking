@@ -100,3 +100,38 @@ func TestMountOperations_RBAC_Deny(t *testing.T) {
 		t.Fatalf("esperaba 403 por denegación de RBAC, got %d", ctx.Status)
 	}
 }
+
+// A reservation for a patient the directory does not know is refused with 404 and says why. It used
+// to answer 500 with an empty body: the error was untyped, so writeError fell to its last branch,
+// and a client (rpc, a sync engine's conflict tray) could not tell what was wrong.
+func TestMountOperations_CreateReservation_UnknownClient(t *testing.T) {
+	db := orm.New(mem.New())
+	deps := SetupDependencies()
+	deps.Directory = &MockDirectoryReader{Exists: false}
+	m, err := ab.New(db, deps)
+	if err != nil {
+		t.Fatalf("ab.New: %v", err)
+	}
+	reg := &mock.Router{}
+	reg.Configure(mock.Config{
+		Authorize: func(userID string, r model.Resource, a model.Action) bool { return true },
+	})
+	m.MountOperations(reg)
+
+	cfg := ab.EmployeeServiceConfig{TenantId: "t1", StaffId: "s1", ServiceId: "srv1", DurationMin: 60, IsActive: true}
+	db.Create(&cfg)
+
+	body := []byte(`{"id":"res-unknown-client","tenant_id":"t1","client_id":"nobody","creator_user_id":"u1",` +
+		`"employee_service_config_id":"` + cfg.Id + `","slot_start_utc":1736154000,"origin":"` + ab.OriginCounter + `"}`)
+	ctx := &mock.Context{InBody: body}
+	ctx.SetUserID("u1")
+	reg.Invoke("OP", "/"+ab.OpCreateReservation, ctx)
+	if ctx.Status != 404 || string(ctx.ResponseBody()) != ab.ErrClientNotFound.Error() {
+		t.Fatalf("unknown client: got %d %q, want 404 %q", ctx.Status, ctx.ResponseBody(), ab.ErrClientNotFound.Error())
+	}
+
+	if _, err := m.CreateReservation(ab.CreateReservationCmd{Id: "res-unknown-2", TenantId: "t1", ClientId: "nobody",
+		EmployeeServiceConfigId: cfg.Id, SlotStartUtc: 1736154000, Origin: ab.OriginCounter}); err != ab.ErrClientNotFound {
+		t.Fatalf("CreateReservation: err = %v, want ErrClientNotFound", err)
+	}
+}
