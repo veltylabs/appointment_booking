@@ -29,7 +29,7 @@ require (
 	webtyp.com/time v0.5.8
 	webtyp.com/unixid v0.3.0
 	webtyp.com/view v0.6.32
-	webtyp.com/widget v0.6.40
+	webtyp.com/widget v0.6.41
 )
 
 require (
@@ -53,3 +53,7 @@ require (
 replace webtyp.com/components => ../../../webtyp/components
 
 replace github.com/veltylabs/payment_manager => ../payment_manager
+
+replace webtyp.com/layout => ../../../webtyp/layout
+
+replace webtyp.com/css => ../../../webtyp/css
