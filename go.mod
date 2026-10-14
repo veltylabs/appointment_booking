@@ -10,7 +10,7 @@ require (
 	github.com/veltylabs/payment_manager v0.1.2
 	github.com/veltylabs/staff_manager v0.1.85
 	webtyp.com/auth v0.0.72
-	webtyp.com/components v0.8.27
+	webtyp.com/components v0.8.30
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.24
 	webtyp.com/dom v0.13.26
@@ -49,8 +49,6 @@ require (
 	webtyp.com/network v0.1.2 // indirect
 	webtyp.com/user v0.3.14 // indirect
 )
-
-replace webtyp.com/components => ../../../webtyp/components
 
 replace github.com/veltylabs/payment_manager => ../payment_manager
 
