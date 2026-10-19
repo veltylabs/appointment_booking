@@ -1,7 +1,7 @@
 github.com/disintegration/imaging v1.6.2 h1:w1LecBlG2Lnp8B3jk5zSuNqd7b4DXhcjwek1ei82L+c=
 github.com/disintegration/imaging v1.6.2/go.mod h1:44/5580QXChDfwIclfc/PCwrr44amcmDAg8hxG0Ewe4=
-github.com/veltylabs/business_calendar v0.4.58 h1:UtoEhwAmNYc7I1Ev1D/Dhjst60Dc5W/KwK6hWUACePQ=
-github.com/veltylabs/business_calendar v0.4.58/go.mod h1:4H1twWNC+ZfCnfQ2XQQUylzdJmXnSa4eUHMG5PjRGCY=
+github.com/veltylabs/business_calendar v0.4.80 h1:kdyMJJLp/saGAVAAtVPXEo4guxAv2V7rK1Posobyc5A=
+github.com/veltylabs/business_calendar v0.4.80/go.mod h1:MJZqvtjv/FagfXIjUbOkF4t9LnxVWu4ShwNK9Q9zErI=
 github.com/veltylabs/device_manager v0.2.22 h1:8MvJFYlL2Abs2LWaGZhxKbaYJko0GSrt8xYXdJuU/tU=
 github.com/veltylabs/device_manager v0.2.22/go.mod h1:OJGgmQp/nry/4gveR73J0LkcvgLmf/TlUoGWlDp9D0s=
 github.com/veltylabs/item_catalog v0.3.64 h1:pO0IcOhy4zklt/aSxt4tQHM7LpT6niPhV7W/4uEpiLA=
