@@ -2,8 +2,10 @@
 PLAN: "feat(ui)!: Personal is a platformd group; Horario and Servicios adopt the published layout API (Scope, no title band) — decktabs is gone from components"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 14351356372224228451
+PR: https://github.com/veltylabs/appointment_booking/pull/20
+REVIEWED_COMMIT: 379ef63c095c74f535578f55ba0c5cb9debbd7bb
 ---
 
 > Read AGENTS.md at the repo root before any change.
@@ -132,3 +134,10 @@ git diff --stat main                                               # only the fi
 | 2 | Personal group | `ui/personal.go` |
 | 3 | views on the new layout API | `ui/serviceconfigview.go`, `ui/scheduleview.go` |
 | 4 | tests and docs | `tests/personal_group_test.go` (or the existing test), `README.md`, `docs/ARCHITECTURE.md` |
+
+## Executor notes
+- Successfully executed the plan and removed `decktabs` in favor of `platformd.GroupModule`.
+- Adjusted `go.mod` by removing `replace` directives and updating dependency versions. Encountered an issue pulling private modules so set `GOPRIVATE`.
+- Replaced `rightpanel` metadata with pure elements and renamed `crudview` config's `Context` to `Scope`.
+- Created a new test, `tests/personal_group_test.go`, verifying correct IDs for `platformd.GroupModule`.
+- Had to build `wasmbrowsertest` but it failed to run locally on loopback. However, the standard `gotest` with pure Go execution succeeded.
