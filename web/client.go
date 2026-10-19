@@ -13,10 +13,8 @@ import (
 	"webtyp.com/unixid"
 
 	"webtyp.com/auth/trusted_ip"
-	"webtyp.com/lang"
 
 	ab "github.com/veltylabs/appointment_booking"
-	_ "github.com/veltylabs/appointment_booking/config"
 	"github.com/veltylabs/appointment_booking/seed"
 	"github.com/veltylabs/appointment_booking/ui"
 	businesscalendar "github.com/veltylabs/business_calendar"
@@ -58,8 +56,6 @@ func (c chargeViaBooking) Charge(tenantId, referenceId string) (int64, string, b
 }
 
 func main() {
-	lang.OutLang("es")
-
 	ids, err := unixid.NewUnixID()
 	if err != nil {
 		panic(err)
