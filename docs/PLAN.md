@@ -2,6 +2,8 @@
 PLAN: "feat(ui)!: Personal is a platformd group; Horario and Servicios adopt the published layout API (Scope, no title band) — decktabs is gone from components"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 14351356372224228451
 ---
 
 > Read AGENTS.md at the repo root before any change.
