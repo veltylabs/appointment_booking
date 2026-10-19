@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"webtyp.com/components/decktabs"
 	"webtyp.com/layout/platformd"
 	"webtyp.com/model"
 	"webtyp.com/router"
@@ -20,7 +19,7 @@ const (
 	labelServices = "Servicios"
 )
 
-// PersonalBrowser construye la pantalla compuesta "Personal" en tres pestañas:
+// PersonalBrowser construye la pantalla compuesta "Personal" en un grupo de tres secciones:
 // Datos y dispositivos (staff_manager), Horario y Servicios (ambos de appointment_booking).
 func PersonalBrowser(caller router.Caller, ids model.IDGenerator, tenantID string) (platformd.UIModule, error) {
 	staffPanel, err := staffui.StaffPanel(caller, ids, PersonalID+".staff")
@@ -28,13 +27,11 @@ func PersonalBrowser(caller router.Caller, ids model.IDGenerator, tenantID strin
 		return nil, err
 	}
 
-	tabs := &decktabs.DeckTabs{
-		Label: PersonalLabel,
-		Items: []decktabs.Item{
-			{ID: tabStaff, Label: labelStaff, Panel: staffPanel},
-			{ID: tabSchedule, Label: labelSchedule, Panel: NewScheduleView(caller, tenantID)},
-			{ID: tabServices, Label: labelServices, Panel: NewServiceConfigView(caller, tenantID)},
-		},
-	}
-	return platformd.NewUIModule(PersonalID, PersonalLabel, svg.Icon(PersonalID), tabs), nil
+	staffMod := platformd.NewUIModule(PersonalID+"."+tabStaff, labelStaff, svg.Icon(PersonalID), staffPanel)
+	scheduleMod := platformd.NewUIModule(PersonalID+"."+tabSchedule, labelSchedule, svg.Icon(PersonalID), NewScheduleView(caller, tenantID))
+	servicesMod := platformd.NewUIModule(PersonalID+"."+tabServices, labelServices, svg.Icon(PersonalID), NewServiceConfigView(caller, tenantID))
+
+	return platformd.NewGroupUIModule(PersonalID, PersonalLabel, svg.Icon(PersonalID), []platformd.UIModule{
+		staffMod, scheduleMod, servicesMod,
+	}), nil
 }

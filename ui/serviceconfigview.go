@@ -2,7 +2,6 @@ package ui
 
 import (
 	"webtyp.com/layout/crudview"
-	"webtyp.com/layout/rightpanel"
 	"webtyp.com/router"
 	"webtyp.com/unixid"
 	"webtyp.com/widget"
@@ -52,12 +51,7 @@ func (s *ServiceConfigView) Init(_ Ctx) {
 func (s *ServiceConfigView) rebuildPanel() {
 	staffID := s.picker.sel.Get()
 	if staffID == "" {
-		panel := &rightpanel.RightPanel{
-			Title:        "Servicios",
-			HeadControls: Div().Set(clsServiceHeader.AsAttr()).Child(s.picker.render("service-config-staff")),
-			Article:      Div().Text("No hay profesionales registrados todavía."),
-		}
-		s.panel.Set([]*Element{panel.Render()})
+		s.panel.Set([]*Element{Div().Text("No hay profesionales registrados todavía.")})
 		return
 	}
 
@@ -71,7 +65,7 @@ func (s *ServiceConfigView) rebuildPanel() {
 		ParentID:  ID + ".services." + staffID,
 		Presenter: ab.NewEmployeeServiceConfigView(s.caller, s.tenantID, staffID),
 		IDs:       ids,
-		Context:   Div().Set(clsServiceHeader.AsAttr()).Child(s.picker.render("service-config-staff")),
+		Scope:     Div().Set(clsServiceHeader.AsAttr()).Child(s.picker.render("service-config-staff")),
 	})
 	if err != nil {
 		s.panel.Set([]*Element{Div().Text("Error interno: " + err.Error())})

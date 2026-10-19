@@ -199,9 +199,7 @@ func (s *ScheduleView) Render() *Element {
 		Child(overbookInput)
 
 	panel := &rightpanel.RightPanel{
-		Title:        "Horario",
-		HeadControls: controls,
-		Article:      Div().BindChildren(s.editor),
+		Article: Div().Child(controls, Div().BindChildren(s.editor)),
 	}
 	return Div().Set(clsRoot.AsAttr()).Child(panel.Render())
 }
