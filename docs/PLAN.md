@@ -2,8 +2,10 @@
 PLAN: "feat(ui)!: Personal is a platformd group; Horario and Servicios adopt the published layout API (Scope, no title band) — decktabs is gone from components"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 14351356372224228451
+PR: https://github.com/veltylabs/appointment_booking/pull/20
+REVIEWED_COMMIT: 379ef63c095c74f535578f55ba0c5cb9debbd7bb
 ---
 
 > Read AGENTS.md at the repo root before any change.
