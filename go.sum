@@ -8,8 +8,8 @@ github.com/veltylabs/patient_directory v0.1.12 h1:ze2ReDmh13m6Nte9rqoEVwIV0MSou3
 github.com/veltylabs/patient_directory v0.1.12/go.mod h1:NcdgHtExefRQ+of237a4eskFpJcEVC3AGcPBpyYoAd4=
 github.com/veltylabs/payment_manager v0.1.13 h1:W5nmxnAXGvN8j6jPBFcoCK79s2ibztvw+Q+MMudJ4iY=
 github.com/veltylabs/payment_manager v0.1.13/go.mod h1:qZQ5N3+rkP1brbDXSnxTRmm5YPrY6c2E2mMc+InWKaI=
-github.com/veltylabs/service_catalog v0.4.0 h1:OtAttmHCbbCbDlqRJ0LKTjv8YgEXEsqeC7rQAfeeJ1Y=
-github.com/veltylabs/service_catalog v0.4.0/go.mod h1:sOkSpAbE36IWp40BHeULlCHchlk/rCtMQ+BNnv6h7sw=
+github.com/veltylabs/service_catalog v0.4.1 h1:tQ52MEi5iL6wfsKFDOvlhueKc2bvm6Cja/xpG/6kF78=
+github.com/veltylabs/service_catalog v0.4.1/go.mod h1:1KLTe5xR7A0Tx2Ol2D2gfgmRqUDq9MRb6XcLzz4pZzg=
 github.com/veltylabs/staff_manager v0.1.85 h1:YAYNUmdOLnsrtBTrUADv26i1aKd8k7ncPeDOhimLM20=
 github.com/veltylabs/staff_manager v0.1.85/go.mod h1:xA8Lg8ajPF328ZiHA74zv/6+p/KqRyzFvzZhfUWnRfQ=
 golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
