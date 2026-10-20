@@ -15,10 +15,10 @@ import (
 	calendarseed "github.com/veltylabs/business_calendar/seed"
 	devicemanager "github.com/veltylabs/device_manager"
 	deviceseed "github.com/veltylabs/device_manager/seed"
-	itemcatalog "github.com/veltylabs/item_catalog"
-	catalogseed "github.com/veltylabs/item_catalog/seed"
 	patientdirectory "github.com/veltylabs/patient_directory"
 	patientseed "github.com/veltylabs/patient_directory/seed"
+	servicecatalog "github.com/veltylabs/service_catalog"
+	catalogseed "github.com/veltylabs/service_catalog/seed"
 	staffmanager "github.com/veltylabs/staff_manager"
 	staffseed "github.com/veltylabs/staff_manager/seed"
 )
@@ -43,9 +43,9 @@ func TestSeed_LoadPopulatesServicesAndReservations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("staffmanager.New: %v", err)
 	}
-	ic, err := itemcatalog.New(db, itemcatalog.Deps{IDs: ids, Publisher: broker})
+	ic, err := servicecatalog.New(db, servicecatalog.Deps{IDs: ids, Publisher: broker})
 	if err != nil {
-		t.Fatalf("itemcatalog.New: %v", err)
+		t.Fatalf("servicecatalog.New: %v", err)
 	}
 	pd, err := patientdirectory.New(db, patientdirectory.Deps{
 		Publisher:   broker,

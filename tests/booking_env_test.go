@@ -57,7 +57,7 @@ func (f *fakeStaff) StaffCard(tenantId, staffId string) (string, string, bool, e
 	return c.name, c.specialty, c.active, nil
 }
 
-// serviceItem es un servicio del doble de item_catalog.
+// serviceItem es un servicio del doble de service_catalog.
 type serviceItem struct {
 	id, name, currency string
 	price              float64

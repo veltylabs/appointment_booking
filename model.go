@@ -121,7 +121,7 @@ var ReservationModel = model.Definition{
 		{Name: "local_string_date", Type: model.Text()},
 		{Name: "local_string_time", Type: model.Text()},
 		// status: valores válidos = las constantes FSM exportadas de fsm.go/service.go — los
-		// literales viven SOLO en esas constantes (regla anti magic-string, ver item_catalog).
+		// literales viven SOLO en esas constantes (regla anti magic-string, ver service_catalog).
 		{Name: "status", Type: model.Text(), NotNull: true},
 		{Name: "origin", Type: model.Text(), NotNull: true},
 		{Name: "rescheduled_from_id", Type: model.Text()},

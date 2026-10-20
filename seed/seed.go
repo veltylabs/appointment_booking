@@ -5,8 +5,8 @@ import (
 	tinytime "webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
-	catalogseed "github.com/veltylabs/item_catalog/seed"
 	patientseed "github.com/veltylabs/patient_directory/seed"
+	catalogseed "github.com/veltylabs/service_catalog/seed"
 	staffseed "github.com/veltylabs/staff_manager/seed"
 )
 

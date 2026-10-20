@@ -21,13 +21,13 @@ import (
 	calendarseed "github.com/veltylabs/business_calendar/seed"
 	devicemanager "github.com/veltylabs/device_manager"
 	deviceseed "github.com/veltylabs/device_manager/seed"
-	itemcatalog "github.com/veltylabs/item_catalog"
-	catalogseed "github.com/veltylabs/item_catalog/seed"
 	patientdirectory "github.com/veltylabs/patient_directory"
 	patientseed "github.com/veltylabs/patient_directory/seed"
 	paymentmanager "github.com/veltylabs/payment_manager"
 	"github.com/veltylabs/payment_manager/sandbox"
 	paymentmanagerui "github.com/veltylabs/payment_manager/ui"
+	servicecatalog "github.com/veltylabs/service_catalog"
+	catalogseed "github.com/veltylabs/service_catalog/seed"
 	staffmanager "github.com/veltylabs/staff_manager"
 	staffseed "github.com/veltylabs/staff_manager/seed"
 )
@@ -80,7 +80,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ic, err := itemcatalog.New(db, itemcatalog.Deps{IDs: ids, Publisher: broker})
+	ic, err := servicecatalog.New(db, servicecatalog.Deps{IDs: ids, Publisher: broker})
 	if err != nil {
 		panic(err)
 	}

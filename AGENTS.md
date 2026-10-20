@@ -8,7 +8,7 @@ en la copia de un módulo.
 
 Plan maestro (estado entre repositorios, justificación de lista blanca, orden de despacho):
 [`app-releases/docs/REUSABLE_MODULES_MASTER_PLAN.md`](https://github.com/webtyp/app/blob/main/docs/REUSABLE_MODULES_MASTER_PLAN.md).
-Implementación de referencia (el patrón que cada módulo replica): `github.com/veltylabs/item_catalog`.
+Implementación de referencia (el patrón que cada módulo replica): `github.com/veltylabs/service_catalog`.
 
 ## Misión de un repositorio `veltylabs/modules/*`
 
@@ -90,7 +90,7 @@ libre de reflexión y de tamaño TinyGo. Un módulo apunta a `wasm`/TinyGo prime
 - **Sin `map[K]V` de Go en ninguna parte**, código de prueba incluido — y **sin excepciones para "estado privado"**: un
   mapa dentro de un cierre o campo no exportado envía el entorno de ejecución de mapas de TinyGo en el binario wasm
   exactamente igual. Usa `fmt.KeyValue{Key, Value string}` para un par cadena→cadena, o una pequeña rebanada (slice) de estructuras
-  escaneada linealmente para cualquier otra cosa (el caché de escaneo lineal `byID []*X` en `item_catalog/view.go` es
+  escaneada linealmente para cualquier otra cosa (el caché de escaneo lineal `byID []*X` en `service_catalog/view.go` es
   la referencia) — las colecciones de módulos (los elementos de un inquilino, los campos de un esquema) son siempre lo suficientemente pequeñas
   como para que un escaneo lineal no cueste nada medible.
 - **Sin `reflect`.** La introspección de estructuras es una preocupación en tiempo de compilación (`ormc`); el módulo consume
@@ -193,7 +193,7 @@ The whitelist and blacklist above apply to the **root domain package**. Three su
 - `seed/` (package `seed`, no build tag) holds demo data: `Load(...) (Data, error)`, which writes through the module's own methods so every row is validated, and returns the rows it created so downstream demos can reference them.
 - `web/` (package `main`, `web/client.go` tagged `wasm`) is the runnable demo and may additionally import the concrete `webtyp.com/storage/mem`, `webtyp.com/router/loopback`, `webtyp.com/events/mock`, `webtyp.com/unixid` and `webtyp.com/auth/trusted_ip` (for `ValidateRUT`).
 
-**Dependencies between modules form a DAG.** The root domain package still imports no sibling module. `ui/`, `seed/` and `web/` may import the domain, `ui/` and `seed/` packages of **upstream** modules only. Current graph: `device_manager`, `item_catalog`, `patient_directory`, `business_calendar`, `payment_manager` (leaves) ← `staff_manager` ← `appointment_booking` ← `clinical_encounter` (`appointment_booking` also depends on `item_catalog`, `patient_directory`, `business_calendar`, `payment_manager`; `clinical_encounter` also on `patient_directory` and `staff_manager`). A screen that mixes modules lives in the most-downstream module it touches.
+**Dependencies between modules form a DAG.** The root domain package still imports no sibling module. `ui/`, `seed/` and `web/` may import the domain, `ui/` and `seed/` packages of **upstream** modules only. Current graph: `device_manager`, `service_catalog`, `patient_directory`, `business_calendar`, `payment_manager` (leaves) ← `staff_manager` ← `appointment_booking` ← `clinical_encounter` (`appointment_booking` also depends on `service_catalog`, `patient_directory`, `business_calendar`, `payment_manager`; `clinical_encounter` also on `patient_directory` and `staff_manager`). A screen that mixes modules lives in the most-downstream module it touches.
 
 ## Pruebas
 
@@ -277,9 +277,9 @@ ha adoptado el arnés — ver `docs/PLAN.md` para la migración completa. Hechos
 - **3 interfaces de lector entre módulos que este módulo DEFINE por sí mismo — patrón correcto, se mantiene**:
   `StaffReader{StaffExists}`, `CatalogReader{ServiceExists}`, `DirectoryReader{ClientExists}`. Este es
   el patrón "Cableado entre módulos" de las reglas anteriores, no un puerto de infraestructura autodeclarado —
-  son datos de dominio que este módulo necesita de módulos hermanos (staff, item_catalog, directory), y cada
+  son datos de dominio que este módulo necesita de módulos hermanos (staff, service_catalog, directory), y cada
   `*Module` hermano satisface la interfaz estructuralmente sin importar de vuelta
-  `appointment_booking`. `item_catalog.Module.ServiceExists` existe únicamente para satisfacer el
+  `appointment_booking`. `service_catalog.Module.ServiceExists` existe únicamente para satisfacer el
   `CatalogReader` de este módulo. Solo la **cuarta** interfaz que este módulo declara hoy — `EventPublisher` — es
   la violación real (duplica `events.Publisher`); ver Etapa 2 de `docs/PLAN.md`.
 - **Shim `internal/tinytime` — AÚN NO corregido.** A partir de este pase de solo documentación, `internal/tinytime/` aún
