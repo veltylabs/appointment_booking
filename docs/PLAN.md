@@ -1,8 +1,9 @@
 ---
 PLAN: "refactor: typed instants of webtyp/time v0.6 in appointment_booking — every instant field is time.Unix or time.Nano, no unit arithmetic"
-TAG: ""
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 15450658491048663466
 ---
 
 > Read AGENTS.md at the repo root before any change. This plan is complete: do not guess; if something does not fit, stop and ask in the PR.
