@@ -186,7 +186,7 @@ paciente → resumen (aquí se crea la reserva) → pago y confirmación. Flujo 
 [`docs/diagrams/booking_flow.md`](docs/diagrams/booking_flow.md); servidor:
 [`docs/diagrams/booking_backend.md`](docs/diagrams/booking_backend.md).
 
-La raíz de composición cruza los dos módulos (`web/client.go` es el ejemplo):
+La raíz de composición cruza los dos módulos (`web/browser.go` es el ejemplo):
 `payment_manager` pregunta el monto con `Charge`, y al recibir `payment.paid` llama
 `ConfirmPaidReservation`; si devuelve `ErrReservationNotPayable` (la retención venció),
 devuelve el pago.
@@ -284,7 +284,7 @@ Esta interfaz depende de los lectores inyectados:
 
 ## View and demo
 
-This module ships its own user interface (`ui/`), demo data (`seed/`), and runnable client demo (`web/client.go`).
+This module ships its own user interface (`ui/`), demo data (`seed/`), and runnable client demo (`web/browser.go`).
 
 ### `ui` package
 

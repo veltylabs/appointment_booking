@@ -87,7 +87,7 @@ Para la recepcionista, la búsqueda reactiva se realiza a través del router cal
 - Agregar las claves de componentes y calendario (`Select date`, `Mon`...`Sun`, meses, `Today`).
 - Normalizar etiquetas a formato de interfaz: `"client id": ["Paciente"]`, `"hour": ["Hora"]`, `"day": ["Día"]`, `"notes": ["Notas"]`.
 
-#### [MODIFY] [`web/client.go`](file:///home/cesar/Dev/Project/veltylabs/modules/appointment_booking/web/client.go)
+#### [MODIFY] [`web/browser.go`](file:///home/cesar/Dev/Project/veltylabs/modules/appointment_booking/web/browser.go)
 - Invocar `lang.OutLang("es")` en la inicialización del cliente WASM.
 
 ---
