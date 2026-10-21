@@ -2,8 +2,10 @@
 PLAN: "refactor!: build destinations — web/browser.go and ui/browser.go with //go:build browser"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 3516746636369494847
+PR: https://github.com/veltylabs/appointment_booking/pull/21
+REVIEWED_COMMIT: afce07b8c9a23decc3cfd949d11014f7043882a8
 ---
 
 > Read AGENTS.md at the repo root before any change.
