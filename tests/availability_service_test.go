@@ -7,7 +7,7 @@ import (
 )
 
 func availArgs(staff string, taken bool) ab.ListServiceAvailabilityArgs {
-	return ab.ListServiceAvailabilityArgs{TenantId: bTenant, ServiceId: bService, StaffId: staff, From: bookDay, To: bookDay, IncludeTaken: taken}
+	return ab.ListServiceAvailabilityArgs{TenantId: bTenant, ServiceId: bService, StaffId: staff, From: int64(bookDay), To: int64(bookDay), IncludeTaken: taken}
 }
 
 func TestAvailability_OneProfessional(t *testing.T) {

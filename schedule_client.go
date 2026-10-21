@@ -82,7 +82,7 @@ func (c *ScheduleClient) AddException(exc WorkCalendarException, done func(error
 		&AddCalendarExceptionArgs{
 			TenantId:      c.tenantId,
 			StaffId:       c.staffId,
-			SpecificDate:  exc.SpecificDate,
+			SpecificDate:  int64(exc.SpecificDate),
 			ExceptionType: exc.ExceptionType,
 			StartTime:     exc.StartTime,
 			EndTime:       exc.EndTime,

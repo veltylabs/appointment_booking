@@ -9,7 +9,7 @@ import (
 )
 
 func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Repository, db *orm.DB) {
-	setupValidConfig := func(tenant, staff string, slotStart int64) string {
+	setupValidConfig := func(tenant, staff string, slotStart tinytime.Unix) string {
 		cfg := ab.EmployeeServiceConfig{
 			TenantId:    tenant,
 			StaffId:     staff,
@@ -77,8 +77,8 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 		}
 
 		for _, s := range slots {
-			startLocal := (s.StartUtc - dayStart) / 60
-			endLocal := (s.EndUtc - dayStart) / 60
+			startLocal := int(s.StartUtc-dayStart) / 60
+			endLocal := int(s.EndUtc-dayStart) / 60
 			// blocked from 600 to 720
 			if startLocal < 720 && endLocal > 600 {
 				t.Fatalf("slot %v overlaps blocked time (600-720)", s)
@@ -109,8 +109,8 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 			t.Fatalf("expected 2 slots in special hours, got %d", len(slots))
 		}
 		for _, s := range slots {
-			startLocal := (s.StartUtc - dayStart) / 60
-			endLocal := (s.EndUtc - dayStart) / 60
+			startLocal := int(s.StartUtc-dayStart) / 60
+			endLocal := int(s.EndUtc-dayStart) / 60
 			if startLocal < 480 || endLocal > 600 {
 				t.Fatalf("slot %v outside special hours (480-600)", s)
 			}
@@ -135,8 +135,8 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 		}
 
 		for _, s := range slots {
-			startLocal := (s.StartUtc - dayStart) / 60
-			endLocal := (s.EndUtc - dayStart) / 60
+			startLocal := int(s.StartUtc-dayStart) / 60
+			endLocal := int(s.EndUtc-dayStart) / 60
 			if startLocal < 780 && endLocal > 720 {
 				t.Fatalf("slot %v overlaps break time (720-780)", s)
 			}

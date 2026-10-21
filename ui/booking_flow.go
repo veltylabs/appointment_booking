@@ -95,9 +95,6 @@ const calendarMonths = 3
 // secondsPerDay convierte días a segundos (fechas en segundos UTC).
 const secondsPerDay = 86400
 
-// nanosPerSecond convierte segundos a la unidad de webtyp/time.
-const nanosPerSecond = 1_000_000_000
-
 // BookingFlow es la reserva en 6 pasos. Mesón (NewBookingView) y online
 // (OnlineBrowser) son el mismo flujo; online cambia el paso 5 (el paciente se
 // registra solo), el 6 (paga en la pasarela) y no ofrece sobrecupo.
@@ -306,7 +303,7 @@ func (f *BookingFlow) finalPanel(title lang.Text, lines []string, again lang.Tex
 }
 
 // slotLabel es "2026-10-13 · 10:30": día y hora de un inicio en segundos UTC.
-func slotLabel(startUtc int64) string {
+func slotLabel(startUtc tinytime.Unix) string {
 	if startUtc == 0 {
 		return ""
 	}
@@ -316,11 +313,11 @@ func slotLabel(startUtc int64) string {
 // hourMinuteLen es el largo de "HH:MM" dentro de "HH:MM:SS".
 const hourMinuteLen = 5
 
-func slotDay(startUtc int64) string { return tinytime.FormatDate(startUtc * nanosPerSecond) }
+func slotDay(startUtc tinytime.Unix) string { return tinytime.FormatDate(startUtc) }
 
 // slotTime es la hora "10:30" (sin segundos) de un inicio en segundos UTC.
-func slotTime(startUtc int64) string {
-	t := tinytime.FormatTime(startUtc * nanosPerSecond)
+func slotTime(startUtc tinytime.Unix) string {
+	t := tinytime.FormatTime(startUtc)
 	if len(t) > hourMinuteLen {
 		return t[:hourMinuteLen]
 	}

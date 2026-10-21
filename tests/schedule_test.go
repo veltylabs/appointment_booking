@@ -82,7 +82,7 @@ func TestListExceptionsOp_RangeFilter(t *testing.T) {
 	outOfRange := int64(1767312000)                  // Jan 2 2026
 	for _, date := range []int64{from, to, outOfRange} {
 		if err := m.AddException(ab.WorkCalendarException{
-			TenantId: "t1", StaffId: "s1", SpecificDate: date,
+			TenantId: "t1", StaffId: "s1", SpecificDate: tinytime.Unix(date),
 			ExceptionType: ab.ExcBlocked, StartTime: 0, EndTime: 1439,
 		}); err != nil {
 			t.Fatalf("AddException: %v", err)

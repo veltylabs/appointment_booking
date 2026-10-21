@@ -230,4 +230,4 @@ func TestBookingFlow_PatientLookupRUT(t *testing.T) {
 	}
 }
 
-var _ = tinytime.Now
+var _ = tinytime.NowUnix

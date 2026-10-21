@@ -127,7 +127,7 @@ func TestE2E_PaidAfterHoldExpiredIsRefunded(t *testing.T) {
 		t.Fatal(err)
 	}
 	// La retención vence mientras el paciente está en Webpay.
-	if n, err := c.ab.ExpirePendingReservations(bTenant, tinytime.Now()/1_000_000_000+ab.OnlineHoldSeconds+1); err != nil || n != 1 {
+	if n, err := c.ab.ExpirePendingReservations(bTenant, tinytime.NowUnix()+ab.OnlineHoldSeconds+1); err != nil || n != 1 {
 		t.Fatalf("expire: %d, %v", n, err)
 	}
 	c.gw.Approve(started.Token)

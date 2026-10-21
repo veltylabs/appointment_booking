@@ -10,6 +10,7 @@ import (
 	"webtyp.com/orm"
 	"webtyp.com/router/loopback"
 	"webtyp.com/storage/mem"
+	tinytime "webtyp.com/time"
 	"webtyp.com/unixid"
 
 	"webtyp.com/auth/trusted_ip"
@@ -147,7 +148,7 @@ func main() {
 	// confirma su reserva y, si la reserva ya no se puede pagar, se devuelve.
 	broker.Subscribe(businesscalendar.EventCalendarChanged, func(ev events.Event) {
 		if p, ok := ev.Payload.(*businesscalendar.CalendarChangedPayload); ok && p.Closed {
-			_, _ = abMod.RecomputeConflicts(demoTenantID, p.FromDate, p.ToDate)
+			_, _ = abMod.RecomputeConflicts(demoTenantID, tinytime.Unix(p.FromDate), tinytime.Unix(p.ToDate))
 		}
 	})
 	broker.Subscribe(paymentmanager.EventPaymentPaid, func(ev events.Event) {

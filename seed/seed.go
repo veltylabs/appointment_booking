@@ -120,26 +120,26 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 		patient2ID = up.Patients.Patients[1].Id
 	}
 
-	nowSec := tinytime.Now() / 1e9
+	nowSec := tinytime.NowUnix()
 	var res1 ab.Reservation
-	var daySec int64
+	var daySec tinytime.Unix
 	var lastErr error
 	booked := false
 	for offset := int64(1); offset <= maxSeedDays && !booked; offset++ {
-		candidate := nowSec + offset*86400
-		wd := tinytime.Weekday(candidate * 1e9)
+		candidate := nowSec + tinytime.Unix(offset)*tinytime.Day
+		wd := tinytime.Weekday(candidate)
 		if wd == 0 || wd == 6 {
 			continue
 		}
-		isoDate := tinytime.FormatISO8601(candidate * 1e9)
+		isoDate := tinytime.FormatISO8601(candidate)
 		if len(isoDate) >= 10 {
 			isoDate = isoDate[:10]
 		}
-		dayNano, err := tinytime.ParseDate(isoDate)
+		var err error
+		daySec, err = tinytime.ParseDate(isoDate)
 		if err != nil {
 			return data, err
 		}
-		daySec = dayNano / 1e9
 		res1, lastErr = m.CreateReservation(ab.CreateReservationCmd{
 			Id:                      DemoReservation1ID,
 			TenantId:                tenantID,

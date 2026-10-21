@@ -131,7 +131,7 @@ func TestScheduleChangedPayloadCarriesRangeAndCount(t *testing.T) {
 
 	schedCap := subscribeScheduleChanged(broker)
 
-	if err := s.SaveDateBlocks("t1", "s1", d, []ab.WorkCalendarBlock{
+	if err := s.SaveDateBlocks("t1", "s1", int64(d), []ab.WorkCalendarBlock{
 		{StartMin: 540, EndMin: 780, IsActive: true}, // solo hasta las 13:00
 	}); err != nil {
 		t.Fatalf("SaveDateBlocks: %v", err)
@@ -140,7 +140,7 @@ func TestScheduleChangedPayloadCarriesRangeAndCount(t *testing.T) {
 	if schedCap.last == nil {
 		t.Fatal("expected a schedule.changed event")
 	}
-	if schedCap.last.FromDate != d || schedCap.last.ToDate != d {
+	if schedCap.last.FromDate != int64(d) || schedCap.last.ToDate != int64(d) {
 		t.Fatalf("expected range [%d, %d], got [%d, %d]", d, d, schedCap.last.FromDate, schedCap.last.ToDate)
 	}
 	if schedCap.last.ConflictCount != 1 {

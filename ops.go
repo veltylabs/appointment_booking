@@ -5,6 +5,7 @@ import (
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/router"
+	"webtyp.com/time"
 )
 
 const (
@@ -237,7 +238,7 @@ func (m *Module) opListReservationsByStaff(ctx router.Context) {
 		writeError(ctx, badRequest{err})
 		return
 	}
-	res, err := m.ListReservationsByStaff(args.TenantId, args.StaffId, args.From, args.To)
+	res, err := m.ListReservationsByStaff(args.TenantId, args.StaffId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -298,7 +299,7 @@ func (m *Module) opExpirePendingReservations(ctx router.Context) {
 		writeError(ctx, badRequest{err})
 		return
 	}
-	count, err := m.ExpirePendingReservations(args.TenantId, args.Before)
+	count, err := m.ExpirePendingReservations(args.TenantId, time.Unix(args.Before))
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -497,7 +498,7 @@ func (m *Module) opGetDayBounds(ctx router.Context) {
 		writeError(ctx, badRequest{err})
 		return
 	}
-	b, err := m.GetDayBounds(args.Date)
+	b, err := m.GetDayBounds(time.Unix(args.Date))
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -515,7 +516,7 @@ func (m *Module) opAddCalendarException(ctx router.Context) {
 		return
 	}
 	exc := WorkCalendarException{
-		TenantId: args.TenantId, StaffId: args.StaffId, SpecificDate: args.SpecificDate,
+		TenantId: args.TenantId, StaffId: args.StaffId, SpecificDate: time.Unix(args.SpecificDate),
 		ExceptionType: args.ExceptionType, StartTime: args.StartTime, EndTime: args.EndTime,
 		Notes: args.Notes,
 	}
@@ -545,7 +546,7 @@ func (m *Module) opListAvailability(ctx router.Context) {
 		writeError(ctx, badRequest{err})
 		return
 	}
-	slots, err := m.ListAvailability(args.TenantId, args.StaffId, args.ConfigId, args.From, args.To)
+	slots, err := m.ListAvailability(args.TenantId, args.StaffId, args.ConfigId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -565,7 +566,7 @@ func (m *Module) opListExceptions(ctx router.Context) {
 		writeError(ctx, badRequest{err})
 		return
 	}
-	rows, err := m.ListExceptions(args.TenantId, args.StaffId, args.From, args.To)
+	rows, err := m.ListExceptions(args.TenantId, args.StaffId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -585,7 +586,7 @@ func (m *Module) opListConflictingReservations(ctx router.Context) {
 		writeError(ctx, badRequest{err})
 		return
 	}
-	rows, err := m.ListConflictingReservations(args.TenantId, args.StaffId, args.From)
+	rows, err := m.ListConflictingReservations(args.TenantId, args.StaffId, time.Unix(args.From))
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -605,7 +606,7 @@ func (m *Module) opRecomputeConflicts(ctx router.Context) {
 		writeError(ctx, badRequest{err})
 		return
 	}
-	count, err := m.RecomputeConflicts(args.TenantId, args.From, args.To)
+	count, err := m.RecomputeConflicts(args.TenantId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		writeError(ctx, err)
 		return

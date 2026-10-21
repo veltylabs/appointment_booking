@@ -137,7 +137,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		}
 	})
 
-	setupValidConfig := func(tenant, staff string, slotStart int64) string {
+	setupValidConfig := func(tenant, staff string, slotStart tinytime.Unix) string {
 		cfg := ab.EmployeeServiceConfig{
 			TenantId:    tenant,
 			StaffId:     staff,
@@ -393,10 +393,10 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		}
 
 		// Un feriado (cerrado) que cae justo en el próximo lunes
-		start := tinytime.MidnightUTC(tinytime.Now() / 1e9)
-		var nextMon int64
+		start := tinytime.MidnightUTC(tinytime.NowUnix())
+		var nextMon tinytime.Unix
 		for i := 0; i < 7; i++ {
-			d := start + int64(i*86400)
+			d := start + tinytime.Unix(i)*tinytime.Day
 			if tinytime.Weekday(d) == 1 { // Lunes = 1
 				nextMon = d
 				break

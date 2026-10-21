@@ -83,7 +83,7 @@ func defaultBlocks() []ab.WorkCalendarBlock {
 
 // setupReservable prepara staff + config de servicio + bloque semanal 09–17 de
 // modo que un slot en slotStart es reservable, y devuelve el cfgID.
-func setupReservable(t *testing.T, s ab.SchedulingService, repo *ab.Repository, tenant, staff string, slotStart int64) string {
+func setupReservable(t *testing.T, s ab.SchedulingService, repo *ab.Repository, tenant, staff string, slotStart tinytime.Unix) string {
 	t.Helper()
 	cfgID := seedEmployeeConfig(t, repo, tenant, staff, 60)
 	ensureCalendarConfig(t, s, tenant, staff)
@@ -92,7 +92,7 @@ func setupReservable(t *testing.T, s ab.SchedulingService, repo *ab.Repository, 
 }
 
 // createBooked crea una reserva en slotStart y la confirma (revision 0 → 1).
-func createBooked(t *testing.T, s ab.SchedulingService, tenant, staff, cfgID string, slotStart int64) ab.Reservation {
+func createBooked(t *testing.T, s ab.SchedulingService, tenant, staff, cfgID string, slotStart tinytime.Unix) ab.Reservation {
 	t.Helper()
 	res, err := s.CreateReservation(ab.CreateReservationCmd{
 		Id:                      nextTestID(),
@@ -119,7 +119,7 @@ func createBooked(t *testing.T, s ab.SchedulingService, tenant, staff, cfgID str
 }
 
 // slotIn asserts a slot is entirely inside [startMin, endMin) local minutes of date dayStart.
-func slotIn(t *testing.T, slot ab.TimeSlot, dayStart int64, startMin, endMin int) {
+func slotIn(t *testing.T, slot ab.TimeSlot, dayStart tinytime.Unix, startMin, endMin int) {
 	t.Helper()
 	startLocal := int((slot.StartUtc - dayStart) / 60)
 	endLocal := int((slot.EndUtc - dayStart) / 60)
@@ -129,10 +129,10 @@ func slotIn(t *testing.T, slot ab.TimeSlot, dayStart int64, startMin, endMin int
 }
 
 // slotsOnDay filtra los slots de un día.
-func slotsOnDay(slots []ab.TimeSlot, dayStart int64) []ab.TimeSlot {
+func slotsOnDay(slots []ab.TimeSlot, dayStart tinytime.Unix) []ab.TimeSlot {
 	var out []ab.TimeSlot
 	for _, s := range slots {
-		if s.StartUtc >= dayStart && s.StartUtc < dayStart+86400 {
+		if s.StartUtc >= dayStart && s.StartUtc < dayStart+tinytime.Day {
 			out = append(out, s)
 		}
 	}

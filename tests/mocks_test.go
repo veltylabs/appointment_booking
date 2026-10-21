@@ -65,7 +65,7 @@ var _ events.Publisher = (*MockEventPublisher)(nil)
 // cierre local). Slice de structs, no map — la regla "cero map" de AGENTS.md
 // llega también al código de test.
 type DateBound struct {
-	Date   int64
+	Date   tinytime.Unix
 	Bounds tinytime.DayBounds
 }
 
@@ -82,7 +82,7 @@ type MockBoundsReader struct {
 	WeekdayOverrides []WeekdayBound
 }
 
-func (b *MockBoundsReader) GetDayBounds(date int64) (tinytime.DayBounds, error) {
+func (b *MockBoundsReader) GetDayBounds(date tinytime.Unix) (tinytime.DayBounds, error) {
 	if b == nil {
 		return tinytime.Unbounded(), nil
 	}

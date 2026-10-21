@@ -8,7 +8,7 @@ import (
 	tinytime "webtyp.com/time"
 )
 
-func Date(year, month, day, hour, min, sec, _ int) int64 {
+func Date(year, month, day, hour, min, sec, _ int) tinytime.Unix {
 	return tinytime.Date(year, month, day, hour, min, sec)
 }
 

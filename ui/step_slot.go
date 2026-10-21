@@ -56,13 +56,13 @@ func (s *stepSlotPicker) load() {
 	s.cal.Set(nil)
 	s.hours.SetChips(nil)
 	s.extra.Set(nil)
-	from := tinytime.Now() / nanosPerSecond / secondsPerDay * secondsPerDay
+	from := tinytime.MidnightUTC(tinytime.NowUnix())
 	args := &ab.ListServiceAvailabilityArgs{
 		TenantId:     s.f.tenantID,
 		ServiceId:    s.f.offer0().ServiceId,
 		StaffId:      s.f.choice.staffID,
-		From:         from,
-		To:           from + calendarMonths*31*secondsPerDay,
+		From:         int64(from),
+		To:           int64(from) + calendarMonths*31*secondsPerDay,
 		IncludeTaken: s.f.choice.staffID != "",
 	}
 	list := ab.BookableSlotList{}

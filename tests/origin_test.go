@@ -10,6 +10,7 @@ import (
 
 	ab "github.com/veltylabs/appointment_booking"
 	"github.com/veltylabs/appointment_booking/migrate"
+	tinytime "webtyp.com/time"
 )
 
 type dummyExecer struct{ calls []string }
@@ -71,7 +72,7 @@ func containsStr(list []string, s string) bool {
 }
 
 // helper to set up a test service with calendar & employee service config ready for booking
-func setupBookingService(t *testing.T) (ab.SchedulingService, *ab.Repository, string, int64) {
+func setupBookingService(t *testing.T) (ab.SchedulingService, *ab.Repository, string, tinytime.Unix) {
 	t.Helper()
 	db := orm.New(mem.New())
 	repo, _ := ab.NewRepository(db, SetupDependencies().IDs)

@@ -314,15 +314,12 @@ func TestFormView_NoUpdateNoDelete(t *testing.T) {
 func TestDayToUnix_RoundTripsAtNegativeOffset(t *testing.T) {
 	dayStr := "2026-09-08"
 
-	// ParseDate converts "2026-09-08" -> nanoseconds
-	nano, err := tinytime.ParseDate(dayStr)
+	u, err := tinytime.ParseDate(dayStr)
 	if err != nil {
 		t.Fatalf("ParseDate error: %v", err)
 	}
-	sec := nano / 1000000000
 
-	// FormatISO8601 returns UTC format e.g. "2026-09-08T00:00:00Z"
-	iso := tinytime.FormatISO8601(sec * 1000000000)
+	iso := tinytime.FormatISO8601(u)
 	if len(iso) < 10 {
 		t.Fatalf("unexpected ISO string: %q", iso)
 	}

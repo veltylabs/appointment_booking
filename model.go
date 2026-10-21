@@ -3,6 +3,7 @@ package appointmentbooking
 import (
 	"webtyp.com/input"
 	"webtyp.com/model"
+	"webtyp.com/time"
 )
 
 // Origin dice por qué vía se confirma una reserva, y por lo tanto de quién es
@@ -14,9 +15,9 @@ const (
 	OriginOnline  = "ONLINE"  // la crea el paciente y la confirma él mismo por su vía
 )
 const (
-	OnlineHoldSeconds    = 900 // la hora online queda retenida 15 min
-	PaymentWindowSeconds = 600 // mínimo de retención restante para empezar a pagar
-	MaxOnlineHolds       = 2   // retenciones online activas por paciente
+	OnlineHoldSeconds    time.Unix = 900 // la hora online queda retenida 15 min
+	PaymentWindowSeconds time.Unix = 600 // mínimo de retención restante para empezar a pagar
+	MaxOnlineHolds                 = 2   // retenciones online activas por paciente
 )
 
 const (
@@ -78,9 +79,9 @@ var WorkCalendarBlockModel = model.Definition{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
-		{Name: "day_of_week", Type: model.Int(), NotNull: true},   // 0..6, meaningful when specific_date == 0
-		{Name: "specific_date", Type: model.Int(), NotNull: true}, // 0 = weekly; else midnight UTC seconds
-		{Name: "start_min", Type: model.Int(), NotNull: true},     // minutes from midnight
+		{Name: "day_of_week", Type: model.Int(), NotNull: true},       // 0..6, meaningful when specific_date == 0
+		{Name: "specific_date", Type: model.UnixTime(), NotNull: true}, // 0 = weekly; else midnight UTC seconds
+		{Name: "start_min", Type: model.Int(), NotNull: true},         // minutes from midnight
 		{Name: "end_min", Type: model.Int(), NotNull: true},
 		{Name: "is_active", Type: model.Bool(), NotNull: true},
 	},
@@ -92,7 +93,7 @@ var WorkCalendarExceptionModel = model.Definition{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
-		{Name: "specific_date", Type: model.Int()},
+		{Name: "specific_date", Type: model.UnixTime()},
 		{Name: "exception_type", Type: model.Text()},
 		{Name: "start_time", Type: model.Int()},
 		{Name: "end_time", Type: model.Int()},
@@ -116,7 +117,7 @@ var ReservationModel = model.Definition{
 		{Name: "duration_min_snapshot", Type: model.Int()},
 		{Name: "price_snapshot", Type: model.Float()},
 		{Name: "currency_snapshot", Type: model.Text()},
-		{Name: "reservation_date", Type: model.Int()},
+		{Name: "reservation_date", Type: model.UnixTime()},
 		{Name: "reservation_time", Type: model.Int()},
 		{Name: "local_string_date", Type: model.Text()},
 		{Name: "local_string_time", Type: model.Text()},
@@ -133,10 +134,10 @@ var ReservationModel = model.Definition{
 		// paciente (ver PLAN §8.5).
 		{Name: "status_before_conflict", Type: model.Text()},
 		{Name: "payment_id", Type: model.Text()},
-		{Name: "hold_until", Type: model.Int(), OmitEmpty: true},
+		{Name: "hold_until", Type: model.UnixTime(), OmitEmpty: true},
 		{Name: "notes", Type: model.Text()},
 		{Name: "overbooked", Type: model.Bool(), NotNull: true},
-		{Name: "updated_at", Type: model.Int()},
+		{Name: "updated_at", Type: model.NanoTime()},
 		{Name: "updated_by", Type: model.Text()},
 		{Name: "revision", Type: model.Int()},
 	},
@@ -183,8 +184,8 @@ var ReservationFormModel = model.Definition{
 var TimeSlotModel = model.Definition{
 	Name: "time_slot",
 	Fields: model.Fields{
-		{Name: "start_utc", Type: model.Int()},
-		{Name: "end_utc", Type: model.Int()},
+		{Name: "start_utc", Type: model.UnixTime()},
+		{Name: "end_utc", Type: model.UnixTime()},
 	},
 }
 
@@ -196,7 +197,7 @@ var CreateReservationArgsModel = model.Definition{
 		{Name: "client_id", Type: model.Text()},
 		{Name: "creator_user_id", Type: model.Text()},
 		{Name: "employee_service_config_id", Type: model.Text()},
-		{Name: "slot_start_utc", Type: model.Int()},
+		{Name: "slot_start_utc", Type: model.UnixTime()},
 		{Name: "notes", Type: model.Text()},
 		{Name: "rescheduled_from_id", Type: model.Text()},
 		{Name: "origin", Type: model.Text()},
@@ -211,7 +212,7 @@ var CreateOverbookingArgsModel = model.Definition{
 		{Name: "client_id", Type: model.Text()},
 		{Name: "creator_user_id", Type: model.Text()},
 		{Name: "employee_service_config_id", Type: model.Text()},
-		{Name: "slot_start_utc", Type: model.Int()},
+		{Name: "slot_start_utc", Type: model.UnixTime()},
 		{Name: "notes", Type: model.Text()},
 		{Name: "rescheduled_from_id", Type: model.Text()},
 		{Name: "origin", Type: model.Text()},
@@ -392,7 +393,7 @@ var ConflictingReservationModel = model.Definition{
 	Name: "conflicting_reservation",
 	Fields: model.Fields{
 		{Name: "reservation_id", Type: model.Text()},
-		{Name: "starts_at", Type: model.Int()},
+		{Name: "starts_at", Type: model.UnixTime()},
 		{Name: "client_id", Type: model.Text()},
 		{Name: "reason", Type: model.Text()}, // "OUTSIDE_BLOCKS" | "DAY_CLOSED" | "OUTSIDE_BUSINESS_HOURS"
 	},
@@ -492,8 +493,8 @@ var ListServiceAvailabilityArgsModel = model.Definition{
 var BookableSlotModel = model.Definition{
 	Name: "bookable_slot",
 	Fields: model.Fields{
-		{Name: "start_utc", Type: model.Int()},
-		{Name: "end_utc", Type: model.Int()},
+		{Name: "start_utc", Type: model.UnixTime()},
+		{Name: "end_utc", Type: model.UnixTime()},
 		{Name: "staff_id", Type: model.Text()},
 		{Name: "config_id", Type: model.Text()},
 		{Name: "taken", Type: model.Bool()},
@@ -507,7 +508,7 @@ var CreateOnlineReservationArgsModel = model.Definition{
 		{Name: "id", Type: model.Text(), NotNull: true},
 		{Name: "client_id", Type: model.Text(), NotNull: true},
 		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true},
-		{Name: "slot_start_utc", Type: model.Int(), NotNull: true},
+		{Name: "slot_start_utc", Type: model.UnixTime(), NotNull: true},
 		{Name: "notes", Type: model.Text()},
 	},
 }

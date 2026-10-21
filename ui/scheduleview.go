@@ -152,7 +152,7 @@ func (s *ScheduleView) buildEditor(
 		},
 		OnExceptionAdd: func(x scheduleeditor.Exception) {
 			s.caller.Call(ab.ModelName+"."+ab.OpAddCalendarException, &ab.AddCalendarExceptionArgs{
-				TenantId: s.tenantID, StaffId: staffID, SpecificDate: dayToUnix(x.Date),
+				TenantId: s.tenantID, StaffId: staffID, SpecificDate: int64(dayToUnix(x.Date)),
 				ExceptionType: x.Type, StartTime: int64(x.StartMin), EndTime: int64(x.EndMin), Notes: x.Notes,
 			}, nil, func(error) { s.reload() })
 		},
@@ -252,7 +252,7 @@ func (s *ScheduleView) unmarkDays(staffID string, dates []string) {
 func (s *ScheduleView) saveDateBlock(staffID string, day scheduleeditor.MarkedDay) {
 	specificDate := dayToUnix(day.Date)
 	s.caller.Call(ab.ModelName+"."+ab.OpSaveDateBlocks, &ab.SaveDateBlocksArgs{
-		TenantId: s.tenantID, StaffId: staffID, SpecificDate: specificDate,
+		TenantId: s.tenantID, StaffId: staffID, SpecificDate: int64(specificDate),
 		Blocks: []ab.WorkCalendarBlock{{
 			TenantId: s.tenantID, StaffId: staffID, SpecificDate: specificDate,
 			StartMin: int64(day.StartMin), EndMin: int64(day.EndMin), IsActive: true,
@@ -294,7 +294,7 @@ func blocksToPattern(blocks ab.WorkCalendarBlockList) []scheduleeditor.PatternRo
 }
 
 type markedDateKV struct {
-	date int64
+	date tintime.Unix
 	day  scheduleeditor.MarkedDay
 }
 
@@ -335,7 +335,7 @@ func blocksToMarked(blocks ab.WorkCalendarBlockList) []scheduleeditor.MarkedDay 
 func datesOf(holidays businesscalendar.HolidayList) []string {
 	out := make([]string, 0, len(holidays))
 	for _, h := range holidays {
-		out = append(out, unixToDay(h.SpecificDate))
+		out = append(out, unixToDay(tintime.Unix(h.SpecificDate)))
 	}
 	return out
 }
@@ -343,16 +343,17 @@ func datesOf(holidays businesscalendar.HolidayList) []string {
 func closureDatesOf(closures businesscalendar.ClosureList) []string {
 	out := make([]string, 0, len(closures))
 	for _, c := range closures {
-		out = append(out, unixToDay(c.SpecificDate))
+		out = append(out, unixToDay(tintime.Unix(c.SpecificDate)))
 	}
 	return out
 }
 
-func dayToUnix(day string) int64 {
-	return tintime.DateKeyToUnix(day)
+func dayToUnix(day string) tintime.Unix {
+	u, _ := tintime.ParseDate(day)
+	return u
 }
 
-func unixToDay(seconds int64) string {
+func unixToDay(seconds tintime.Unix) string {
 	y, m, d, _, _, _ := tintime.CivilDate(seconds)
 	return fmt.Sprintf("%04d-%02d-%02d", y, m, d)
 }

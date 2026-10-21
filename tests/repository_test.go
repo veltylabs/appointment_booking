@@ -187,7 +187,7 @@ func TestReplaceAndDeleteDateBlocks(t *testing.T) {
 	repo := newTestRepo(t)
 
 	day := Date(2027, 6, 7, 0, 0, 0, 0)
-	err := repo.ReplaceDateBlocks("t1", "s1", day, []ab.WorkCalendarBlock{
+	err := repo.ReplaceDateBlocks("t1", "s1", int64(day), []ab.WorkCalendarBlock{
 		{TenantId: "t1", StaffId: "s1", SpecificDate: day, StartMin: 540, EndMin: 720, IsActive: true},
 	})
 	if err != nil {
@@ -202,7 +202,7 @@ func TestReplaceAndDeleteDateBlocks(t *testing.T) {
 		t.Fatalf("expected 1 dated block, got %+v", blocks)
 	}
 
-	err = repo.DeleteDateBlocks("t1", "s1", day)
+	err = repo.DeleteDateBlocks("t1", "s1", int64(day))
 	if err != nil {
 		t.Fatalf("DeleteDateBlocks failed: %v", err)
 	}

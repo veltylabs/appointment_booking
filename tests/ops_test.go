@@ -25,6 +25,7 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 
 	// Seeding config & calendar config for staff
 	cfg := ab.EmployeeServiceConfig{
+		Id:          "cfg-ops-1",
 		TenantId:    "t1",
 		StaffId:     "s1",
 		ServiceId:   "srv1",
@@ -34,6 +35,7 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 	db.Create(&cfg)
 
 	db.Create(&ab.WorkCalendarConfig{
+		Id:       "wcc-1",
 		TenantId: "t1",
 		StaffId:  "s1",
 		Timezone: "UTC",
@@ -41,6 +43,7 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 	})
 
 	db.Create(&ab.WorkCalendarBlock{
+		Id:       "b1",
 		TenantId: "t1", StaffId: "s1", DayOfWeek: 3, SpecificDate: 0,
 		StartMin: 540, EndMin: 1020, IsActive: true,
 	})
@@ -54,6 +57,7 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 	// 1736154000 is Monday. Let's seed DayOfWeek: 1 (Monday).
 
 	db.Create(&ab.WorkCalendarBlock{
+		Id:       "b2",
 		TenantId: "t1", StaffId: "s1", DayOfWeek: 1, SpecificDate: 0,
 		StartMin: 540, EndMin: 1020, IsActive: true,
 	})

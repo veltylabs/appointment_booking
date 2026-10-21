@@ -169,7 +169,7 @@ type bookEnv struct {
 // errBounds es un BoundsReader que no limita, salvo cuando err no es nil.
 type errBounds struct{ err error }
 
-func (b *errBounds) GetDayBounds(int64) (tinytime.DayBounds, error) {
+func (b *errBounds) GetDayBounds(tinytime.Unix) (tinytime.DayBounds, error) {
 	return tinytime.Unbounded(), b.err
 }
 
@@ -224,7 +224,7 @@ func (e *bookEnv) config(t *testing.T, staff string, override float64, paymentRe
 
 func (e *bookEnv) reserve(t *testing.T, id, cfgID, client string, hour int64, origin string) ab.Reservation {
 	t.Helper()
-	r, err := e.m.CreateReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + hour*3600, Origin: origin})
+	r, err := e.m.CreateReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + tinytime.Unix(hour*3600), Origin: origin})
 	if err != nil {
 		t.Fatalf("CreateReservation: %v", err)
 	}
@@ -233,7 +233,7 @@ func (e *bookEnv) reserve(t *testing.T, id, cfgID, client string, hour int64, or
 
 func (e *bookEnv) online(t *testing.T, id, cfgID, client string, hour int64) ab.Reservation {
 	t.Helper()
-	r, err := e.m.CreateOnlineReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + hour*3600})
+	r, err := e.m.CreateOnlineReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + tinytime.Unix(hour*3600)})
 	if err != nil {
 		t.Fatalf("CreateOnlineReservation: %v", err)
 	}
@@ -259,7 +259,7 @@ func (e *bookEnv) patch(t *testing.T, id string, change func(*ab.Reservation)) {
 	}
 }
 
-func bookNow() int64 { return tinytime.Now() / 1_000_000_000 }
+func bookNow() tinytime.Unix { return tinytime.NowUnix() }
 
 func wantErrIs(t *testing.T, got, want error) {
 	t.Helper()

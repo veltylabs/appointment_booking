@@ -21,7 +21,7 @@ func TestMarkedDayGeneratesSlotsWithoutWeeklyTemplate(t *testing.T) {
 	ensureCalendarConfig(t, s, "t1", "s1")
 
 	d := Date(2027, 6, 7, 0, 0, 0, 0)
-	if err := s.MarkWorkingDays("t1", "s1", []int64{d}, 540, 1020); err != nil {
+	if err := s.MarkWorkingDays("t1", "s1", []int64{int64(d)}, 540, 1020); err != nil {
 		t.Fatalf("MarkWorkingDays: %v", err)
 	}
 
@@ -82,7 +82,7 @@ func TestSingleBlockAppliedToSeveralWeekdays(t *testing.T) {
 
 	monday := Date(2027, 6, 7, 0, 0, 0, 0)
 	wednesday := Date(2027, 6, 9, 0, 0, 0, 0)
-	for _, day := range []int64{monday, wednesday} {
+	for _, day := range []tinytime.Unix{monday, wednesday} {
 		slots, err := s.ListAvailability("t1", "s1", cfgID, day, day)
 		if err != nil {
 			t.Fatalf("ListAvailability(%d): %v", day, err)
@@ -105,11 +105,11 @@ func TestMarkedDaysShareTheCommonWindow(t *testing.T) {
 	d1 := Date(2027, 6, 7, 0, 0, 0, 0)
 	d2 := Date(2027, 6, 8, 0, 0, 0, 0)
 	d3 := Date(2027, 6, 9, 0, 0, 0, 0)
-	if err := s.MarkWorkingDays("t1", "s1", []int64{d1, d2, d3}, 540, 1020); err != nil {
+	if err := s.MarkWorkingDays("t1", "s1", []int64{int64(d1), int64(d2), int64(d3)}, 540, 1020); err != nil {
 		t.Fatalf("MarkWorkingDays: %v", err)
 	}
 
-	for _, day := range []int64{d1, d2, d3} {
+	for _, day := range []tinytime.Unix{d1, d2, d3} {
 		slots, err := s.ListAvailability("t1", "s1", cfgID, day, day)
 		if err != nil {
 			t.Fatalf("ListAvailability(%d): %v", day, err)
@@ -131,16 +131,16 @@ func TestOneMarkedDayCanDivergeFromTheCommonWindow(t *testing.T) {
 
 	d1 := Date(2027, 6, 7, 0, 0, 0, 0)
 	d2 := Date(2027, 6, 8, 0, 0, 0, 0)
-	if err := s.MarkWorkingDays("t1", "s1", []int64{d1, d2}, 540, 1020); err != nil {
+	if err := s.MarkWorkingDays("t1", "s1", []int64{int64(d1), int64(d2)}, 540, 1020); err != nil {
 		t.Fatalf("MarkWorkingDays: %v", err)
 	}
-	if err := s.SaveDateBlocks("t1", "s1", d2, []ab.WorkCalendarBlock{
+	if err := s.SaveDateBlocks("t1", "s1", int64(d2), []ab.WorkCalendarBlock{
 		{StartMin: 480, EndMin: 720, IsActive: true},
 	}); err != nil {
 		t.Fatalf("SaveDateBlocks: %v", err)
 	}
 
-	for _, day := range []int64{d1, d2} {
+	for _, day := range []tinytime.Unix{d1, d2} {
 		slots, err := s.ListAvailability("t1", "s1", cfgID, day, day)
 		if err != nil {
 			t.Fatalf("ListAvailability(%d): %v", day, err)
@@ -167,7 +167,7 @@ func TestWeeklyTemplateAndMarkedDaysCoexist(t *testing.T) {
 	seedWeekdayBlock(t, s, "t1", "s1", 1, defaultBlocks()) // Mondays 09–17
 
 	mondayMarked := Date(2027, 6, 7, 0, 0, 0, 0)
-	if err := s.MarkWorkingDays("t1", "s1", []int64{mondayMarked}, 480, 1020); err != nil {
+	if err := s.MarkWorkingDays("t1", "s1", []int64{int64(mondayMarked)}, 480, 1020); err != nil {
 		t.Fatalf("MarkWorkingDays: %v", err)
 	}
 
@@ -198,7 +198,7 @@ func TestBlockedExceptionWinsOverBlockAndMarkedDay(t *testing.T) {
 	ensureCalendarConfig(t, s, "t1", "s1")
 
 	d := Date(2027, 6, 7, 0, 0, 0, 0)
-	if err := s.MarkWorkingDays("t1", "s1", []int64{d}, 540, 1020); err != nil {
+	if err := s.MarkWorkingDays("t1", "s1", []int64{int64(d)}, 540, 1020); err != nil {
 		t.Fatalf("MarkWorkingDays: %v", err)
 	}
 	if err := s.AddException(ab.WorkCalendarException{
@@ -232,10 +232,10 @@ func TestUnmarkingRestoresTheWeeklyTemplate(t *testing.T) {
 
 	seedWeekdayBlock(t, s, "t1", "s1", 1, defaultBlocks())
 	d := Date(2027, 6, 7, 0, 0, 0, 0) // Monday
-	if err := s.MarkWorkingDays("t1", "s1", []int64{d}, 480, 1020); err != nil {
+	if err := s.MarkWorkingDays("t1", "s1", []int64{int64(d)}, 480, 1020); err != nil {
 		t.Fatalf("MarkWorkingDays: %v", err)
 	}
-	if err := s.UnmarkWorkingDays("t1", "s1", []int64{d}); err != nil {
+	if err := s.UnmarkWorkingDays("t1", "s1", []int64{int64(d)}); err != nil {
 		t.Fatalf("UnmarkWorkingDays: %v", err)
 	}
 
@@ -259,19 +259,19 @@ func TestBlockOutsideBusinessHoursIsRejected(t *testing.T) {
 	ensureCalendarConfig(t, s, "t1", "s1")
 
 	d := Date(2027, 6, 7, 0, 0, 0, 0)
-	err := s.MarkWorkingDays("t1", "s1", []int64{d}, 0, 480)
+	err := s.MarkWorkingDays("t1", "s1", []int64{int64(d)}, 0, 480)
 	if err == nil || err.Error() != ab.ErrBlockOutsideBusinessHours.Error() {
 		t.Fatalf("expected ErrBlockOutsideBusinessHours, got %v", err)
 	}
 
 	// Un día que el establecimiento cierra entero se rechaza igual.
-	err = s.MarkWorkingDays("t1", "s1", []int64{d}, 540, 1020) // within hours -> ok
+	err = s.MarkWorkingDays("t1", "s1", []int64{int64(d)}, 540, 1020) // within hours -> ok
 	if err != nil {
 		t.Fatalf("MarkWorkingDays within hours should succeed, got %v", err)
 	}
 	bounds := deps.Bounds.(*MockBoundsReader)
 	bounds.Overrides = append(bounds.Overrides, DateBound{Date: d, Bounds: tinytime.DayBounds{}})
-	err = s.MarkWorkingDays("t1", "s1", []int64{d}, 540, 1020)
+	err = s.MarkWorkingDays("t1", "s1", []int64{int64(d)}, 540, 1020)
 	if err == nil || err.Error() != ab.ErrBlockOnClosedDay.Error() {
 		t.Fatalf("expected ErrBlockOnClosedDay, got %v", err)
 	}

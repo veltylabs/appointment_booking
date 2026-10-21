@@ -3,6 +3,7 @@ package appointmentbooking
 import (
 	"webtyp.com/model"
 	"webtyp.com/orm"
+	"webtyp.com/time"
 )
 
 // Errores sentinela a nivel de paquete
@@ -67,13 +68,13 @@ func (r *Repository) GetReservationTx(tx *orm.DB, tenantId, id string) (Reservat
 	return *got, nil
 }
 
-func (r *Repository) ListReservationsByStaff(tenantId, staffId string, from, to int64) ([]Reservation, error) {
+func (r *Repository) ListReservationsByStaff(tenantId, staffId string, from, to time.Unix) ([]Reservation, error) {
 	proxy := &Reservation{}
 	qb := r.db.Query(proxy).
 		Where(Reservation_.TenantId).Eq(tenantId).
 		Where(Reservation_.StaffIdsnapshot).Eq(staffId).
-		Where(Reservation_.ReservationDate).Gte(from).
-		Where(Reservation_.ReservationDate).Lte(to)
+		Where(Reservation_.ReservationDate).Gte(int64(from)).
+		Where(Reservation_.ReservationDate).Lte(int64(to))
 	rows, err := ReadAllReservation(qb)
 	if err != nil {
 		return nil, err
@@ -88,12 +89,12 @@ func (r *Repository) ListReservationsByStaff(tenantId, staffId string, from, to 
 // ListReservationsByTenantRange lista las reservas de todo un tenant en un rango
 // de fechas — el alcance del recompute del establecimiento (un feriado golpea a
 // todos los profesionales a la vez).
-func (r *Repository) ListReservationsByTenantRange(tenantId string, from, to int64) ([]Reservation, error) {
+func (r *Repository) ListReservationsByTenantRange(tenantId string, from, to time.Unix) ([]Reservation, error) {
 	proxy := &Reservation{}
 	qb := r.db.Query(proxy).
 		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.ReservationDate).Gte(from).
-		Where(Reservation_.ReservationDate).Lte(to)
+		Where(Reservation_.ReservationDate).Gte(int64(from)).
+		Where(Reservation_.ReservationDate).Lte(int64(to))
 	rows, err := ReadAllReservation(qb)
 	if err != nil {
 		if orm.IsNotFound(err) {
@@ -124,13 +125,13 @@ func (r *Repository) ListReservationsByClient(tenantId, clientId string) ([]Rese
 	return out, nil
 }
 
-func (r *Repository) UpdateReservationStatus(id, status, updatedBy string, updatedAt int64, expectedRevision int64) error {
+func (r *Repository) UpdateReservationStatus(id, status, updatedBy string, updatedAt time.Nano, expectedRevision int64) error {
 	return r.db.Tx(func(tx *orm.DB) error {
 		return r.UpdateReservationStatusTx(tx, id, status, updatedBy, updatedAt, expectedRevision)
 	})
 }
 
-func (r *Repository) UpdateReservationStatusTx(tx *orm.DB, id, status, updatedBy string, updatedAt int64, expectedRevision int64) error {
+func (r *Repository) UpdateReservationStatusTx(tx *orm.DB, id, status, updatedBy string, updatedAt time.Nano, expectedRevision int64) error {
 	current := &Reservation{}
 	qb := tx.Query(current).Where(Reservation_.Id).Eq(id)
 	got, err := ReadOneReservation(qb, current)
@@ -154,7 +155,7 @@ func (r *Repository) UpdateReservationStatusTx(tx *orm.DB, id, status, updatedBy
 // con optimismo: WHERE revision = N y tenant scope en ambas ramas. statusBefore
 // queda grabado al entrar en conflicto y "" al salir (fuente única de
 // restauración, §8.5).
-func (r *Repository) UpdateReservationConflictTx(tx *orm.DB, id, tenantId, status, statusBefore, updatedBy string, updatedAt int64, expectedRevision int64) error {
+func (r *Repository) UpdateReservationConflictTx(tx *orm.DB, id, tenantId, status, statusBefore, updatedBy string, updatedAt time.Nano, expectedRevision int64) error {
 	current := &Reservation{}
 	qb := tx.Query(current).Where(Reservation_.Id).Eq(id).Where(Reservation_.TenantId).Eq(tenantId)
 	got, err := ReadOneReservation(qb, current)
@@ -186,13 +187,13 @@ func (r *Repository) InsertException(exc WorkCalendarException) error {
 	return r.db.Create(&exc)
 }
 
-func (r *Repository) ListExceptions(tenantId, staffId string, from, to int64) ([]WorkCalendarException, error) {
+func (r *Repository) ListExceptions(tenantId, staffId string, from, to time.Unix) ([]WorkCalendarException, error) {
 	proxy := &WorkCalendarException{}
 	qb := r.db.Query(proxy).
 		Where(WorkCalendarException_.TenantId).Eq(tenantId).
 		Where(WorkCalendarException_.StaffId).Eq(staffId).
-		Where(WorkCalendarException_.SpecificDate).Gte(from).
-		Where(WorkCalendarException_.SpecificDate).Lte(to)
+		Where(WorkCalendarException_.SpecificDate).Gte(int64(from)).
+		Where(WorkCalendarException_.SpecificDate).Lte(int64(to))
 	rows, err := ReadAllWorkCalendarException(qb)
 	if err != nil {
 		return nil, err

@@ -172,8 +172,8 @@ func FreeSlots(caller router.Caller, cfg FormConfig, day string, done func([]str
 			TenantId: cfg.TenantId,
 			StaffId:  cfg.StaffId,
 			ConfigId: cfg.ServiceConfigId,
-			From:     daySec,
-			To:       daySec,
+			From:     int64(daySec),
+			To:       int64(daySec),
 		},
 		out,
 		func(err error) {
@@ -184,7 +184,7 @@ func FreeSlots(caller router.Caller, cfg FormConfig, day string, done func([]str
 			slots := make([]string, 0, out.Len())
 			for i := 0; i < out.Len(); i++ {
 				ts := out.At(i).(*TimeSlot)
-				tStr := tinytime.FormatTime(ts.StartUtc * 1000000000)
+				tStr := tinytime.FormatTime(ts.StartUtc)
 				if len(tStr) >= 5 {
 					tStr = tStr[:5]
 				}

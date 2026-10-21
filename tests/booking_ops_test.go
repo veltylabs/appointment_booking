@@ -75,7 +75,7 @@ func TestOps_NewOpsHappyPaths(t *testing.T) {
 	if st, body := invoke(r, ab.OpListBookableServices, jsonOf(t, &ab.ListBookableServicesArgs{TenantId: bTenant})); st != 200 || !wfmt.Contains(body, "Dra. Ana") {
 		t.Errorf("list_bookable_services: %d %s", st, body)
 	}
-	if st, body := invoke(r, ab.OpListServiceAvailability, jsonOf(t, &ab.ListServiceAvailabilityArgs{TenantId: bTenant, ServiceId: bService, From: bookDay, To: bookDay})); st != 200 || !wfmt.Contains(body, "start_utc") {
+	if st, body := invoke(r, ab.OpListServiceAvailability, jsonOf(t, &ab.ListServiceAvailabilityArgs{TenantId: bTenant, ServiceId: bService, From: int64(bookDay), To: int64(bookDay)})); st != 200 || !wfmt.Contains(body, "start_utc") {
 		t.Errorf("list_service_availability: %d %s", st, body)
 	}
 	args := &ab.CreateOnlineReservationArgs{TenantId: bTenant, Id: "r1", ClientId: "c1", EmployeeServiceConfigId: cfg, SlotStartUtc: bookDay + 9*3600, Notes: "dolor"}
@@ -104,7 +104,7 @@ func TestOps_NewErrorsStatus(t *testing.T) {
 	if st, _ := invoke(r, ab.OpListBookableServices, jsonOf(t, &ab.ListBookableServicesArgs{TenantId: bTenant})); st != 500 {
 		t.Errorf("list_bookable_services error: %d", st)
 	}
-	if st, _ := invoke(r, ab.OpListServiceAvailability, jsonOf(t, &ab.ListServiceAvailabilityArgs{TenantId: bTenant, ServiceId: bService, From: bookDay, To: bookDay})); st != 500 {
+	if st, _ := invoke(r, ab.OpListServiceAvailability, jsonOf(t, &ab.ListServiceAvailabilityArgs{TenantId: bTenant, ServiceId: bService, From: int64(bookDay), To: int64(bookDay)})); st != 500 {
 		t.Errorf("list_service_availability error: %d", st)
 	}
 	e.staff.cardErr = nil

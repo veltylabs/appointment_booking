@@ -16,8 +16,6 @@ const CurrencyCLP = "CLP"
 // CurrencyUSD tiene 2 decimales; CLP, ninguno.
 const CurrencyUSD = "USD"
 
-func nowSeconds() int64 { return tinytime.Now() / 1_000_000_000 }
-
 // priceFor congela el precio de una reserva (§1): la sobrescritura de la
 // configuración gana; si no, el precio de lista del catálogo; la moneda es la
 // del catálogo, o CLP si no la informa.
@@ -123,7 +121,7 @@ func (m *Module) ListServiceAvailability(a ListServiceAvailabilityArgs) ([]Booka
 		if svc.ServiceId != a.ServiceId || (a.StaffId != "" && svc.StaffId != a.StaffId) { // V1, V2
 			continue
 		}
-		free, err := m.ListAvailability(a.TenantId, svc.StaffId, svc.ConfigId, a.From, a.To)
+		free, err := m.ListAvailability(a.TenantId, svc.StaffId, svc.ConfigId, tinytime.Unix(a.From), tinytime.Unix(a.To))
 		if err != nil { // V3
 			return nil, err
 		}
@@ -131,7 +129,7 @@ func (m *Module) ListServiceAvailability(a ListServiceAvailabilityArgs) ([]Booka
 			out = addSlot(out, BookableSlot{StartUtc: s.StartUtc, EndUtc: s.EndUtc, StaffId: svc.StaffId, ConfigId: svc.ConfigId})
 		}
 		if a.IncludeTaken && a.StaffId != "" { // V4
-			reserved, err := m.repo.ListReservationsByStaff(a.TenantId, svc.StaffId, a.From, a.To)
+			reserved, err := m.repo.ListReservationsByStaff(a.TenantId, svc.StaffId, tinytime.Unix(a.From), tinytime.Unix(a.To))
 			if err != nil {
 				return nil, err
 			}
@@ -139,7 +137,7 @@ func (m *Module) ListServiceAvailability(a ListServiceAvailabilityArgs) ([]Booka
 				if !holdsSlot(r.Status) {
 					continue
 				}
-				out = addSlot(out, BookableSlot{StartUtc: r.ReservationTime, EndUtc: r.ReservationTime + r.DurationMinSnapshot*60,
+				out = addSlot(out, BookableSlot{StartUtc: tinytime.Unix(r.ReservationTime), EndUtc: tinytime.Unix(r.ReservationTime + r.DurationMinSnapshot*60),
 					StaffId: svc.StaffId, ConfigId: svc.ConfigId, Taken: true})
 			}
 		}
@@ -174,7 +172,7 @@ func (m *Module) CreateOnlineReservation(cmd CreateReservationCmd) (Reservation,
 	if m.payments == nil { // O1
 		return Reservation{}, ErrPaymentsUnavailable
 	}
-	now := nowSeconds()
+	now := tinytime.NowUnix()
 	mine, err := m.repo.ListReservationsByClient(cmd.TenantId, cmd.ClientId)
 	if err != nil {
 		return Reservation{}, err
@@ -204,7 +202,7 @@ func (m *Module) Charge(tenantId, reservationId string) (amount int64, currency 
 	if (res.Status != StatusPending && res.Status != StatusConfirmed) || res.PaymentId != "" || res.PriceSnapshot <= 0 { // C2
 		return 0, "", false, nil
 	}
-	if res.Origin == OriginOnline && res.HoldUntil-nowSeconds() < PaymentWindowSeconds { // C3, C4
+	if res.Origin == OriginOnline && res.HoldUntil-tinytime.NowUnix() < PaymentWindowSeconds { // C3, C4
 		return 0, "", false, nil
 	}
 	amount, err = MinorUnits(res.PriceSnapshot, res.CurrencySnapshot)
@@ -273,7 +271,7 @@ func (m *Module) ConfirmPaidReservation(tenantId, reservationId, paymentId strin
 		}
 		got.PaymentId = paymentId
 		got.HoldUntil = 0
-		got.UpdatedAt = tinytime.Now()
+		got.UpdatedAt = tinytime.NowNano()
 		got.UpdatedBy = ActorPayments
 		got.Revision++
 		updated = *got
@@ -296,7 +294,7 @@ const ActorSystem = "system"
 
 // ExpirePendingReservations vence las reservas PENDING cuya hora ya pasó o
 // cuya retención online venció (§7). Devuelve cuántas venció.
-func (m *Module) ExpirePendingReservations(tenantId string, now int64) (int, error) {
+func (m *Module) ExpirePendingReservations(tenantId string, now tinytime.Unix) (int, error) {
 	pending, err := ReadAllReservation(m.db.Query(&Reservation{}).
 		Where(Reservation_.TenantId).Eq(tenantId).
 		Where(Reservation_.Status).Eq(StatusPending))
@@ -305,8 +303,8 @@ func (m *Module) ExpirePendingReservations(tenantId string, now int64) (int, err
 	}
 	expired := 0
 	for _, r := range pending {
-		pastAppointment := r.ReservationTime < now         // X1
-		lapsedHold := r.HoldUntil > 0 && r.HoldUntil < now // X2
+		pastAppointment := tinytime.Unix(r.ReservationTime) < now // X1
+		lapsedHold := r.HoldUntil > 0 && r.HoldUntil < now       // X2
 		if !pastAppointment && !lapsedHold {
 			continue
 		}

@@ -236,8 +236,9 @@ var (
 
 // dayToUnix convierte "YYYY-MM-DD" a segundos de medianoche UTC — la codificación
 // que usan work_calendar_block.specific_date y los argumentos de op From/To. 0 en caso de fallo.
-func dayToUnix(day string) int64 {
-	return time.DateKeyToUnix(day)
+func dayToUnix(day string) time.Unix {
+	u, _ := time.ParseDate(day)
+	return u
 }
 
 // minutesOfDay convierte "HH:MM" a minutos desde la medianoche. -1 en caso de fallo.
