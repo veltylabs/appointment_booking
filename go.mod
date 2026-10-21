@@ -6,7 +6,7 @@ require (
 	github.com/veltylabs/business_calendar v0.4.95
 	github.com/veltylabs/device_manager v0.2.63
 	github.com/veltylabs/patient_directory v0.1.41
-	github.com/veltylabs/payment_manager v0.1.20
+	github.com/veltylabs/payment_manager v0.1.26
 	github.com/veltylabs/service_catalog v0.5.12
 	github.com/veltylabs/staff_manager v0.1.119
 	webtyp.com/auth v0.0.76
@@ -36,6 +36,7 @@ require (
 	github.com/disintegration/imaging v1.6.2 // indirect
 	golang.org/x/image v0.45.0 // indirect
 	webtyp.com/calendar v0.1.0 // indirect
+	webtyp.com/money v0.1.3 // indirect
 )
 
 require (
