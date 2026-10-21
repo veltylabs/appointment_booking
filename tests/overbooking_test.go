@@ -422,7 +422,7 @@ func TestCreateOverbooking_RBAC(t *testing.T) {
 	m.MountOperations(regDeny)
 
 	body := []byte(`{"id":"` + nextTestID() + `","tenant_id":"t1","client_id":"c1","creator_user_id":"u1",` +
-		`"employee_service_config_id":"` + cfgID + `","slot_start_utc":` + fmt.Convert(slot).String() + `,"origin":"` + ab.OriginCounter + `"}`)
+		`"employee_service_config_id":"` + cfgID + `","slot_start_utc":` + fmt.Convert(int64(slot)).String() + `,"origin":"` + ab.OriginCounter + `"}`)
 
 	ctxDeny := &mock.Context{InBody: body}
 	ctxDeny.SetUserID("u1")
@@ -438,7 +438,7 @@ func TestCreateOverbooking_RBAC(t *testing.T) {
 	m.MountOperations(regAllow)
 
 	bodyAllow := []byte(`{"id":"` + nextTestID() + `","tenant_id":"t1","client_id":"c1","creator_user_id":"u1",` +
-		`"employee_service_config_id":"` + cfgID + `","slot_start_utc":` + fmt.Convert(slot).String() + `,"origin":"` + ab.OriginCounter + `"}`)
+		`"employee_service_config_id":"` + cfgID + `","slot_start_utc":` + fmt.Convert(int64(slot)).String() + `,"origin":"` + ab.OriginCounter + `"}`)
 
 	ctxAllow := &mock.Context{InBody: bodyAllow}
 	ctxAllow.SetUserID("u1")

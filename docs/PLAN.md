@@ -14,7 +14,7 @@ Part of [BUILD_DESTINATIONS_MASTER_PLAN.md](https://github.com/webtyp/docs/blob/
 - The browser entry for the demo page is `web/browser.go` (`//go:build browser`) which compiles into `browser.wasm`.
 - `ui/browser.go` carries `//go:build browser`.
 - `svg.go` and `ui/css.go` keep `//go:build !wasm` (D7, read by `sitec` at build time).
-- Rename `web/client.go` to `web/browser.go` and replace its build tag `//go:build wasm` with `//go:build browser`.
+- Rename `web/browser.go` to `web/browser.go` and replace its build tag `//go:build wasm` with `//go:build browser`.
 
 ## Tools
 
@@ -31,9 +31,9 @@ export GOFLAGS=-mod=mod
 
 A PR that does not compile, or whose tests could not run, is a failed delivery. Never pause to ask permission or report progress: when the Delivery check passes, commit, push and open the PR. Stuck for 30 minutes: open the PR anyway listing what fails.
 
-## Stage 1 — Rename `web/client.go` to `web/browser.go`
+## Stage 1 — Rename `web/browser.go` to `web/browser.go`
 
-1. Rename `web/client.go` to `web/browser.go` (`git mv web/client.go web/browser.go`).
+1. Rename `web/browser.go` to `web/browser.go` (`git mv web/browser.go web/browser.go`).
 2. In `web/browser.go`, change the first line:
    ```go
    //go:build browser
@@ -46,13 +46,13 @@ A PR that does not compile, or whose tests could not run, is a failed delivery. 
 
 ## Stage 2 — Update tests and docs
 
-1. Check if any test or doc mentions `web/client.go` or `client.wasm`; update to `web/browser.go` and `browser.wasm`.
+1. Check if any test or doc mentions `web/browser.go` or `browser.wasm`; update to `web/browser.go` and `browser.wasm`.
 2. Run `gotest ./...` and ensure all tests pass.
 
 ## Deletions and acceptance criteria
 
 - `grep -rn "web/client\.go" --include=*.go .` returns empty.
-- `test -f web/browser.go && test ! -f web/client.go` succeeds.
+- `test -f web/browser.go && test ! -f web/browser.go` succeeds.
 - `gotest ./...` passes with zero failures.
 
 ## Stages
