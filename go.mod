@@ -3,7 +3,7 @@ module github.com/veltylabs/appointment_booking
 go 1.26.8
 
 require (
-	github.com/veltylabs/business_calendar v0.4.95
+	github.com/veltylabs/business_calendar v0.5.0
 	github.com/veltylabs/device_manager v0.2.63
 	github.com/veltylabs/patient_directory v0.1.41
 	github.com/veltylabs/payment_manager v0.2.0
