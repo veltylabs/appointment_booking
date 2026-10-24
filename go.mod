@@ -7,7 +7,7 @@ require (
 	github.com/veltylabs/device_manager v0.2.63
 	github.com/veltylabs/patient_directory v0.1.41
 	github.com/veltylabs/payment_manager v0.2.0
-	github.com/veltylabs/service_catalog v0.6.0
+	github.com/veltylabs/service_catalog v0.6.4
 	github.com/veltylabs/staff_manager v0.1.119
 	webtyp.com/auth v0.0.76
 	webtyp.com/components v0.8.51
