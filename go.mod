@@ -43,7 +43,7 @@ require (
 	webtyp.com/color v0.1.3 // indirect
 	webtyp.com/escape v0.1.0 // indirect
 	webtyp.com/font v0.0.6 // indirect
-	webtyp.com/form v0.4.47 // indirect
+	webtyp.com/form v0.4.52 // indirect
 	webtyp.com/icons v0.0.33 // indirect
 	webtyp.com/image v0.1.16
 	webtyp.com/msgtype v0.1.0 // indirect
