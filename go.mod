@@ -10,7 +10,7 @@ require (
 	github.com/veltylabs/service_catalog v0.6.0
 	github.com/veltylabs/staff_manager v0.1.119
 	webtyp.com/auth v0.0.76
-	webtyp.com/components v0.8.38
+	webtyp.com/components v0.8.51
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.24
 	webtyp.com/dom v0.13.28
