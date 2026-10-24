@@ -13,7 +13,7 @@ require (
 	webtyp.com/components v0.8.38
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.24
-	webtyp.com/dom v0.13.27
+	webtyp.com/dom v0.13.28
 	webtyp.com/events v0.1.0
 	webtyp.com/fmt v1.0.0
 	webtyp.com/html v0.0.29
