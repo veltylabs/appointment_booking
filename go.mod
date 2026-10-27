@@ -5,7 +5,7 @@ go 1.26.8
 require (
 	github.com/veltylabs/business_calendar v0.5.0
 	github.com/veltylabs/device_manager v0.2.72
-	github.com/veltylabs/patient_directory v0.1.41
+	github.com/veltylabs/patient_directory v0.1.62
 	github.com/veltylabs/payment_manager v0.2.0
 	github.com/veltylabs/service_catalog v0.6.11
 	github.com/veltylabs/staff_manager v0.1.119
