@@ -1,7 +1,7 @@
 github.com/disintegration/imaging v1.6.2 h1:w1LecBlG2Lnp8B3jk5zSuNqd7b4DXhcjwek1ei82L+c=
 github.com/disintegration/imaging v1.6.2/go.mod h1:44/5580QXChDfwIclfc/PCwrr44amcmDAg8hxG0Ewe4=
-github.com/veltylabs/business_calendar v0.5.0 h1:mc4bKBuwpRt0WTmDtXVJRjUxX7rEFzOMZB+l/jzJ57g=
-github.com/veltylabs/business_calendar v0.5.0/go.mod h1:5EpdslD3xfkqMZlaiHTAz8UI+VnSESMp0dF2y+L+r8M=
+github.com/veltylabs/business_calendar v0.5.16 h1:nvvHpEy8ooKqhjUB4Cmq3FrIyBs3RmTX07no7tE8cFM=
+github.com/veltylabs/business_calendar v0.5.16/go.mod h1:CMpfeGkaX/Xp9I1QM8Up+ErPLf8XE7ycYLdxpPW3RIc=
 github.com/veltylabs/device_manager v0.2.72 h1:Jn94LuR9mPu5IL2x13F3y+Qt2wammCxLNIpBZY+cgGQ=
 github.com/veltylabs/device_manager v0.2.72/go.mod h1:zuxbKu7Zy0h3kAjoIQlmeX2W4r6SMowjVQkNjk94UWk=
 github.com/veltylabs/patient_directory v0.1.62 h1:Ats+8PJZ1vTMvqumNIfiz/nFDxmGV+ncQAv0snxh4bs=
