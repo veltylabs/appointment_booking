@@ -16,8 +16,8 @@ golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8/go.mod h1:FeLwcggjj3mMvU+o
 golang.org/x/image v0.45.0 h1:FMb1nTbH5H9vF55SriQHgFw5GnNL9Jg6L25BwXKzhB0=
 golang.org/x/image v0.45.0/go.mod h1:n62x/7RqlwXDvGsSU4u6IUTUf6KghUZ9Bt7cG/T9Fx4=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
-webtyp.com/auth v0.0.76 h1:ttDe0xTnU2xkrkbtc3qhV3B1Og1tzRI023gwbLCoCxY=
-webtyp.com/auth v0.0.76/go.mod h1:iYYNmn1wCplRuqLciYPIgwrtXLpCqOnQD8qad8d2h08=
+webtyp.com/auth v0.0.80 h1:0mRlHzq4FWbqzBEXsg7Hoahn8n+q9GjiaQq72cLWKWQ=
+webtyp.com/auth v0.0.80/go.mod h1:WcatgMOPFq616JugUgn4MAoDjfP6WNRqX88x8CStGVo=
 webtyp.com/calendar v0.1.0 h1:lI0i74Ghee+fnYDx2P6XFJQKLyJKTeQbg4eT9IK8980=
 webtyp.com/calendar v0.1.0/go.mod h1:lHsVxVDpLBAGKovlPew9d5c0YiMoNQxfUHG8OfXDhHk=
 webtyp.com/color v0.1.3 h1:4IeJ4v3PlSTycx/paD3jMGhCnBhCic57JsKc49hdcGs=
