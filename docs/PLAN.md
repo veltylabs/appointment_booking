@@ -3,6 +3,8 @@ PLAN: "feat: export ui.Screens, drop layout dependency, resolve langc reuse warn
 TAG: v0.3.50
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 14325544441620928304
 ---
 
 > Read AGENTS.md at the repo root before any change.
