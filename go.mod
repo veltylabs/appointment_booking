@@ -12,7 +12,7 @@ require (
 	webtyp.com/auth v0.0.80
 	webtyp.com/components v0.8.51
 	webtyp.com/css v0.4.31
-	webtyp.com/ddl v0.0.24
+	webtyp.com/ddl v0.0.32
 	webtyp.com/dom v0.13.29
 	webtyp.com/events v0.1.0
 	webtyp.com/fmt v1.0.0
@@ -21,7 +21,7 @@ require (
 	webtyp.com/json v0.5.30
 	webtyp.com/lang v0.1.10
 	webtyp.com/layout v0.3.77
-	webtyp.com/model v0.2.7
+	webtyp.com/model v0.2.8
 	webtyp.com/orm v0.12.10
 	webtyp.com/router v0.4.9
 	webtyp.com/storage v0.1.10
