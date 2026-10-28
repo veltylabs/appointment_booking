@@ -36,7 +36,7 @@ require (
 	github.com/disintegration/imaging v1.6.2 // indirect
 	golang.org/x/image v0.45.0 // indirect
 	webtyp.com/calendar v0.1.0 // indirect
-	webtyp.com/erd v0.0.2 // indirect
+	webtyp.com/erd v0.0.4 // indirect
 	webtyp.com/fetch v0.1.29 // indirect
 	webtyp.com/filepath v0.1.0 // indirect
 	webtyp.com/money v0.2.0 // indirect
