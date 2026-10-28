@@ -169,56 +169,20 @@ func TestCU2_CreateReservation_OriginValidation(t *testing.T) {
 	}
 }
 
-// CU-3: El funcionario ve que una reserva de mesón es trabajo suyo.
-func TestCU3_Item_PendingCounter(t *testing.T) {
+// CU-3: ReservationForm genera Item() tipado con Label y Description.
+func TestCU3_Item_Form(t *testing.T) {
 	rf := &ab.ReservationForm{
-		Status: ab.StatusPending,
-		Origin: ab.OriginCounter,
+		Id:       "rf-1",
+		ClientId: "c1",
+		Day:      "2026-03-04",
+		Hour:     "14:30",
 	}
 	item := rf.Item()
-	if item.Description != "Pending confirmation" {
-		t.Fatalf("expected description 'Pending confirmation', got %q", item.Description)
+	if item.Label != "c1" {
+		t.Fatalf("expected label 'c1', got %q", item.Label)
 	}
-}
-
-// CU-4: El funcionario ve que una online no le toca (y CU-3 y CU-4 dan textos distintos).
-func TestCU4_Item_PendingOnline(t *testing.T) {
-	rfCounter := &ab.ReservationForm{
-		Status: ab.StatusPending,
-		Origin: ab.OriginCounter,
-	}
-	rfOnline := &ab.ReservationForm{
-		Status: ab.StatusPending,
-		Origin: ab.OriginOnline,
-	}
-
-	descCounter := rfCounter.Item().Description
-	descOnline := rfOnline.Item().Description
-
-	if descOnline != "Awaiting patient" {
-		t.Fatalf("expected description 'Awaiting patient', got %q", descOnline)
-	}
-	if descCounter == descOnline {
-		t.Fatalf("expected distinct descriptions for COUNTER and ONLINE pending reservations, both were %q", descCounter)
-	}
-}
-
-// CU-5: Un estado que no es PENDING se lee por su estado, sin importar el canal.
-func TestCU5_Item_NonPendingState(t *testing.T) {
-	rfCounter := &ab.ReservationForm{
-		Status: ab.StatusConfirmed,
-		Origin: ab.OriginCounter,
-	}
-	rfOnline := &ab.ReservationForm{
-		Status: ab.StatusConfirmed,
-		Origin: ab.OriginOnline,
-	}
-
-	descCounter := rfCounter.Item().Description
-	descOnline := rfOnline.Item().Description
-
-	if descCounter != "Confirmed" || descOnline != "Confirmed" {
-		t.Fatalf("expected 'Confirmed' for both origins when status is CONFIRMED, got COUNTER=%q ONLINE=%q", descCounter, descOnline)
+	if item.Description != "2026-03-04 · 14:30" {
+		t.Fatalf("expected description '2026-03-04 · 14:30', got %q", item.Description)
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/veltylabs/appointment_booking/ui"
-	"webtyp.com/layout/platformd"
 	"webtyp.com/router/mock"
 )
 
@@ -13,30 +12,31 @@ func TestPersonalGroup(t *testing.T) {
 	ids := &fakeIDs{}
 	tenantID := "tenant-test"
 
-	mod, err := ui.PersonalBrowser(caller, ids, tenantID)
-	if err != nil {
-		t.Fatalf("PersonalBrowser() error = %v", err)
+	screens := ui.Screens(caller, ids, tenantID)
+	if len(screens) != 3 {
+		t.Fatalf("Expected 3 screens, got %d", len(screens))
+	}
+	for _, s := range screens {
+		if err := s.Validate(); err != nil {
+			t.Fatalf("screen %s validation error: %v", s.ID, err)
+		}
 	}
 
-	group, ok := mod.(platformd.GroupModule)
-	if !ok {
-		t.Fatalf("Expected mod to be a platformd.GroupModule, got %T", mod)
+	personalGroup := screens[1]
+	if personalGroup.ID != ui.PersonalID {
+		t.Fatalf("expected personal group, got %s", personalGroup.ID)
 	}
-
-	children := group.Children()
-	if len(children) != 3 {
-		t.Fatalf("Expected 3 children, got %d", len(children))
+	if len(personalGroup.Children) != 3 {
+		t.Fatalf("Expected 3 children, got %d", len(personalGroup.Children))
 	}
-
 	expectedIDs := []string{
 		"personal.staff",
 		"personal.schedule",
 		"personal.services",
 	}
-
-	for i, child := range children {
-		if child.ModelName() != expectedIDs[i] {
-			t.Errorf("Child %d expected ID %s, got %s", i, expectedIDs[i], child.ModelName())
+	for i, child := range personalGroup.Children {
+		if child.ID != expectedIDs[i] {
+			t.Errorf("Child %d expected ID %s, got %s", i, expectedIDs[i], child.ID)
 		}
 	}
 }

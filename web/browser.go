@@ -6,7 +6,9 @@ import (
 	. "webtyp.com/dom"
 	"webtyp.com/events"
 	"webtyp.com/events/mock"
+	"webtyp.com/layout/app"
 	"webtyp.com/layout/platformd"
+	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/router/loopback"
 	"webtyp.com/storage/mem"
@@ -166,19 +168,9 @@ func main() {
 	})
 
 	// 5. Construir vistas del navegador
-	bookingView, err := ui.Browser(caller, ids, demoTenantID)
-	if err != nil {
-		panic(err)
-	}
-	onlineView, err := ui.OnlineBrowser(caller, ids, demoTenantID)
-	if err != nil {
-		panic(err)
-	}
-	paymentsView, err := paymentmanagerui.Browser(caller, ids, demoTenantID)
-	if err != nil {
-		panic(err)
-	}
-	personalView, err := ui.PersonalBrowser(caller, ids, demoTenantID)
+	paymentsScreens := paymentmanagerui.Screens(caller)
+	allScreens := append(ui.Screens(caller, ids, demoTenantID), paymentsScreens...)
+	menu, err := app.BuildMenu(allScreens, ids, func(model.Resource) bool { return true })
 	if err != nil {
 		panic(err)
 	}
@@ -186,7 +178,8 @@ func main() {
 	p := &platformd.Platform{
 		AppName:   ui.NavLabel + " — demo",
 		User:      demoUser{},
-		Modules:   []platformd.UIModule{bookingView, onlineView, paymentsView, personalView},
+		Modules:   menu.Modules,
+		CanView:   menu.CanView,
 		DefaultID: ui.ID,
 	}
 	Append("body", p)

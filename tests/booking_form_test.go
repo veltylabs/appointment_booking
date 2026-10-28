@@ -156,14 +156,12 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 	if item.ID != res.Id {
 		t.Errorf("expected ID %q, got %q", res.Id, item.ID)
 	}
-	if item.LeadMain != res.LocalStringTime {
-		t.Errorf("expected LeadMain %q, got %q", res.LocalStringTime, item.LeadMain)
-	}
 	if item.Label != "c1" {
 		t.Errorf("expected Label %q, got %q", "c1", item.Label)
 	}
-	if item.Description != "Pending confirmation" {
-		t.Errorf("expected Status %q, got %q", "Pending confirmation", item.Description)
+	wantDesc := model.JoinItem(res.LocalStringDate, res.LocalStringTime)
+	if item.Description != wantDesc {
+		t.Errorf("expected Description %q, got %q", wantDesc, item.Description)
 	}
 }
 

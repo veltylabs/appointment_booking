@@ -16,12 +16,20 @@ import (
 // The result arrives asynchronously through done, which is always non-nil:
 // List never blocks waiting for the transport (see view.Lister's contract).
 type reservationLister struct {
+	records  *view.Records
 	caller   router.Caller
 	tenantId string
 	staffId  string
 }
 
-func (l reservationLister) List(done func([]model.Model, error)) {
+func (l *reservationLister) Records() *view.Records {
+	if l.records == nil {
+		l.records = view.NewRecords()
+	}
+	return l.records
+}
+
+func (l *reservationLister) List(done func([]view.Record, error)) {
 	out := &ReservationList{}
 	l.caller.Call(
 		qualifiedOp(OpListReservationsByStaff),
@@ -32,7 +40,7 @@ func (l reservationLister) List(done func([]model.Model, error)) {
 				done(nil, err)
 				return
 			}
-			rows := make([]model.Model, 0, out.Len())
+			rows := make([]view.Record, 0, out.Len())
 			for i := 0; i < out.Len(); i++ {
 				rows = append(rows, out.At(i).(*Reservation))
 			}
@@ -41,14 +49,22 @@ func (l reservationLister) List(done func([]model.Model, error)) {
 	)
 }
 
-var _ view.Lister = reservationLister{}
+var _ view.Lister = (*reservationLister)(nil)
 
 type reservationFormStore struct {
-	caller router.Caller
-	cfg    FormConfig
+	records *view.Records
+	caller  router.Caller
+	cfg     FormConfig
 }
 
-func (s *reservationFormStore) List(done func([]model.Model, error)) {
+func (s *reservationFormStore) Records() *view.Records {
+	if s.records == nil {
+		s.records = view.NewRecords()
+	}
+	return s.records
+}
+
+func (s *reservationFormStore) List(done func([]view.Record, error)) {
 	if s.cfg.StaffId == "" {
 		done(nil, nil)
 		return
@@ -68,7 +84,7 @@ func (s *reservationFormStore) List(done func([]model.Model, error)) {
 				done(nil, err)
 				return
 			}
-			rows := make([]model.Model, 0, out.Len())
+			rows := make([]view.Record, 0, out.Len())
 			for i := 0; i < out.Len(); i++ {
 				r := out.At(i).(*Reservation)
 				clientId := r.ClientId
@@ -170,12 +186,20 @@ var (
 )
 
 type employeeServiceConfigLister struct {
+	records  *view.Records
 	caller   router.Caller
 	tenantId string
 	staffId  string
 }
 
-func (l employeeServiceConfigLister) List(done func([]model.Model, error)) {
+func (l *employeeServiceConfigLister) Records() *view.Records {
+	if l.records == nil {
+		l.records = view.NewRecords()
+	}
+	return l.records
+}
+
+func (l *employeeServiceConfigLister) List(done func([]view.Record, error)) {
 	out := &EmployeeServiceConfigList{}
 	l.caller.Call(
 		qualifiedOp(OpListEmployeeServiceConfigsByStaff),
@@ -186,7 +210,7 @@ func (l employeeServiceConfigLister) List(done func([]model.Model, error)) {
 				done(nil, err)
 				return
 			}
-			rows := make([]model.Model, 0, out.Len())
+			rows := make([]view.Record, 0, out.Len())
 			for i := 0; i < out.Len(); i++ {
 				rows = append(rows, out.At(i).(*EmployeeServiceConfig))
 			}
@@ -197,7 +221,7 @@ func (l employeeServiceConfigLister) List(done func([]model.Model, error)) {
 
 // Save crea o actualiza cada configuración en orden, encadenada mediante el
 // callback del transporte — nunca bloquea (ver view.Saver).
-func (l employeeServiceConfigLister) Save(recs []model.Model, done func(error)) {
+func (l *employeeServiceConfigLister) Save(recs []model.Model, done func(error)) {
 	if done == nil {
 		done = func(error) {}
 	}
@@ -230,8 +254,8 @@ func (l employeeServiceConfigLister) Save(recs []model.Model, done func(error)) 
 }
 
 var (
-	_ view.Lister = employeeServiceConfigLister{}
-	_ view.Saver  = employeeServiceConfigLister{}
+	_ view.Lister = (*employeeServiceConfigLister)(nil)
+	_ view.Saver  = (*employeeServiceConfigLister)(nil)
 )
 
 // dayToUnix convierte "YYYY-MM-DD" a segundos de medianoche UTC — la codificación

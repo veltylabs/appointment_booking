@@ -1,7 +1,6 @@
 package appointmentbooking
 
 import (
-	"webtyp.com/lang"
 	"webtyp.com/router"
 	tinytime "webtyp.com/time"
 	"webtyp.com/view"
@@ -13,85 +12,17 @@ const (
 	titleEmployeeServiceConfig = "Servicios"
 )
 
-// Item implements view.Itemizer.
-func (c *EmployeeServiceConfig) Item() view.Item {
-	return view.Item{ID: c.Id, Label: c.ServiceId, Description: c.StaffId}
-}
-
 // NewEmployeeServiceConfigView builds a Presenter scoped to one professional —
 // same shape as NewView(caller, tenantId, staffId) above: there is no
 // "list every service config in the tenant" op, on purpose, mirroring why
 // NewView itself is staff-scoped.
 func NewEmployeeServiceConfigView(caller router.Caller, tenantId, staffId string) view.Presenter {
+	recs := view.NewRecords()
 	return view.New(
-		employeeServiceConfigLister{caller: caller, tenantId: tenantId, staffId: staffId},
+		&employeeServiceConfigLister{records: recs, caller: recs.Caller(caller), tenantId: tenantId, staffId: staffId},
 		&EmployeeServiceConfig{},
 		view.WithTitle(titleEmployeeServiceConfig),
 	)
-}
-
-func reservationStanding(status, origin string) string {
-	if status == StatusPending {
-		switch origin {
-		case OriginCounter:
-			return lang.Translate("Pending confirmation").String()
-		case OriginOnline:
-			return lang.Translate("Awaiting patient").String()
-		}
-	}
-	switch status {
-	case StatusPending:
-		return lang.Translate("Pending").String()
-	case StatusConfirmed:
-		return lang.Translate("Confirmed").String()
-	case StatusCancelled:
-		return lang.Translate("Cancelled").String()
-	case StatusCompleted:
-		return lang.Translate("Completed").String()
-	case StatusNoShow:
-		return lang.Translate("No show").String()
-	case StatusExpired:
-		return lang.Translate("Expired").String()
-	case StatusRescheduled:
-		return lang.Translate("Rescheduled").String()
-	case StatusConflicted:
-		return lang.Translate("Conflicted").String()
-	default:
-		return lang.Translate(status).String()
-	}
-}
-
-// Item implementa view.Itemizer — el ÚNICO código específico de view que carga este registro. El
-// Presenter indexa las filas por ID a partir de esto durante Reload; no hay lookup manual byId/WithFill.
-func (r *Reservation) Item() view.Item {
-	desc := reservationStanding(r.Status, r.Origin)
-	if r.Overbooked {
-		desc += " · " + lang.Translate("Overbooked").String()
-	}
-	return view.Item{
-		ID:          r.Id,
-		Label:       r.LocalStringDate + " " + r.LocalStringTime,
-		Description: desc,
-	}
-}
-
-// Item implementa view.Itemizer. LeadMain es la hora porque la lista de reservas
-// se lee hacia abajo en una columna de horas; un widget de lista que encabeza con una hora
-// (webtyp/components targethour) se vincula a este campo. LeadTop lleva el día
-// "YYYY-MM-DD", que es lo que usa una pantalla de reservas para mostrar solo
-// las horas del día elegido.
-func (r *ReservationForm) Item() view.Item {
-	desc := reservationStanding(r.Status, r.Origin)
-	if r.Overbooked {
-		desc += " · " + lang.Translate("Overbooked").String()
-	}
-	return view.Item{
-		ID:          r.Id,
-		LeadTop:     r.Day,
-		LeadMain:    r.Hour,
-		Label:       r.ClientId,
-		Description: desc,
-	}
 }
 
 // FormConfig es el alcance en el que trabaja un formulario de reserva, más lo único que
@@ -129,8 +60,9 @@ type FormConfig struct {
 // docs/ARCHITECTURE.md §7). Solo lista: sin capacidad Saver/Deleter (las reservas solo mutan vía las
 // transiciones FSM-guardadas de ChangeReservationStatus, y nunca se eliminan físicamente).
 func NewView(caller router.Caller, tenantId, staffId string) view.Presenter {
+	recs := view.NewRecords()
 	return view.New(
-		reservationLister{caller: caller, tenantId: tenantId, staffId: staffId},
+		&reservationLister{records: recs, caller: recs.Caller(caller), tenantId: tenantId, staffId: staffId},
 		&Reservation{},
 		view.WithTitle(titleReservations),
 	)
@@ -140,8 +72,9 @@ func NewView(caller router.Caller, tenantId, staffId string) view.Presenter {
 // COMO CREA nuevas — la superficie que necesita una pantalla de reservas. NewView, arriba,
 // sigue siendo la superficie solo de lista para un consumidor de solo lectura.
 func NewFormView(caller router.Caller, cfg FormConfig) view.Presenter {
+	recs := view.NewRecords()
 	return view.New(
-		&reservationFormStore{caller: caller, cfg: cfg},
+		&reservationFormStore{records: recs, caller: recs.Caller(caller), cfg: cfg},
 		&ReservationForm{},
 		view.WithTitle(titleBooking),
 	)

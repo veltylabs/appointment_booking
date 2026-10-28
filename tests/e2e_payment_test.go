@@ -39,7 +39,7 @@ func newCircuit(t *testing.T, paymentRequired bool) *circuit {
 	c := &circuit{gw: sandbox.New("https://webpay.example/pay")}
 	var booking *ab.Module
 	var err error
-	c.pm, err = pm.New(db, pm.Deps{Publisher: broker, Gateway: c.gw, ReturnURL: "https://clinic.example/return",
+	c.pm, err = pm.New(db, pm.Deps{Publisher: broker, Gateway: c.gw,
 		Charges: []pm.ChargeSource{{Module: ab.ModelName, Reader: chargeViaBooking{&booking}}}})
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +84,11 @@ func (c *circuit) payOnline(t *testing.T, reservationID, paymentID string) {
 		t.Fatalf("StartOnlinePayment: %v", err)
 	}
 	c.gw.Approve(started.Token)
-	if _, err := c.pm.CompleteOnlinePayment(pm.OnlineReturn{Token: started.Token}); err != nil {
+	res, err := c.gw.Result(started.Token)
+	if err != nil {
+		t.Fatalf("Gateway.Result: %v", err)
+	}
+	if _, err := c.pm.CompleteOnlinePayment(res); err != nil {
 		t.Fatalf("CompleteOnlinePayment: %v", err)
 	}
 }
@@ -131,7 +135,11 @@ func TestE2E_PaidAfterHoldExpiredIsRefunded(t *testing.T) {
 		t.Fatalf("expire: %d, %v", n, err)
 	}
 	c.gw.Approve(started.Token)
-	if _, err := c.pm.CompleteOnlinePayment(pm.OnlineReturn{Token: started.Token}); err != nil {
+	res, err := c.gw.Result(started.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.pm.CompleteOnlinePayment(res); err != nil {
 		t.Fatal(err)
 	}
 	if c.refunds != 1 {

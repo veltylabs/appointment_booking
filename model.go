@@ -37,8 +37,8 @@ var EmployeeServiceConfigModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "staff_id", Type: input.Text(), NotNull: true},
-		{Name: "service_id", Type: input.Text(), NotNull: true},
+		{Name: "staff_id", Type: input.Text(), NotNull: true, Item: model.ItemDescription},
+		{Name: "service_id", Type: input.Text(), NotNull: true, Item: model.ItemLabel},
 		{Name: "duration_min", Type: input.Number()},
 		{Name: "buffer_min", Type: input.Number()},
 		{Name: "price_override", Type: input.Decimal()},
@@ -109,7 +109,7 @@ var ReservationModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "client_id", Type: model.Text(), NotNull: true},
+		{Name: "client_id", Type: model.Text(), NotNull: true, Item: model.ItemLabel},
 		{Name: "creator_user_id", Type: model.Text()},
 		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true},
 		{Name: "staff_idsnapshot", Type: model.Text()},
@@ -117,10 +117,10 @@ var ReservationModel = model.Definition{
 		{Name: "duration_min_snapshot", Type: model.Int()},
 		{Name: "price_snapshot", Type: model.Float()},
 		{Name: "currency_snapshot", Type: model.Text()},
-		{Name: "reservation_date", Type: model.UnixTime()},
+		{Name: "reservation_date", Type: model.UnixTime(), Item: model.ItemBadge},
 		{Name: "reservation_time", Type: model.Int()},
-		{Name: "local_string_date", Type: model.Text()},
-		{Name: "local_string_time", Type: model.Text()},
+		{Name: "local_string_date", Type: model.Text(), Item: model.ItemDescription},
+		{Name: "local_string_time", Type: model.Text(), Item: model.ItemDescription},
 		// status: valores válidos = las constantes FSM exportadas de fsm.go/service.go — los
 		// literales viven SOLO en esas constantes (regla anti magic-string, ver service_catalog).
 		{Name: "status", Type: model.Text(), NotNull: true},
@@ -164,9 +164,9 @@ var ReservationFormModel = model.Definition{
 	Name: "reservation_form",
 	Fields: model.Fields{
 		{Name: "id", Type: input.Text(), NotNull: true, DB: &model.FieldDB{PK: true}},
-		{Name: "client_id", Type: input.Text(), NotNull: true},
-		{Name: "day", Type: input.Date(), NotNull: true},
-		{Name: "hour", Type: input.Hour(), NotNull: true},
+		{Name: "client_id", Type: input.Text(), NotNull: true, Item: model.ItemLabel},
+		{Name: "day", Type: input.Date(), NotNull: true, Item: model.ItemDescription},
+		{Name: "hour", Type: input.Hour(), NotNull: true, Item: model.ItemDescription},
 		{Name: "notes", Type: input.Textarea()},
 		{Name: "status", Type: model.Text()},
 		{Name: "origin", Type: model.Text()},

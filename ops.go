@@ -373,7 +373,9 @@ func (m *Module) opUpdateEmployeeServiceConfig(ctx router.Context) {
 		writeError(ctx, err)
 		return
 	}
-	ctx.WriteStatus(200)
+	if err := ctx.Encode(&cfg); err != nil {
+		writeError(ctx, err)
+	}
 }
 
 func (m *Module) opGetCalendarConfig(ctx router.Context) {
