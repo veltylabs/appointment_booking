@@ -20,7 +20,7 @@ require (
 	webtyp.com/input v0.0.28
 	webtyp.com/json v0.5.36
 	webtyp.com/lang v0.1.10
-	webtyp.com/layout v0.3.81
+	webtyp.com/layout v0.3.83
 	webtyp.com/model v0.2.9
 	webtyp.com/orm v0.12.10
 	webtyp.com/router v0.4.11
@@ -36,6 +36,9 @@ require (
 	github.com/disintegration/imaging v1.6.2 // indirect
 	golang.org/x/image v0.45.0 // indirect
 	webtyp.com/calendar v0.1.0 // indirect
+	webtyp.com/erd v0.0.2 // indirect
+	webtyp.com/fetch v0.1.29 // indirect
+	webtyp.com/filepath v0.1.0 // indirect
 	webtyp.com/money v0.2.0 // indirect
 )
 
