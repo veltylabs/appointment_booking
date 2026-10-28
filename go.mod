@@ -29,7 +29,7 @@ require (
 	webtyp.com/time v0.6.2
 	webtyp.com/unixid v0.3.1
 	webtyp.com/view v0.6.49
-	webtyp.com/widget v0.6.44
+	webtyp.com/widget v0.6.45
 )
 
 require (
