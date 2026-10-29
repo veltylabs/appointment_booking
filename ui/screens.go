@@ -81,3 +81,4 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 
 	return []view.Screen{bookingScreen, personalGroup, onlineScreen}
 }
+
