@@ -23,7 +23,7 @@ require (
 	webtyp.com/layout v0.3.87
 	webtyp.com/model v0.2.9
 	webtyp.com/orm v0.12.10
-	webtyp.com/router v0.4.11
+	webtyp.com/router v0.4.12
 	webtyp.com/storage v0.1.10
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
