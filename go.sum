@@ -4,8 +4,8 @@ github.com/veltylabs/business_calendar v0.5.20 h1:beyzam5Ivt9C1NBm2+Jbjdyc2Bgmbq
 github.com/veltylabs/business_calendar v0.5.20/go.mod h1:NLKBr1wrSnWZxCRyBkUQL/jtpjMFlXiq2xDYJMzlKbQ=
 github.com/veltylabs/device_manager v0.2.86 h1:J+xSoetb56iC/FTwNdjYj4/38Vbzvi5B1b2mfhuGl+M=
 github.com/veltylabs/device_manager v0.2.86/go.mod h1:BpU2ky6xvmI+YbULhKqdnjUi7gvBZoik9VJS7XSzuIU=
-github.com/veltylabs/patient_directory v0.1.65 h1:SWFPuV7COL1bs64L6OBgVqrqM3xlH/wGm4pfIrkW7UA=
-github.com/veltylabs/patient_directory v0.1.65/go.mod h1:m4wnCTGfmtag26pCuRgGKo8PaUnsMRFHiaWR6Nc0c8U=
+github.com/veltylabs/patient_directory v0.1.76 h1:ynRfm/NIQ5ZmH91NsEVcT2HZM+V4XjTu4pBqfGJxvAg=
+github.com/veltylabs/patient_directory v0.1.76/go.mod h1:+8y+9cf3L+UV+0DChOrbcN4EpkGQNu0zf1Sfwnq8gUs=
 github.com/veltylabs/payment_manager v0.4.19 h1:nDDETsrLa3iHP/B+VL6BzUktBDSIVoYWuefajKfXqPU=
 github.com/veltylabs/payment_manager v0.4.19/go.mod h1:xZU1/KZ+rqY6iHJ1GQaGMcRve+hB4EtyK0hzRYUgHc4=
 github.com/veltylabs/service_catalog v0.6.21 h1:lsSXJWbgTQ1TRIeiqhrfMx+bnuUKKSMWPL1m35rjllM=
