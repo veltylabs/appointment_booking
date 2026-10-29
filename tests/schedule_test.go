@@ -2,6 +2,7 @@ package tests
 
 import (
 	"testing"
+	"webtyp.com/model"
 
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/events"
@@ -223,7 +224,7 @@ func TestScheduleClient_RoundTrip(t *testing.T) {
 
 func TestRemoveException_UnknownIsNotFound(t *testing.T) {
 	m, _ := newModuleWithBroker(t)
-	if err := m.RemoveException("t1", "nope"); err == nil || err.Error() != ab.ErrNotFound.Error() {
+	if err := m.RemoveException("t1", "nope"); err == nil || model.KindOf(err) != model.ErrorNotFound {
 		t.Fatalf("expected ab.ErrNotFound, got %v", err)
 	}
 }

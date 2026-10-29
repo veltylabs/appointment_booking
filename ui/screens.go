@@ -1,6 +1,7 @@
 package ui
 
 import (
+	ab "github.com/veltylabs/appointment_booking"
 	staffmanager "github.com/veltylabs/staff_manager"
 	"webtyp.com/lang"
 	"webtyp.com/model"
@@ -31,7 +32,7 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		ID:         PersonalID + "." + tabStaff,
 		Label:      lang.Text(labelStaff),
 		Icon:       PersonalID,
-		Permission: "staff_manager",
+		Permission: model.FeatureResource("staff_manager"),
 		Presenter:  staffmanager.NewView(caller, view.WithDescription(descStaff)),
 	}
 
@@ -39,7 +40,7 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		ID:         PersonalID + "." + tabSchedule,
 		Label:      lang.Text(labelSchedule),
 		Icon:       PersonalID,
-		Permission: "calendar",
+		Permission: model.ResourceOf(&ab.WorkCalendarConfigModel),
 		Component:  NewScheduleView(caller, tenantID),
 		Help:       descSchedule,
 	}
@@ -48,7 +49,7 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		ID:         PersonalID + "." + tabServices,
 		Label:      lang.Text(labelServices),
 		Icon:       PersonalID,
-		Permission: "employee_service_config",
+		Permission: model.ResourceOf(&ab.EmployeeServiceConfigModel),
 		Component:  NewServiceConfigView(caller, tenantID),
 		Help:       descServicesConfig,
 	}
@@ -65,7 +66,7 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		ID:         ID,
 		Label:      lang.Text(NavLabel),
 		Icon:       ID,
-		Permission: "reservation",
+		Permission: model.ResourceOf(&ab.ReservationModel),
 		Component:  NewBookingView(caller, ids, tenantID),
 		Help:       descBooking,
 	}
@@ -74,7 +75,7 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		ID:         OnlineID,
 		Label:      lang.Text(OnlineLabel),
 		Icon:       ID,
-		Permission: "reservation_online",
+		Permission: ab.ResourceReservationOnline,
 		Component:  newBookingFlow(caller, ids, tenantID, true),
 		Help:       descOnline,
 	}

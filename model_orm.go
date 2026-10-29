@@ -552,6 +552,12 @@ func ReadAllReservation(qb *orm.QB) (ReservationList, error) {
 	return results, err
 }
 
+func (m *Reservation) SchemaExt() []model.FieldExt {
+	return []model.FieldExt{
+		{Field: ReservationModel.Fields[4], Ref: "employee_service_config", RefColumn: "id", OnDelete: ""},
+	}
+}
+
 type ReservationForm struct {
 	Id string
 	ClientId string
@@ -779,6 +785,12 @@ func ReadAllCreateReservationArgs(qb *orm.QB) (CreateReservationArgsList, error)
 	return results, err
 }
 
+func (m *CreateReservationArgs) SchemaExt() []model.FieldExt {
+	return []model.FieldExt{
+		{Field: CreateReservationArgsModel.Fields[4], Ref: "employee_service_config", RefColumn: "id", OnDelete: ""},
+	}
+}
+
 type CreateOverbookingArgs struct {
 	Id string
 	TenantId string
@@ -873,6 +885,12 @@ func ReadAllCreateOverbookingArgs(qb *orm.QB) (CreateOverbookingArgsList, error)
 		func(m model.Model) { results = append(results, m.(*CreateOverbookingArgs)) },
 	)
 	return results, err
+}
+
+func (m *CreateOverbookingArgs) SchemaExt() []model.FieldExt {
+	return []model.FieldExt{
+		{Field: CreateOverbookingArgsModel.Fields[4], Ref: "employee_service_config", RefColumn: "id", OnDelete: ""},
+	}
 }
 
 type GetReservationArgs struct {
@@ -1298,7 +1316,6 @@ func (m *SaveDayBlocksArgs) EncodeFields(w model.FieldWriter) {
 			for _, x := range m.Blocks {
 				arr.Object(&x)
 			}
-			arr.Close()
 		}
 }
 
@@ -1352,7 +1369,6 @@ func (m *SaveDateBlocksArgs) EncodeFields(w model.FieldWriter) {
 			for _, x := range m.Blocks {
 				arr.Object(&x)
 			}
-			arr.Close()
 		}
 }
 
@@ -1406,7 +1422,6 @@ func (m *MarkWorkingDaysArgs) EncodeFields(w model.FieldWriter) {
 			for _, x := range m.Dates {
 				arr.Int(int64(x))
 			}
-			arr.Close()
 		}
 	w.Int("start_min", m.StartMin)
 	w.Int("end_min", m.EndMin)
@@ -1461,7 +1476,6 @@ func (m *UnmarkWorkingDaysArgs) EncodeFields(w model.FieldWriter) {
 			for _, x := range m.Dates {
 				arr.Int(int64(x))
 			}
-			arr.Close()
 		}
 }
 
@@ -2132,3 +2146,41 @@ func (m *CreateOnlineReservationArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
+var CreateOnlineReservationArgs_ = struct {
+	TenantId string
+	Id string
+	ClientId string
+	EmployeeServiceConfigId string
+	SlotStartUtc string
+	Notes string
+}{
+	TenantId: "tenant_id",
+	Id: "id",
+	ClientId: "client_id",
+	EmployeeServiceConfigId: "employee_service_config_id",
+	SlotStartUtc: "slot_start_utc",
+	Notes: "notes",
+}
+
+func ReadOneCreateOnlineReservationArgs(qb *orm.QB, model *CreateOnlineReservationArgs) (*CreateOnlineReservationArgs, error) {
+	err := qb.ReadOne()
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func ReadAllCreateOnlineReservationArgs(qb *orm.QB) (CreateOnlineReservationArgsList, error) {
+	var results CreateOnlineReservationArgsList
+	err := qb.ReadAll(
+		func() model.Model { return &CreateOnlineReservationArgs{} },
+		func(m model.Model) { results = append(results, m.(*CreateOnlineReservationArgs)) },
+	)
+	return results, err
+}
+
+func (m *CreateOnlineReservationArgs) SchemaExt() []model.FieldExt {
+	return []model.FieldExt{
+		{Field: CreateOnlineReservationArgsModel.Fields[3], Ref: "employee_service_config", RefColumn: "id", OnDelete: ""},
+	}
+}

@@ -1,21 +1,24 @@
 package appointmentbooking
 
 import (
+	"errors"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/time"
 )
 
 // Errores sentinela a nivel de paquete
+var ErrPaymentsUnavailable = errors.New("payments are not configured")
+
 const (
-	ErrNotFound              domainError = "record not found"
-	ErrConflict              domainError = "optimistic concurrency conflict"
-	ErrPaymentsUnavailable   domainError = "payments are not configured"
-	ErrTooManyHolds          domainError = "too many online reservations awaiting payment"
-	ErrPaymentNotVerified    domainError = "payment could not be verified for this reservation"
-	ErrAlreadyPaid           domainError = "reservation already has a payment"
-	ErrReservationNotPayable domainError = "reservation can no longer be paid"
-	ErrUnsupportedCurrency   domainError = "unsupported currency"
+	ErrCannotRead          model.Invalid = "appointment_booking: cannot read the request"
+	ErrNotFound              model.NotFound = "record not found"
+	ErrConflict              model.Conflict = "optimistic concurrency conflict"
+	ErrTooManyHolds          model.Conflict = "too many online reservations awaiting payment"
+	ErrPaymentNotVerified    model.Invalid = "payment could not be verified for this reservation"
+	ErrAlreadyPaid           model.Invalid = "reservation already has a payment"
+	ErrReservationNotPayable model.Invalid = "reservation can no longer be paid"
+	ErrUnsupportedCurrency   model.Invalid = "unsupported currency"
 )
 
 // Repository provee operaciones CRUD para todas las tablas de appointment-booking.

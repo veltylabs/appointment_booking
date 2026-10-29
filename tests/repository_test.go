@@ -2,6 +2,7 @@ package tests
 
 import (
 	"testing"
+	"webtyp.com/model"
 
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
@@ -75,7 +76,7 @@ func TestGetEmployeeServiceConfig_NotFound(t *testing.T) {
 	repo := newTestRepo(t)
 
 	_, err := repo.GetEmployeeServiceConfig("non-existent")
-	if err == nil || err.Error() != ab.ErrNotFound.Error() {
+	if err == nil || model.KindOf(err) != model.ErrorNotFound {
 		t.Fatalf("Expected ab.ErrNotFound, got %v", err)
 	}
 }
@@ -129,7 +130,7 @@ func TestGetCalendarConfig_NotFound(t *testing.T) {
 	repo := newTestRepo(t)
 
 	_, err := repo.GetCalendarConfig("t1", "s1")
-	if err == nil || err.Error() != ab.ErrNotFound.Error() {
+	if err == nil || model.KindOf(err) != model.ErrorNotFound {
 		t.Fatalf("Expected ab.ErrNotFound, got %v", err)
 	}
 }
@@ -294,7 +295,7 @@ func TestUpdateReservationStatus_Conflict(t *testing.T) {
 
 	// Provide wrong revision
 	err := repo.UpdateReservationStatus(id, ab.StatusConfirmed, "u1", 12345, 99)
-	if err == nil || err.Error() != ab.ErrConflict.Error() {
+	if err == nil || model.KindOf(err) != model.ErrorConflict {
 		t.Fatalf("Expected ab.ErrConflict, got %v", err)
 	}
 }

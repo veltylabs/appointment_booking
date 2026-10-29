@@ -45,7 +45,8 @@ func jsonOf(t *testing.T, v model.Encodable) string {
 func TestOps_NewOpsRequires(t *testing.T) {
 	r := bookingRouter(newBookEnv(t))
 	want := []struct {
-		op, resource string
+		op  string
+		resource model.Resource
 		action       model.Action
 	}{
 		{ab.OpListBookableServices, ab.ResourceBookingCatalog, model.Read},
@@ -57,7 +58,7 @@ func TestOps_NewOpsRequires(t *testing.T) {
 		for _, info := range r.Routes() {
 			if info.Path == "/"+w.op {
 				found = true
-				if string(info.Resource) != w.resource || info.Action != w.action || info.Args == nil {
+				if info.Resource != w.resource || info.Action != w.action || info.Args == nil {
 					t.Errorf("%s: %s %v", w.op, info.Resource, info.Action)
 				}
 			}

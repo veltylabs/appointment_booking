@@ -305,3 +305,9 @@ This module ships its own user interface (`ui/`), demo data (`seed/`), and runna
 ### Runnable demo
 
 Run `webtyp` at the repository root to open the demo — in-browser, in-memory, no login.
+
+## Actualizaciones de Arquitectura
+
+- **Errores por rpc.WriteError**: Todo el módulo gestiona y devuelve errores mediante `rpc.WriteError`, utilizando códigos de tipo HTTP (`model.NotFound`, `model.Conflict`, etc.).
+- **Permisos por tabla (model.ResourceOf)**: Las operaciones declaran sus permisos mapeando directamente sobre los modelos ORM (`model.ResourceOf`) o vía recursos declarados explícitamente (`model.FeatureResource`).
+- **Claves foráneas declaradas**: Los esquemas ORM declaran ahora referencias directas a otras tablas con `Ref: &Model, DB: &model.FieldDB{RefColumn: "id"}`.

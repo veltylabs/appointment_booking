@@ -1,5 +1,7 @@
 package appointmentbooking
 
+import "webtyp.com/model"
+
 // Estados
 const (
 	StatusPending     = "PENDING"
@@ -56,7 +58,7 @@ var transitions = []transition{
 }
 
 // ErrInvalidTransition se devuelve cuando una transición no está permitida.
-const ErrInvalidTransition domainError = "invalid transition"
+const ErrInvalidTransition model.Invalid = "invalid transition"
 
 // Transition devuelve el siguiente estado, o un error si la transición no es válida.
 func Transition(current, event string) (string, error) {

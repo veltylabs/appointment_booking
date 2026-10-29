@@ -3,8 +3,8 @@ package appointmentbooking
 import (
 	"webtyp.com/fmt"
 	"webtyp.com/model"
-	"webtyp.com/orm"
 	"webtyp.com/router"
+	"webtyp.com/rpc"
 	"webtyp.com/time"
 )
 
@@ -72,34 +72,34 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpListServiceAvailability, m.opListServiceAvailability).Requires(ResourceBookingCatalog, model.Read).Accepts(&ListServiceAvailabilityArgs{})
 	reg.Operation(OpCreateOnlineReservation, m.opCreateOnlineReservation).Requires(ResourceReservationOnline, model.Create).Accepts(&CreateOnlineReservationArgs{})
 
-	reg.Operation(OpCreateReservation, m.opCreateReservation).Requires("reservation", model.Create).Accepts(&CreateReservationArgs{})
-	reg.Operation(OpCreateOverbooking, m.opCreateOverbooking).Requires("overbooking", model.Create).Accepts(&CreateOverbookingArgs{})
-	reg.Operation(OpGetReservation, m.opGetReservation).Requires("reservation", model.Read).Accepts(&GetReservationArgs{})
-	reg.Operation(OpListReservationsByStaff, m.opListReservationsByStaff).Requires("reservation", model.Read).Accepts(&ListReservationsByStaffArgs{})
-	reg.Operation(OpListReservationsByClient, m.opListReservationsByClient).Requires("reservation", model.Read).Accepts(&ListReservationsByClientArgs{})
-	reg.Operation(OpChangeReservationStatus, m.opChangeReservationStatus).Requires("reservation", model.Update).Accepts(&ChangeReservationStatusArgs{})
-	reg.Operation(OpExpirePendingReservations, m.opExpirePendingReservations).Requires("reservation", model.Update).Accepts(&ExpirePendingReservationsArgs{})
-	reg.Operation(OpGetCalendarConfig, m.opGetCalendarConfig).Requires("calendar", model.Read).Accepts(&GetCalendarConfigArgs{})
+	reg.Operation(OpCreateReservation, m.opCreateReservation).Requires(model.ResourceOf(&ReservationModel), model.Create).Accepts(&CreateReservationArgs{})
+	reg.Operation(OpCreateOverbooking, m.opCreateOverbooking).Requires(ResourceOverbooking, model.Create).Accepts(&CreateOverbookingArgs{})
+	reg.Operation(OpGetReservation, m.opGetReservation).Requires(model.ResourceOf(&ReservationModel), model.Read).Accepts(&GetReservationArgs{})
+	reg.Operation(OpListReservationsByStaff, m.opListReservationsByStaff).Requires(model.ResourceOf(&ReservationModel), model.Read).Accepts(&ListReservationsByStaffArgs{})
+	reg.Operation(OpListReservationsByClient, m.opListReservationsByClient).Requires(model.ResourceOf(&ReservationModel), model.Read).Accepts(&ListReservationsByClientArgs{})
+	reg.Operation(OpChangeReservationStatus, m.opChangeReservationStatus).Requires(model.ResourceOf(&ReservationModel), model.Update).Accepts(&ChangeReservationStatusArgs{})
+	reg.Operation(OpExpirePendingReservations, m.opExpirePendingReservations).Requires(model.ResourceOf(&ReservationModel), model.Update).Accepts(&ExpirePendingReservationsArgs{})
+	reg.Operation(OpGetCalendarConfig, m.opGetCalendarConfig).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&GetCalendarConfigArgs{})
 	// Upserts: crean en la rama not-found Y actualizan en la otra — el op exige TODAS las
 	// acciones que realmente puede ejecutar (model.Action es bitmask). Declarar solo Update
 	// dejaría a un principal update-only creando filas (violación de closed-by-default).
-	reg.Operation(OpUpsertCalendarConfig, m.opUpsertCalendarConfig).Requires("calendar", model.Create|model.Update).Accepts(&UpsertCalendarConfigArgs{})
-	reg.Operation(OpSaveDayBlocks, m.opSaveDayBlocks).Requires("calendar", model.Create|model.Update).Accepts(&SaveDayBlocksArgs{})
-	reg.Operation(OpSaveDateBlocks, m.opSaveDateBlocks).Requires("calendar", model.Create|model.Update).Accepts(&SaveDateBlocksArgs{})
-	reg.Operation(OpMarkWorkingDays, m.opMarkWorkingDays).Requires("calendar", model.Create|model.Update).Accepts(&MarkWorkingDaysArgs{})
-	reg.Operation(OpUnmarkWorkingDays, m.opUnmarkWorkingDays).Requires("calendar", model.Delete).Accepts(&UnmarkWorkingDaysArgs{})
-	reg.Operation(OpListBlocks, m.opListBlocks).Requires("calendar", model.Read).Accepts(&ListBlocksArgs{})
-	reg.Operation(OpGetDayBounds, m.opGetDayBounds).Requires("calendar", model.Read).Accepts(&GetDayBoundsArgs{})
-	reg.Operation(OpAddCalendarException, m.opAddCalendarException).Requires("calendar", model.Create).Accepts(&AddCalendarExceptionArgs{})
-	reg.Operation(OpRemoveCalendarException, m.opRemoveCalendarException).Requires("calendar", model.Delete).Accepts(&RemoveCalendarExceptionArgs{})
-	reg.Operation(OpListAvailability, m.opListAvailability).Requires("calendar", model.Read).Accepts(&ListAvailabilityArgs{})
-	reg.Operation(OpListExceptions, m.opListExceptions).Requires("calendar", model.Read).Accepts(&ListExceptionsArgs{})
-	reg.Operation(OpListConflictingReservations, m.opListConflictingReservations).Requires("reservation", model.Read).Accepts(&ListConflictingReservationsArgs{})
-	reg.Operation(OpRecomputeConflicts, m.opRecomputeConflicts).Requires("reservation", model.Update).Accepts(&RecomputeConflictsArgs{})
-	reg.Operation(OpCreateEmployeeServiceConfig, m.opCreateEmployeeServiceConfig).Requires("employee_service_config", model.Create).Accepts(&CreateEmployeeServiceConfigArgs{})
-	reg.Operation(OpGetEmployeeServiceConfig, m.opGetEmployeeServiceConfig).Requires("employee_service_config", model.Read).Accepts(&GetEmployeeServiceConfigArgs{})
-	reg.Operation(OpListEmployeeServiceConfigsByStaff, m.opListEmployeeServiceConfigsByStaff).Requires("employee_service_config", model.Read).Accepts(&ListEmployeeServiceConfigsByStaffArgs{})
-	reg.Operation(OpUpdateEmployeeServiceConfig, m.opUpdateEmployeeServiceConfig).Requires("employee_service_config", model.Update).Accepts(&EmployeeServiceConfig{})
+	reg.Operation(OpUpsertCalendarConfig, m.opUpsertCalendarConfig).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Create|model.Update).Accepts(&UpsertCalendarConfigArgs{})
+	reg.Operation(OpSaveDayBlocks, m.opSaveDayBlocks).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Create|model.Update).Accepts(&SaveDayBlocksArgs{})
+	reg.Operation(OpSaveDateBlocks, m.opSaveDateBlocks).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Create|model.Update).Accepts(&SaveDateBlocksArgs{})
+	reg.Operation(OpMarkWorkingDays, m.opMarkWorkingDays).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Create|model.Update).Accepts(&MarkWorkingDaysArgs{})
+	reg.Operation(OpUnmarkWorkingDays, m.opUnmarkWorkingDays).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Delete).Accepts(&UnmarkWorkingDaysArgs{})
+	reg.Operation(OpListBlocks, m.opListBlocks).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&ListBlocksArgs{})
+	reg.Operation(OpGetDayBounds, m.opGetDayBounds).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&GetDayBoundsArgs{})
+	reg.Operation(OpAddCalendarException, m.opAddCalendarException).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Create).Accepts(&AddCalendarExceptionArgs{})
+	reg.Operation(OpRemoveCalendarException, m.opRemoveCalendarException).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Delete).Accepts(&RemoveCalendarExceptionArgs{})
+	reg.Operation(OpListAvailability, m.opListAvailability).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&ListAvailabilityArgs{})
+	reg.Operation(OpListExceptions, m.opListExceptions).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&ListExceptionsArgs{})
+	reg.Operation(OpListConflictingReservations, m.opListConflictingReservations).Requires(model.ResourceOf(&ReservationModel), model.Read).Accepts(&ListConflictingReservationsArgs{})
+	reg.Operation(OpRecomputeConflicts, m.opRecomputeConflicts).Requires(model.ResourceOf(&ReservationModel), model.Update).Accepts(&RecomputeConflictsArgs{})
+	reg.Operation(OpCreateEmployeeServiceConfig, m.opCreateEmployeeServiceConfig).Requires(model.ResourceOf(&EmployeeServiceConfigModel), model.Create).Accepts(&CreateEmployeeServiceConfigArgs{})
+	reg.Operation(OpGetEmployeeServiceConfig, m.opGetEmployeeServiceConfig).Requires(model.ResourceOf(&EmployeeServiceConfigModel), model.Read).Accepts(&GetEmployeeServiceConfigArgs{})
+	reg.Operation(OpListEmployeeServiceConfigsByStaff, m.opListEmployeeServiceConfigsByStaff).Requires(model.ResourceOf(&EmployeeServiceConfigModel), model.Read).Accepts(&ListEmployeeServiceConfigsByStaffArgs{})
+	reg.Operation(OpUpdateEmployeeServiceConfig, m.opUpdateEmployeeServiceConfig).Requires(model.ResourceOf(&EmployeeServiceConfigModel), model.Update).Accepts(&EmployeeServiceConfig{})
 }
 
 var _ router.OperationModule = (*Module)(nil)
@@ -118,50 +118,20 @@ var _ router.OperationModule = (*Module)(nil)
 // Definition declares: 400, with the decoder's or the validation's own text.
 type badRequest struct{ err error }
 
-func (b badRequest) Error() string { return b.err.Error() }
 
 // writeError answers every refusal with its status and its text: a client (rpc, a sync engine's
 // conflict tray) shows the text, so an empty body is never an answer.
-func writeError(ctx router.Context, err error) {
-	ctx.WriteStatus(statusOf(err))
-	ctx.Write([]byte(err.Error()))
-}
-
-func statusOf(err error) int {
-	switch e := err.(type) {
-	case badRequest:
-		return 400
-	case domainError:
-		switch e {
-		case ErrNotFound, ErrClientNotFound:
-			return 404
-		case ErrSlotTaken, ErrConflict, ErrBlocksOverlap, ErrIdTaken, ErrOverbookNotAllowed:
-			return 409
-		case ErrTooManyHolds, ErrPaymentNotVerified, ErrAlreadyPaid, ErrReservationNotPayable:
-			return 409
-		case ErrPaymentsUnavailable:
-			return 500
-		case ErrCalendarConfigNotFound, ErrInvalidTransition, ErrInvalidBlock,
-			ErrBlockOutsideBusinessHours, ErrBlockOnClosedDay, ErrMissingArgs, ErrNoServiceConfig, ErrIncompleteSlot, ErrSlotNotInSchedule, ErrUnsupportedCurrency:
-			return 400
-		}
-	}
-	if orm.IsNotFound(err) {
-		return 404
-	}
-	return 500
-}
 
 func (m *Module) opCreateReservation(ctx router.Context) {
 	var args CreateReservationArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	// Doctrina fail-closed: decode → validate → servicio. Validate ejecuta las constraints
 	// declaradas en la Definition (método generado por ormc — nunca re-implementado a mano).
 	if err := args.Validate(model.ActionCreate); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, err)
 		return
 	}
 	cmd := CreateReservationCmd{
@@ -177,22 +147,22 @@ func (m *Module) opCreateReservation(ctx router.Context) {
 	}
 	res, err := m.CreateReservation(cmd)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	if err := ctx.Encode(&res); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opCreateOverbooking(ctx router.Context) {
 	var args CreateOverbookingArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	if err := args.Validate(model.ActionCreate); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, err)
 		return
 	}
 	cmd := CreateReservationCmd{
@@ -208,39 +178,39 @@ func (m *Module) opCreateOverbooking(ctx router.Context) {
 	}
 	res, err := m.CreateOverbooking(cmd)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	if err := ctx.Encode(&res); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opGetReservation(ctx router.Context) {
 	var args GetReservationArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	res, err := m.GetReservation(args.TenantId, args.Id)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	if err := ctx.Encode(&res); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opListReservationsByStaff(ctx router.Context) {
 	var args ListReservationsByStaffArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	res, err := m.ListReservationsByStaff(args.TenantId, args.StaffId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(ReservationList, len(res))
@@ -248,19 +218,19 @@ func (m *Module) opListReservationsByStaff(ctx router.Context) {
 		list[i] = &res[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opListReservationsByClient(ctx router.Context) {
 	var args ListReservationsByClientArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	res, err := m.ListReservationsByClient(args.TenantId, args.ClientId)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(ReservationList, len(res))
@@ -268,14 +238,14 @@ func (m *Module) opListReservationsByClient(ctx router.Context) {
 		list[i] = &res[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opChangeReservationStatus(ctx router.Context) {
 	var args ChangeReservationStatusArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	cmd := ChangeStatusCmd{
@@ -287,7 +257,7 @@ func (m *Module) opChangeReservationStatus(ctx router.Context) {
 		Revision:  int(args.Revision),
 	}
 	if err := m.ChangeReservationStatus(cmd); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -296,12 +266,12 @@ func (m *Module) opChangeReservationStatus(ctx router.Context) {
 func (m *Module) opExpirePendingReservations(ctx router.Context) {
 	var args ExpirePendingReservationsArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	count, err := m.ExpirePendingReservations(args.TenantId, time.Unix(args.Before))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.Write([]byte(fmt.Convert(count).String()))
@@ -310,7 +280,7 @@ func (m *Module) opExpirePendingReservations(ctx router.Context) {
 func (m *Module) opCreateEmployeeServiceConfig(ctx router.Context) {
 	var args CreateEmployeeServiceConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	cfg, err := m.CreateEmployeeServiceConfig(EmployeeServiceConfig{
@@ -319,39 +289,39 @@ func (m *Module) opCreateEmployeeServiceConfig(ctx router.Context) {
 		PriceOverride: args.PriceOverride, PaymentRequired: args.PaymentRequired, IsActive: true,
 	})
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	if err := ctx.Encode(&cfg); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opGetEmployeeServiceConfig(ctx router.Context) {
 	var args GetEmployeeServiceConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	cfg, err := m.GetEmployeeServiceConfig(args.Id)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	if err := ctx.Encode(&cfg); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opListEmployeeServiceConfigsByStaff(ctx router.Context) {
 	var args ListEmployeeServiceConfigsByStaffArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	rows, err := m.ListEmployeeServiceConfigByStaff(args.TenantId, args.StaffId)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(EmployeeServiceConfigList, len(rows))
@@ -359,45 +329,45 @@ func (m *Module) opListEmployeeServiceConfigsByStaff(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opUpdateEmployeeServiceConfig(ctx router.Context) {
 	var cfg EmployeeServiceConfig
 	if err := ctx.Decode(&cfg); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, &model.FieldError{Field: "request", Err: err})
 		return
 	}
 	if err := m.UpdateEmployeeServiceConfig(cfg); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	if err := ctx.Encode(&cfg); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opGetCalendarConfig(ctx router.Context) {
 	var args GetCalendarConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	cfg, err := m.GetCalendarConfig(args.TenantId, args.StaffId)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	if err := ctx.Encode(&cfg); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 	var args UpsertCalendarConfigArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	cfg := WorkCalendarConfig{
@@ -408,7 +378,7 @@ func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 		MaxOverbookPerDay: args.MaxOverbookPerDay,
 	}
 	if err := m.UpsertCalendarConfig(cfg); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -417,11 +387,11 @@ func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 func (m *Module) opSaveDayBlocks(ctx router.Context) {
 	var args SaveDayBlocksArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	if err := m.SaveDayBlocks(args.TenantId, args.StaffId, int(args.DayOfWeek), args.Blocks); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -430,11 +400,11 @@ func (m *Module) opSaveDayBlocks(ctx router.Context) {
 func (m *Module) opSaveDateBlocks(ctx router.Context) {
 	var args SaveDateBlocksArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	if err := m.SaveDateBlocks(args.TenantId, args.StaffId, args.SpecificDate, args.Blocks); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -443,7 +413,7 @@ func (m *Module) opSaveDateBlocks(ctx router.Context) {
 func (m *Module) opMarkWorkingDays(ctx router.Context) {
 	var args MarkWorkingDaysArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	dates := make([]int64, len(args.Dates))
@@ -451,7 +421,7 @@ func (m *Module) opMarkWorkingDays(ctx router.Context) {
 		dates[i] = int64(d)
 	}
 	if err := m.MarkWorkingDays(args.TenantId, args.StaffId, dates, int(args.StartMin), int(args.EndMin)); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -460,7 +430,7 @@ func (m *Module) opMarkWorkingDays(ctx router.Context) {
 func (m *Module) opUnmarkWorkingDays(ctx router.Context) {
 	var args UnmarkWorkingDaysArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	dates := make([]int64, len(args.Dates))
@@ -468,7 +438,7 @@ func (m *Module) opUnmarkWorkingDays(ctx router.Context) {
 		dates[i] = int64(d)
 	}
 	if err := m.UnmarkWorkingDays(args.TenantId, args.StaffId, dates); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -477,12 +447,12 @@ func (m *Module) opUnmarkWorkingDays(ctx router.Context) {
 func (m *Module) opListBlocks(ctx router.Context) {
 	var args ListBlocksArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	rows, err := m.ListBlocks(args.TenantId, args.StaffId)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(WorkCalendarBlockList, len(rows))
@@ -490,31 +460,31 @@ func (m *Module) opListBlocks(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opGetDayBounds(ctx router.Context) {
 	var args GetDayBoundsArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	b, err := m.GetDayBounds(time.Unix(args.Date))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	res := DayBoundsResult{Open: b.Open, OpenMin: int64(b.OpenMin), CloseMin: int64(b.CloseMin)}
 	if err := ctx.Encode(&res); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opAddCalendarException(ctx router.Context) {
 	var args AddCalendarExceptionArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	exc := WorkCalendarException{
@@ -523,7 +493,7 @@ func (m *Module) opAddCalendarException(ctx router.Context) {
 		Notes: args.Notes,
 	}
 	if err := m.AddException(exc); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -532,11 +502,11 @@ func (m *Module) opAddCalendarException(ctx router.Context) {
 func (m *Module) opRemoveCalendarException(ctx router.Context) {
 	var args RemoveCalendarExceptionArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	if err := m.RemoveException(args.TenantId, args.ExceptionId); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
@@ -545,12 +515,12 @@ func (m *Module) opRemoveCalendarException(ctx router.Context) {
 func (m *Module) opListAvailability(ctx router.Context) {
 	var args ListAvailabilityArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	slots, err := m.ListAvailability(args.TenantId, args.StaffId, args.ConfigId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(TimeSlotList, len(slots))
@@ -558,19 +528,19 @@ func (m *Module) opListAvailability(ctx router.Context) {
 		list[i] = &slots[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opListExceptions(ctx router.Context) {
 	var args ListExceptionsArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	rows, err := m.ListExceptions(args.TenantId, args.StaffId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(WorkCalendarExceptionList, len(rows))
@@ -578,19 +548,19 @@ func (m *Module) opListExceptions(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opListConflictingReservations(ctx router.Context) {
 	var args ListConflictingReservationsArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	rows, err := m.ListConflictingReservations(args.TenantId, args.StaffId, time.Unix(args.From))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(ConflictingReservationList, len(rows))
@@ -598,19 +568,19 @@ func (m *Module) opListConflictingReservations(ctx router.Context) {
 		list[i] = &rows[i]
 	}
 	if err := ctx.Encode(&list); err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
 func (m *Module) opRecomputeConflicts(ctx router.Context) {
 	var args RecomputeConflictsArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	count, err := m.RecomputeConflicts(args.TenantId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.Write([]byte(fmt.Convert(count).String()))
@@ -618,16 +588,16 @@ func (m *Module) opRecomputeConflicts(ctx router.Context) {
 func (m *Module) opListBookableServices(ctx router.Context) {
 	var args ListBookableServicesArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	if err := args.Validate(model.ActionRead); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list, err := m.ListBookableServices(args.TenantId, args.Specialty)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	listOut := BookableServiceList{}
@@ -640,16 +610,16 @@ func (m *Module) opListBookableServices(ctx router.Context) {
 func (m *Module) opListServiceAvailability(ctx router.Context) {
 	var args ListServiceAvailabilityArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	if err := args.Validate(model.ActionRead); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list, err := m.ListServiceAvailability(args)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	listOut := BookableSlotList{}
@@ -662,17 +632,17 @@ func (m *Module) opListServiceAvailability(ctx router.Context) {
 func (m *Module) opCreateOnlineReservation(ctx router.Context) {
 	var args CreateOnlineReservationArgs
 	if err := ctx.Decode(&args); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	if err := args.Validate(model.ActionCreate); err != nil {
-		writeError(ctx, badRequest{err})
+		rpc.WriteError(ctx, err)
 		return
 	}
 	cmd := CreateReservationCmd{Id: args.Id, TenantId: args.TenantId, ClientId: args.ClientId, EmployeeServiceConfigId: args.EmployeeServiceConfigId, SlotStartUtc: args.SlotStartUtc, Notes: args.Notes}
 	res, err := m.CreateOnlineReservation(cmd)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	ctx.WriteStatus(200)
