@@ -2,6 +2,8 @@
 PLAN: "refactor: module review — errors via rpc.WriteError, resources from tables, screens via view.MountSave, foreign keys, translations"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 9280730686393639751
 ---
 
 > Read AGENTS.md at the repo root before any change.
