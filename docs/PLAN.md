@@ -2,8 +2,10 @@
 PLAN: "refactor: module review — errors via rpc.WriteError, resources from tables, screens via view.MountSave, foreign keys, translations"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 9280730686393639751
+PR: https://github.com/veltylabs/appointment_booking/pull/22
+REVIEWED_COMMIT: 304790bf19719508b9d275dc16505d1fcfdc3627
 ---
 
 > Read AGENTS.md at the repo root before any change.
