@@ -1,0 +1,1834 @@
+{
+  "languages": [
+    "es",
+    "zh",
+    "hi",
+    "ar",
+    "pt",
+    "fr",
+    "de",
+    "ru"
+  ],
+  "keys": {
+    "Appointment booking": [
+      "Reserva de hora",
+      "预约",
+      "अपॉइंटमेंट बुकिंग",
+      "حجز موعد",
+      "Agendamento de consulta",
+      "Prise de rendez-vous",
+      "Terminbuchung",
+      "Бронирование времени"
+    ],
+    "Booking confirmed": [
+      "Reserva confirmada",
+      "预订已确认",
+      "बुकिंग की पुष्टि",
+      "تم تأكيد الحجز",
+      "Reserva confirmada",
+      "Réservation confirmée",
+      "Buchung bestätigt",
+      "Бронирование подтверждено"
+    ],
+    "Confirm booking": [
+      "Confirmar reserva",
+      "确认预订",
+      "बुकिंग की पुष्टि करें",
+      "تأكيد الحجز",
+      "Confirmar reserva",
+      "Confirmer la réservation",
+      "Buchung bestätigen",
+      "Подтвердить бронирование"
+    ],
+    "Continue": [
+      "Continuar",
+      "继续",
+      "जारी रखें",
+      "استمر",
+      "Continuar",
+      "Continuer",
+      "Weiter",
+      "Продолжить"
+    ],
+    "Date and time": [
+      "Fecha y hora",
+      "日期和时间",
+      "तारीख और समय",
+      "التاريخ والوقت",
+      "Data e hora",
+      "Date et heure",
+      "Datum und Uhrzeit",
+      "Дата и время"
+    ],
+    "Email": [
+      "Correo electrónico",
+      "电子邮件",
+      "ईमेल",
+      "بريد إلكتروني",
+      "E-mail",
+      "E-mail",
+      "E-Mail",
+      "Электронная почта"
+    ],
+    "Full name": [
+      "Nombre completo",
+      "全名",
+      "पूरा नाम",
+      "الاسم الكامل",
+      "Nome completo",
+      "Nom complet",
+      "Vollständiger Name",
+      "Полное имя"
+    ],
+    "New booking": [
+      "Nueva reserva",
+      "新预订",
+      "नई बुकिंग",
+      "حجز جديد",
+      "Nova reserva",
+      "Nouvelle réservation",
+      "Neue Buchung",
+      "Новое бронирование"
+    ],
+    "No services to book": [
+      "No hay servicios para reservar",
+      "没有服务可预订",
+      "बुक करने के लिए कोई सेवा नहीं",
+      "لا توجد خدمات للحجز",
+      "Nenhum serviço para reservar",
+      "Aucun service à réserver",
+      "Keine Dienstleistungen zu buchen",
+      "Нет услуг для бронирования"
+    ],
+    "No times available": [
+      "No hay horas disponibles",
+      "没有可用时间",
+      "कोई समय उपलब्ध नहीं",
+      "لا توجد أوقات متاحة",
+      "Nenhum horário disponível",
+      "Aucun créneau disponible",
+      "Keine Zeiten verfügbar",
+      "Нет доступного времени"
+    ],
+    "Notes": [
+      "Notas",
+      "备注",
+      "नोट्स",
+      "ملاحظات",
+      "Notas",
+      "Notes",
+      "Notizen",
+      "Заметки"
+    ],
+    "Online booking": [
+      "Reserva online",
+      "在线预订",
+      "ऑनलाइन बुकिंग",
+      "حجز عبر الإنترنت",
+      "Reserva online",
+      "Réservation en ligne",
+      "Online-Buchung",
+      "Онлайн-бронирование"
+    ],
+    "Overbooking": [
+      "Sobrecupo",
+      "超额预订",
+      "ओवरबुकिंग",
+      "حجز زائد",
+      "Overbooking",
+      "Surréservation",
+      "Überbuchung",
+      "Овербукинг"
+    ],
+    "Patient": [
+      "Paciente",
+      "病人",
+      "मरीज",
+      "المريض",
+      "Paciente",
+      "Patient",
+      "Patient",
+      "Пациент"
+    ],
+    "Payment and confirmation": [
+      "Pago y confirmación",
+      "付款和确认",
+      "भुगतान और पुष्टि",
+      "الدفع والتأكيد",
+      "Pagamento e confirmação",
+      "Paiement et confirmation",
+      "Zahlung und Bestätigung",
+      "Оплата и подтверждение"
+    ],
+    "Phone number": [
+      "Número de teléfono",
+      "电话号码",
+      "फोन नंबर",
+      "رقم الهاتف",
+      "Número de telefone",
+      "Numéro de téléphone",
+      "Telefonnummer",
+      "Номер телефона"
+    ],
+    "Professional": [
+      "Profesional",
+      "专业人员",
+      "पेशेवर",
+      "محترف",
+      "Profissional",
+      "Professionnel",
+      "Fachmann",
+      "Специалист"
+    ],
+    "RUT": [
+      "Registro Único Tributario",
+      "纳税人识别号",
+      "करदाता संख्या",
+      "الرقم الضريبي",
+      "CNPJ/CPF",
+      "Numéro d'immatriculation",
+      "Steuernummer",
+      "ИНН"
+    ],
+    "Register patient": [
+      "Registrar paciente",
+      "登记患者",
+      "मरीज पंजीकृत करें",
+      "تسجيل المريض",
+      "Registrar paciente",
+      "Enregistrer le patient",
+      "Patienten registrieren",
+      "Зарегистрировать пациента"
+    ],
+    "Retry": [
+      "Reintentar",
+      "重试",
+      "पुनः प्रयास करें",
+      "أعد المحاولة",
+      "Tentar novamente",
+      "Réessayer",
+      "Wiederholen",
+      "Повторить"
+    ],
+    "Schedule": [
+      "Horario",
+      "日程",
+      "अनुसूची",
+      "جدول",
+      "Horário",
+      "Horaire",
+      "Zeitplan",
+      "Расписание"
+    ],
+    "Search": [
+      "Buscar",
+      "搜索",
+      "खोजें",
+      "بحث",
+      "Buscar",
+      "Rechercher",
+      "Suchen",
+      "Поиск"
+    ],
+    "Services": [
+      "Servicios",
+      "服务",
+      "सेवाएं",
+      "خدمات",
+      "Serviços",
+      "Services",
+      "Dienstleistungen",
+      "Услуги"
+    ],
+    "Specialty and service": [
+      "Especialidad y servicio",
+      "专业和服务",
+      "विशेषता और सेवा",
+      "التخصص والخدمة",
+      "Especialidade e serviço",
+      "Spécialité et service",
+      "Spezialität und Service",
+      "Специальность и услуга"
+    ],
+    "Staff": [
+      "Personal",
+      "全体员工",
+      "कर्मचारी",
+      "عاملين",
+      "Equipe",
+      "Personnel",
+      "Personal",
+      "Персонал"
+    ],
+    "Start again": [
+      "Comenzar de nuevo",
+      "重新开始",
+      "फिर से शुरू करें",
+      "ابدأ من جديد",
+      "Começar de novo",
+      "Recommencer",
+      "Von vorne anfangen",
+      "Начать сначала"
+    ],
+    "Summary": [
+      "Resumen",
+      "总结",
+      "सारांश",
+      "ملخص",
+      "Resumo",
+      "Résumé",
+      "Zusammenfassung",
+      "Резюме"
+    ],
+    "Any available professional": [
+      "Any available professional español",
+      "Any available professional 中文",
+      "Any available professional हिंदी",
+      "Any available professional عربي",
+      "Any available professional português",
+      "Any available professional français",
+      "Any available professional deutsch",
+      "Any available professional русский"
+    ],
+    "Business hours": [
+      "Horario de atención",
+      "营业时间",
+      "काम के घंटे",
+      "ساعات العمل",
+      "Horário de funcionamento",
+      "Heures d'ouverture",
+      "Öffnungszeiten",
+      "Часы работы"
+    ],
+    "Closed": [
+      "Cerrado",
+      "已关闭",
+      "बंद है",
+      "مغلق",
+      "Fechado",
+      "Fermé",
+      "Geschlossen",
+      "Закрыто"
+    ],
+    "Closures": [
+      "Cierres",
+      "关闭",
+      "बंदियां",
+      "إغلاقات",
+      "Fechamentos",
+      "Fermetures",
+      "Schließungen",
+      "Закрытия"
+    ],
+    "Computer": [
+      "Computador",
+      "电脑",
+      "कंप्यूटर",
+      "حاسوب",
+      "Computador",
+      "Ordinateur",
+      "Computer",
+      "Компьютер"
+    ],
+    "Datos y dispositivos": [
+      "Datos y dispositivos",
+      "数据和设备",
+      "डेटा और उपकरण",
+      "البيانات والأجهزة",
+      "Dados e dispositivos",
+      "Données et appareils",
+      "Daten und Geräte",
+      "Данные и устройства"
+    ],
+    "Especialidades": [
+      "Especialidades",
+      "专业",
+      "विशेषताएँ",
+      "تخصصات",
+      "Especialidades",
+      "Spécialités",
+      "Fachgebiete",
+      "Специальности"
+    ],
+    "Holidays": [
+      "Feriados",
+      "假期",
+      "छुट्टियां",
+      "أعياد",
+      "Feriados",
+      "Vacances",
+      "Feiertage",
+      "Праздники"
+    ],
+    "Horario": [
+      "Horario",
+      "日程",
+      "अनुसूची",
+      "جدول",
+      "Horário",
+      "Horaire",
+      "Zeitplan",
+      "Расписание"
+    ],
+    "Internet": [
+      "Internet",
+      "互联网",
+      "इंटरनेट",
+      "إنترنت",
+      "Internet",
+      "Internet",
+      "Internet",
+      "Интернет"
+    ],
+    "Internet (filtered)": [
+      "Internet (filtrado)",
+      "互联网（已过滤）",
+      "इंटरनेट (फ़िल्टर किया हुआ)",
+      "إنترنت (مفلتر)",
+      "Internet (filtrado)",
+      "Internet (filtré)",
+      "Internet (gefiltert)",
+      "Интернет (с фильтрацией)"
+    ],
+    "Local network only": [
+      "Solo red local",
+      "仅局域网",
+      "केवल स्थानीय नेटवर्क",
+      "شبكة محلية فقط",
+      "Apenas rede local",
+      "Réseau local uniquement",
+      "Nur lokales Netzwerk",
+      "Только локальная сеть"
+    ],
+    "Other": [
+      "Otro",
+      "其他",
+      "अन्य",
+      "آخر",
+      "Outro",
+      "Autre",
+      "Andere",
+      "Другое"
+    ],
+    "Payment registered; confirming…": [
+      "Payment registered; confirming… español",
+      "Payment registered; confirming… 中文",
+      "Payment registered; confirming… हिंदी",
+      "Payment registered; confirming… عربي",
+      "Payment registered; confirming… português",
+      "Payment registered; confirming… français",
+      "Payment registered; confirming… deutsch",
+      "Payment registered; confirming… русский"
+    ],
+    "Printer": [
+      "Impresora",
+      "打印机",
+      "प्रिंटर",
+      "طابعة",
+      "Impressora",
+      "Imprimante",
+      "Drucker",
+      "Принтер"
+    ],
+    "Server": [
+      "Servidor",
+      "服务器",
+      "सर्वर",
+      "خادم",
+      "Servidor",
+      "Serveur",
+      "Server",
+      "Сервер"
+    ],
+    "Servicios": [
+      "Servicios español",
+      "Servicios 中文",
+      "Servicios हिंदी",
+      "Servicios عربي",
+      "Servicios português",
+      "Servicios français",
+      "Servicios deutsch",
+      "Servicios русский"
+    ],
+    "That time was just taken": [
+      "That time was just taken español",
+      "That time was just taken 中文",
+      "That time was just taken हिंदी",
+      "That time was just taken عربي",
+      "That time was just taken português",
+      "That time was just taken français",
+      "That time was just taken deutsch",
+      "That time was just taken русский"
+    ],
+    "You already have bookings awaiting payment": [
+      "You already have bookings awaiting payment español",
+      "You already have bookings awaiting payment 中文",
+      "You already have bookings awaiting payment हिंदी",
+      "You already have bookings awaiting payment عربي",
+      "You already have bookings awaiting payment português",
+      "You already have bookings awaiting payment français",
+      "You already have bookings awaiting payment deutsch",
+      "You already have bookings awaiting payment русский"
+    ],
+    "absolute at": [
+      "absoluto en",
+      "绝对在",
+      "पूर्ण पर",
+      "مطلق في",
+      "absoluto em",
+      "absolu à",
+      "absolut um",
+      "абсолютный в"
+    ],
+    "active only": [
+      "solo activos",
+      "仅活跃",
+      "केवल सक्रिय",
+      "نشط فقط",
+      "apenas ativos",
+      "actif uniquement",
+      "nur aktiv",
+      "только активные"
+    ],
+    "actor id": [
+      "id de actor",
+      "角色标识",
+      "अभिनेता पहचान",
+      "معرف الممثل",
+      "id do ator",
+      "identifiant de l'acteur",
+      "Akteur-ID",
+      "идентификатор актера"
+    ],
+    "amount": [
+      "cantidad",
+      "金额",
+      "राशि",
+      "مبلغ",
+      "quantia",
+      "montant",
+      "Menge",
+      "количество"
+    ],
+    "appointment_booking: Deps.IDs is required": [
+      "appointment_booking: se requiere Deps.IDs",
+      "需要 Deps.IDs",
+      "Deps.IDs आवश्यक है",
+      "مطلوب Deps.IDs",
+      "Deps.IDs é obrigatório",
+      "Deps.IDs est requis",
+      "Deps.IDs ist erforderlich",
+      "Требуется Deps.IDs"
+    ],
+    "appointment_booking: save: empty records": [
+      "guardar: registros vacíos",
+      "保存：空记录",
+      "सहेजें: खाली रिकॉर्ड",
+      "حفظ: سجلات فارغة",
+      "salvar: registros vazios",
+      "enregistrer: enregistrements vides",
+      "Speichern: leere Datensätze",
+      "сохранить: пустые записи"
+    ],
+    "appointment_booking: save: expected *EmployeeServiceConfig": [
+      "guardar: se esperaba configuración",
+      "保存：预期配置",
+      "सहेजें: अपेक्षित कॉन्फ़िगरेशन",
+      "حفظ: تكوين متوقع",
+      "salvar: configuração esperada",
+      "enregistrer: configuration attendue",
+      "Speichern: erwartete Konfiguration",
+      "сохранить: ожидаемая конфигурация"
+    ],
+    "appointment_booking: save: expected *ReservationForm": [
+      "guardar: se esperaba formulario",
+      "保存：预期表单",
+      "सहेजें: अपेक्षित फॉर्म",
+      "حفظ: نموذج متوقع",
+      "salvar: formulário esperado",
+      "enregistrer: formulaire attendu",
+      "Speichern: erwartetes Formular",
+      "сохранить: ожидаемая форма"
+    ],
+    "assurance": [
+      "garantía",
+      "保证",
+      "आश्वासन",
+      "ضمان",
+      "garantia",
+      "assurance",
+      "Zusicherung",
+      "гарантия"
+    ],
+    "authorization code": [
+      "código de autorización",
+      "授权码",
+      "प्राधिकरण कोड",
+      "رمز التفويض",
+      "código de autorização",
+      "code d'autorisation",
+      "Autorisierungscode",
+      "код авторизации"
+    ],
+    "avatar": [
+      "avatar",
+      "头像",
+      "अवतार",
+      "صورة رمزية",
+      "avatar",
+      "avatar",
+      "Avatar",
+      "аватар"
+    ],
+    "before": [
+      "antes",
+      "之前",
+      "पहले",
+      "قبل",
+      "antes",
+      "avant",
+      "vor",
+      "до"
+    ],
+    "blocks": [
+      "bloques",
+      "块",
+      "ब्लॉक",
+      "كتل",
+      "blocos",
+      "blocs",
+      "Blöcke",
+      "блоки"
+    ],
+    "buffer min": [
+      "minutos de margen",
+      "缓冲分钟",
+      "बफर मिनट",
+      "دقائق عازلة",
+      "minutos de margem",
+      "minutes de marge",
+      "Pufferminuten",
+      "буферные минуты"
+    ],
+    "card last4": [
+      "últimos 4",
+      "卡最后4位",
+      "कार्ड के अंतिम 4",
+      "آخر 4 بطاقات",
+      "últimos 4",
+      "4 derniers",
+      "letzte 4",
+      "последние 4"
+    ],
+    "channel": [
+      "canal",
+      "频道",
+      "चैनल",
+      "قناة",
+      "canal",
+      "canal",
+      "Kanal",
+      "канал"
+    ],
+    "client id": [
+      "id del cliente",
+      "客户标识",
+      "ग्राहक पहचान",
+      "معرف العميل",
+      "id do cliente",
+      "identifiant du client",
+      "Kunden-ID",
+      "идентификатор клиента"
+    ],
+    "close min": [
+      "minuto de cierre",
+      "关闭分钟",
+      "बंद मिनट",
+      "دقيقة الإغلاق",
+      "minuto de fechamento",
+      "minute de fermeture",
+      "Schließminute",
+      "минута закрытия"
+    ],
+    "closed": [
+      "cerrado",
+      "关闭",
+      "बंद",
+      "مغلق",
+      "fechado",
+      "fermé",
+      "geschlossen",
+      "закрыто"
+    ],
+    "code": [
+      "código",
+      "代码",
+      "कोड",
+      "رمز",
+      "código",
+      "code",
+      "Code",
+      "код"
+    ],
+    "config id": [
+      "id de configuración",
+      "配置标识",
+      "कॉन्फ़िगरेशन पहचान",
+      "معرف التكوين",
+      "id de configuração",
+      "identifiant de configuration",
+      "Konfigurations-ID",
+      "идентификатор конфигурации"
+    ],
+    "confirm": [
+      "Confirmar",
+      "确认",
+      "पुष्टि करें",
+      "تأكيد",
+      "Confirmar",
+      "Confirmer",
+      "Bestätigen",
+      "Подтвердить"
+    ],
+    "created at": [
+      "creado en",
+      "创建时间",
+      "निर्माण का समय",
+      "وقت الإنشاء",
+      "criado em",
+      "créé le",
+      "erstellt am",
+      "создано в"
+    ],
+    "created by": [
+      "creado por",
+      "创建者",
+      "द्वारा बनाया गया",
+      "أنشأها",
+      "criado por",
+      "créé par",
+      "erstellt von",
+      "создано"
+    ],
+    "creator user id": [
+      "id del creador",
+      "创建者标识",
+      "निर्माता पहचान",
+      "معرف المنشئ",
+      "id do criador",
+      "identifiant du créateur",
+      "Ersteller-ID",
+      "идентификатор создателя"
+    ],
+    "currency": [
+      "moneda",
+      "货币",
+      "मुद्रा",
+      "عملة",
+      "moeda",
+      "devise",
+      "Währung",
+      "валюта"
+    ],
+    "currency snapshot": [
+      "moneda capturada",
+      "货币快照",
+      "मुद्रा स्नैपशॉट",
+      "لقطة العملة",
+      "moeda capturada",
+      "instantané de devise",
+      "Währungs-Schnappschuss",
+      "снимок валюты"
+    ],
+    "current": [
+      "Actual",
+      "当前的",
+      "वर्तमान",
+      "حالي",
+      "Atual",
+      "Actuel",
+      "Aktuell",
+      "Текущий"
+    ],
+    "date": [
+      "fecha",
+      "日期",
+      "दिनांक",
+      "تاريخ",
+      "data",
+      "date",
+      "Datum",
+      "дата"
+    ],
+    "dates": [
+      "fechas",
+      "日期",
+      "तिथियां",
+      "تواريخ",
+      "datas",
+      "dates",
+      "Daten",
+      "даты"
+    ],
+    "day": [
+      "día",
+      "天",
+      "दिन",
+      "يوم",
+      "dia",
+      "jour",
+      "Tag",
+      "день"
+    ],
+    "day of week": [
+      "día de la semana",
+      "星期几",
+      "सप्ताह का दिन",
+      "يوم من الأسبوع",
+      "dia da semana",
+      "jour de la semaine",
+      "Wochentag",
+      "день недели"
+    ],
+    "device id": [
+      "id del dispositivo",
+      "设备标识",
+      "उपकरण पहचान",
+      "معرف الجهاز",
+      "id do dispositivo",
+      "identifiant de l'appareil",
+      "Geräte-ID",
+      "идентификатор устройства"
+    ],
+    "duration min": [
+      "duración en minutos",
+      "持续时间（分钟）",
+      "अवधि (मिनट)",
+      "المدة بالدقائق",
+      "duração em minutos",
+      "durée en minutes",
+      "Dauer in Minuten",
+      "продолжительность в минутах"
+    ],
+    "duration min snapshot": [
+      "duración capturada",
+      "持续时间快照",
+      "अवधि स्नैपशॉट",
+      "لقطة المدة",
+      "duração capturada",
+      "instantané de durée",
+      "Dauer-Schnappschuss",
+      "снимок продолжительности"
+    ],
+    "email": [
+      "correo electrónico",
+      "电子邮件",
+      "ईमेल",
+      "بريد إلكتروني",
+      "e-mail",
+      "e-mail",
+      "E-Mail",
+      "электронная почта"
+    ],
+    "employee service config id": [
+      "id de configuración de empleado",
+      "员工服务配置标识",
+      "कर्मचारी सेवा कॉन्फ़िगरेशन पहचान",
+      "معرف تكوين خدمة الموظف",
+      "id de configuração de funcionário",
+      "identifiant de configuration d'employé",
+      "Mitarbeiter-Service-Konfigurations-ID",
+      "идентификатор конфигурации сотрудника"
+    ],
+    "end min": [
+      "minuto de fin",
+      "结束分钟",
+      "अंत मिनट",
+      "دقيقة النهاية",
+      "minuto de fim",
+      "minute de fin",
+      "Endminute",
+      "минута окончания"
+    ],
+    "end time": [
+      "hora de finalización",
+      "结束时间",
+      "अंतिम समय",
+      "وقت النهاية",
+      "hora de término",
+      "heure de fin",
+      "Endzeit",
+      "время окончания"
+    ],
+    "end utc": [
+      "fin utc_0",
+      "结束utc_1",
+      "अंत utc_2",
+      "نهاية utc_3",
+      "fim utc_4",
+      "fin utc_5",
+      "Ende utc_6",
+      "конец utc_7"
+    ],
+    "event": [
+      "evento",
+      "事件",
+      "घटना",
+      "حدث",
+      "evento",
+      "événement",
+      "Ereignis",
+      "событие"
+    ],
+    "example:": [
+      "Ejemplo:",
+      "例如：",
+      "उदाहरण:",
+      "مثال:",
+      "Exemplo:",
+      "Exemple:",
+      "Beispiel:",
+      "Пример:"
+    ],
+    "exception id": [
+      "id de excepción",
+      "异常标识",
+      "अपवाद पहचान",
+      "معرف الاستثناء",
+      "id de exceção",
+      "identifiant d'exception",
+      "Ausnahme-ID",
+      "идентификатор исключения"
+    ],
+    "exception type": [
+      "tipo de excepción",
+      "异常类型",
+      "अपवाद प्रकार",
+      "نوع الاستثناء",
+      "tipo de exceção",
+      "type d'exception",
+      "Ausnahmetyp",
+      "тип исключения"
+    ],
+    "expires at": [
+      "Expira el",
+      "到期",
+      "समाप्त होता है",
+      "ينتهي في",
+      "Expira em",
+      "Expire le",
+      "Läuft ab am",
+      "Истекает"
+    ],
+    "found": [
+      "encontrado",
+      "发现",
+      "मिला",
+      "موجود",
+      "encontrado",
+      "trouvé",
+      "gefunden",
+      "найденный"
+    ],
+    "from": [
+      "desde",
+      "从",
+      "से",
+      "من",
+      "de",
+      "de",
+      "von",
+      "от"
+    ],
+    "hold until": [
+      "retener hasta",
+      "保留至",
+      "तक पकड़ें",
+      "احتفظ حتى",
+      "reter até",
+      "maintenir jusqu'à",
+      "halten bis",
+      "удерживать до"
+    ],
+    "hour": [
+      "hora",
+      "小时",
+      "घंटा",
+      "ساعة",
+      "hora",
+      "heure",
+      "Stunde",
+      "час"
+    ],
+    "idle seconds": [
+      "Segundos inactivo",
+      "空闲秒数",
+      "निष्क्रिय सेकंड",
+      "ثواني الخمول",
+      "Segundos ociosos",
+      "Secondes inactives",
+      "Inaktive Sekunden",
+      "Секунды простоя"
+    ],
+    "include taken": [
+      "incluir tomados",
+      "包括已占用",
+      "लिए गए शामिल करें",
+      "تتضمن المأخوذة",
+      "incluir ocupados",
+      "inclure pris",
+      "belegte einschließen",
+      "включить занятые"
+    ],
+    "installments": [
+      "cuotas",
+      "分期付款",
+      "किश्तें",
+      "أقساط",
+      "parcelas",
+      "versements",
+      "Raten",
+      "взносы"
+    ],
+    "ip": [
+      "Dirección IP",
+      "IP地址",
+      "आईपी पता",
+      "عنوان إب",
+      "Endereço IP",
+      "Adresse IP",
+      "IP-Adresse",
+      "IP-адрес"
+    ],
+    "is active": [
+      "activo",
+      "活跃",
+      "सक्रिय",
+      "نشط",
+      "ativo",
+      "actif",
+      "aktiv",
+      "активен"
+    ],
+    "is open": [
+      "is open español",
+      "is open 中文",
+      "is open हिंदी",
+      "is open عربي",
+      "is open português",
+      "is open français",
+      "is open deutsch",
+      "is open русский"
+    ],
+    "kind": [
+      "kind español",
+      "kind 中文",
+      "kind हिंदी",
+      "kind عربي",
+      "kind português",
+      "kind français",
+      "kind deutsch",
+      "kind русский"
+    ],
+    "label": [
+      "etiqueta",
+      "标签",
+      "लेबल",
+      "علامة",
+      "rótulo",
+      "étiquette",
+      "Etikett",
+      "метка"
+    ],
+    "last used at": [
+      "Último uso el",
+      "上次使用时间",
+      "अंतिम बार उपयोग किया गया",
+      "آخر استخدام في",
+      "Último uso em",
+      "Dernière utilisation le",
+      "Zuletzt verwendet am",
+      "Последнее использование в"
+    ],
+    "limit": [
+      "límite",
+      "限制",
+      "सीमा",
+      "حد",
+      "limite",
+      "limite",
+      "Grenze",
+      "предел"
+    ],
+    "local string date": [
+      "fecha local",
+      "本地日期",
+      "स्थानीय दिनांक",
+      "التاريخ المحلي",
+      "data local",
+      "date locale",
+      "Lokales Datum",
+      "локальная дата"
+    ],
+    "local string time": [
+      "hora local",
+      "本地时间",
+      "स्थानीय समय",
+      "الوقت المحلي",
+      "hora local",
+      "heure locale",
+      "Lokale Zeit",
+      "локальное время"
+    ],
+    "max overbook per day": [
+      "sobrecupo máximo por día",
+      "每天最大超额预订",
+      "प्रति दिन अधिकतम ओवरबुक",
+      "أقصى حجز زائد يوميا",
+      "sobrecarga máxima por dia",
+      "surréservation maximale par jour",
+      "Maximaler Überbuchung pro Tag",
+      "максимальный овербукинг в день"
+    ],
+    "method": [
+      "método",
+      "方法",
+      "विधि",
+      "طريقة",
+      "método",
+      "méthode",
+      "Methode",
+      "метод"
+    ],
+    "name": [
+      "nombre",
+      "名字",
+      "नाम",
+      "اسم",
+      "nome",
+      "nom",
+      "Name",
+      "имя"
+    ],
+    "new": [
+      "nuevo",
+      "新的",
+      "नया",
+      "جديد",
+      "novo",
+      "nouveau",
+      "neu",
+      "новый"
+    ],
+    "no patients found in patient directory module": [
+      "no se encontraron pacientes",
+      "未找到患者",
+      "कोई रोगी नहीं मिला",
+      "لم يتم العثور على مرضى",
+      "nenhum paciente encontrado",
+      "aucun patient trouvé",
+      "Keine Patienten gefunden",
+      "пациенты не найдены"
+    ],
+    "no service configurations created": [
+      "no hay servicios configurados",
+      "无服务配置",
+      "कोई सेवा कॉन्फ़िगरेशन नहीं",
+      "لا توجد تكوينات خدمة",
+      "nenhum serviço configurado",
+      "aucun service configuré",
+      "Keine Servicekonfigurationen",
+      "службы не настроены"
+    ],
+    "nonce hash": [
+      "Hash de nonce",
+      "随机数哈希",
+      "नोंस हैश",
+      "تجزئة نونس",
+      "Hash de nonce",
+      "Hachage nonce",
+      "Nonce-Hash",
+      "Хэш nonce"
+    ],
+    "not": [
+      "no",
+      "不是",
+      "नहीं",
+      "ليس",
+      "não",
+      "pas",
+      "nicht",
+      "не"
+    ],
+    "notes": [
+      "notes español",
+      "notes 中文",
+      "notes हिंदी",
+      "notes عربي",
+      "notes português",
+      "notes français",
+      "notes deutsch",
+      "notes русский"
+    ],
+    "offset": [
+      "desplazamiento",
+      "偏移",
+      "ऑफ़सेट",
+      "توازن",
+      "deslocamento",
+      "décalage",
+      "Offset",
+      "смещение"
+    ],
+    "open": [
+      "abierto",
+      "开放",
+      "खुला",
+      "مفتوح",
+      "aberto",
+      "ouvert",
+      "offen",
+      "открыто"
+    ],
+    "open min": [
+      "minuto de apertura",
+      "开放分钟",
+      "खुला न्यूनतम",
+      "دقيقة الفتح",
+      "minuto de abertura",
+      "minute d'ouverture",
+      "Öffnungsminute",
+      "минута открытия"
+    ],
+    "origin": [
+      "origen",
+      "起源",
+      "मूल",
+      "أصل",
+      "origem",
+      "origine",
+      "Ursprung",
+      "происхождение"
+    ],
+    "overbooked": [
+      "overbooked español",
+      "overbooked 中文",
+      "overbooked हिंदी",
+      "overbooked عربي",
+      "overbooked português",
+      "overbooked français",
+      "overbooked deutsch",
+      "overbooked русский"
+    ],
+    "paid at": [
+      "pagado el",
+      "支付时间",
+      "भुगतान का समय",
+      "وقت الدفع",
+      "pago em",
+      "payé le",
+      "bezahlt am",
+      "оплачено в"
+    ],
+    "password": [
+      "Contraseña",
+      "密码",
+      "पासवर्ड",
+      "كلمة المرور",
+      "Senha",
+      "Mot de passe",
+      "Passwort",
+      "Пароль"
+    ],
+    "payable": [
+      "pagadero",
+      "应付",
+      "देय",
+      "قابل للدفع",
+      "pagável",
+      "payable",
+      "zahlbar",
+      "к оплате"
+    ],
+    "payment id": [
+      "id de pago",
+      "支付标识",
+      "भुगतान पहचान",
+      "معرف الدفع",
+      "id de pagamento",
+      "identifiant de paiement",
+      "Zahlungs-ID",
+      "идентификатор платежа"
+    ],
+    "payment required": [
+      "Pago requerido",
+      "需要付款",
+      "भुगतान आवश्यक",
+      "الدفع مطلوب",
+      "Pagamento obrigatório",
+      "Paiement requis",
+      "Zahlung erforderlich",
+      "Требуется оплата"
+    ],
+    "payment type code": [
+      "tipo de pago",
+      "付款类型代码",
+      "भुगतान प्रकार",
+      "نوع الدفع",
+      "tipo de pagamento",
+      "type de paiement",
+      "Zahlungsart",
+      "тип платежа"
+    ],
+    "phone": [
+      "Teléfono",
+      "电话",
+      "फ़ोन",
+      "هاتف",
+      "Telefone",
+      "Téléphone",
+      "Telefon",
+      "Телефон"
+    ],
+    "position": [
+      "position español",
+      "position 中文",
+      "position हिंदी",
+      "position عربي",
+      "position português",
+      "position français",
+      "position deutsch",
+      "position русский"
+    ],
+    "price": [
+      "precio",
+      "价格",
+      "मूल्य",
+      "سعر",
+      "preço",
+      "prix",
+      "Preis",
+      "цена"
+    ],
+    "price override": [
+      "precio manual",
+      "价格覆盖",
+      "मूल्य ओवरराइड",
+      "تجاوز السعر",
+      "preço manual",
+      "prix manuel",
+      "Preisüberschreibung",
+      "переопределение цены"
+    ],
+    "price snapshot": [
+      "precio capturado",
+      "价格快照",
+      "मूल्य स्नैपशॉट",
+      "لقطة السعر",
+      "preço capturado",
+      "instantané de prix",
+      "Preis-Schnappschuss",
+      "снимок цены"
+    ],
+    "provider": [
+      "proveedor",
+      "提供者",
+      "प्रदाता",
+      "مزود",
+      "provedor",
+      "fournisseur",
+      "Anbieter",
+      "провайдер"
+    ],
+    "provider id": [
+      "Id de proveedor",
+      "提供者标识",
+      "प्रदाता पहचान",
+      "معرف المزود",
+      "Id do provedor",
+      "Id du fournisseur",
+      "Anbieter-ID",
+      "Идентификатор провайдера"
+    ],
+    "provider token": [
+      "token del proveedor",
+      "提供者令牌",
+      "प्रदाता टोकन",
+      "رمز المزود",
+      "token do provedor",
+      "jeton du fournisseur",
+      "Anbieter-Token",
+      "токен провайдера"
+    ],
+    "public key": [
+      "Clave pública",
+      "公钥",
+      "सार्वजनिक कुंजी",
+      "المفتاح العام",
+      "Chave pública",
+      "Clé publique",
+      "Öffentlicher Schlüssel",
+      "Открытый ключ"
+    ],
+    "purpose": [
+      "Propósito",
+      "目的",
+      "उद्देश्य",
+      "غرض",
+      "Propósito",
+      "Objectif",
+      "Zweck",
+      "Цель"
+    ],
+    "reason": [
+      "razón",
+      "原因",
+      "कारण",
+      "سبب",
+      "razão",
+      "raison",
+      "Grund",
+      "причина"
+    ],
+    "receipt number": [
+      "número de recibo",
+      "收据号码",
+      "रसीद नंबर",
+      "رقم الإيصال",
+      "número do recibo",
+      "numéro de reçu",
+      "Belegnummer",
+      "номер квитанции"
+    ],
+    "redirect url": [
+      "url de redirección",
+      "重定向网址",
+      "रीडायरेक्ट यूआरएल",
+      "رابط إعادة التوجيه",
+      "url de redirecionamento",
+      "url de redirection",
+      "Umleitungs-URL",
+      "URL перенаправления"
+    ],
+    "reference id": [
+      "id de referencia",
+      "参考标识",
+      "संदर्भ पहचान",
+      "معرف المرجع",
+      "id de referência",
+      "identifiant de référence",
+      "Referenz-ID",
+      "идентификатор ссылки"
+    ],
+    "reference module": [
+      "módulo de referencia",
+      "参考模块",
+      "संदर्भ मॉड्यूल",
+      "وحدة مرجعية",
+      "módulo de referência",
+      "module de référence",
+      "Referenzmodul",
+      "модуль ссылки"
+    ],
+    "refunded amount": [
+      "monto reembolsado",
+      "退款金额",
+      "वापस की गई राशि",
+      "المبلغ المسترد",
+      "valor reembolsado",
+      "montant remboursé",
+      "Rückerstattungsbetrag",
+      "возвращенная сумма"
+    ],
+    "rescheduled from id": [
+      "reprogramado de",
+      "从标识重新安排",
+      "पहचान से पुनर्निर्धारित",
+      "تمت إعادة جدولته من",
+      "reagendado de",
+      "reprogrammé à partir de",
+      "verschoben von",
+      "перенесено с"
+    ],
+    "reservation date": [
+      "fecha de reserva",
+      "预订日期",
+      "आरक्षण की तारीख",
+      "تاريخ الحجز",
+      "data da reserva",
+      "date de réservation",
+      "Reservierungsdatum",
+      "дата бронирования"
+    ],
+    "reservation id": [
+      "id de reserva",
+      "预订标识",
+      "आरक्षण पहचान",
+      "معرف الحجز",
+      "id de reserva",
+      "identifiant de réservation",
+      "Reservierungs-ID",
+      "идентификатор бронирования"
+    ],
+    "reservation time": [
+      "hora de reserva",
+      "预订时间",
+      "आरक्षण का समय",
+      "وقت الحجز",
+      "hora da reserva",
+      "heure de réservation",
+      "Reservierungszeit",
+      "время бронирования"
+    ],
+    "return to": [
+      "regresar a",
+      "返回",
+      "वापस",
+      "العودة إلى",
+      "voltar para",
+      "retourner à",
+      "zurückkehren zu",
+      "вернуться к"
+    ],
+    "revision": [
+      "revisión",
+      "修订",
+      "संशोधन",
+      "مراجعة",
+      "revisão",
+      "révision",
+      "Revision",
+      "ревизия"
+    ],
+    "rut": [
+      "rut español",
+      "rut 中文",
+      "rut हिंदी",
+      "rut عربي",
+      "rut português",
+      "rut français",
+      "rut deutsch",
+      "rut русский"
+    ],
+    "service": [
+      "servicio",
+      "服务",
+      "सेवा",
+      "خدمة",
+      "serviço",
+      "service",
+      "Dienstleistung",
+      "услуга"
+    ],
+    "service id": [
+      "id del servicio",
+      "服务标识",
+      "सेवा पहचान",
+      "معرف الخدمة",
+      "id do serviço",
+      "identifiant de service",
+      "Service-ID",
+      "идентификатор услуги"
+    ],
+    "service idsnapshot": [
+      "servicio capturado",
+      "服务快照",
+      "सेवा स्नैपशॉट",
+      "لقطة الخدمة",
+      "serviço capturado",
+      "instantané de service",
+      "Service-Schnappschuss",
+      "снимок услуги"
+    ],
+    "service name": [
+      "nombre del servicio",
+      "服务名称",
+      "सेवा का नाम",
+      "اسم الخدمة",
+      "nome do serviço",
+      "nom du service",
+      "Servicename",
+      "название услуги"
+    ],
+    "sign count": [
+      "Recuento de firmas",
+      "签名计数",
+      "हस्ताक्षर गणना",
+      "عدد العلامات",
+      "Contagem de assinaturas",
+      "Nombre de signatures",
+      "Zeichenanzahl",
+      "Количество подписей"
+    ],
+    "sku": [
+      "sku español",
+      "sku 中文",
+      "sku हिंदी",
+      "sku عربي",
+      "sku português",
+      "sku français",
+      "sku deutsch",
+      "sku русский"
+    ],
+    "slot start utc": [
+      "inicio utc_0",
+      "插槽开始 utc_1",
+      "स्लॉट प्रारंभ utc_2",
+      "بداية الفتحة utc_3",
+      "início do slot utc_4",
+      "début de créneau utc_5",
+      "Slot-Start-UTC_6",
+      "начало слота utc_7"
+    ],
+    "specialty": [
+      "especialidad",
+      "专业",
+      "विशेषता",
+      "تخصص",
+      "especialidade",
+      "spécialité",
+      "Fachgebiet",
+      "специальность"
+    ],
+    "specialty id": [
+      "id de especialidad",
+      "专业标识",
+      "विशेषता पहचान",
+      "معرف التخصص",
+      "id da especialidade",
+      "identifiant de spécialité",
+      "Fachgebiets-ID",
+      "идентификатор специальности"
+    ],
+    "specific date": [
+      "fecha específica",
+      "特定日期",
+      "विशिष्ट तिथि",
+      "تاريخ محدد",
+      "data específica",
+      "date spécifique",
+      "Bestimmtes Datum",
+      "конкретная дата"
+    ],
+    "staff": [
+      "personal",
+      "全体员工",
+      "कर्मचारी",
+      "عاملين",
+      "equipe",
+      "personnel",
+      "Personal",
+      "персонал"
+    ],
+    "staff id": [
+      "id del personal",
+      "员工标识",
+      "कर्मचारी पहचान",
+      "معرف الموظفين",
+      "id da equipe",
+      "identifiant du personnel",
+      "Mitarbeiter-ID",
+      "идентификатор персонала"
+    ],
+    "staff idsnapshot": [
+      "personal capturado",
+      "员工快照",
+      "कर्मचारी स्नैपशॉट",
+      "لقطة الموظفين",
+      "equipe capturada",
+      "instantané du personnel",
+      "Personal-Schnappschuss",
+      "снимок персонала"
+    ],
+    "staff name": [
+      "nombre del personal",
+      "员工名字",
+      "कर्मचारी का नाम",
+      "اسم الموظفين",
+      "nome da equipe",
+      "nom du personnel",
+      "Mitarbeitername",
+      "имя персонала"
+    ],
+    "start min": [
+      "minuto de inicio",
+      "开始分钟",
+      "प्रारंभ न्यूनतम",
+      "بداية دقيقة",
+      "minuto de início",
+      "minute de début",
+      "Startminute",
+      "минута начала"
+    ],
+    "start time": [
+      "hora de inicio",
+      "开始时间",
+      "शुरुआती समय",
+      "وقت البدء",
+      "hora de início",
+      "heure de début",
+      "Startzeit",
+      "время начала"
+    ],
+    "start utc": [
+      "inicio utc_0",
+      "开始 utc_1",
+      "प्रारंभ utc_2",
+      "بداية utc_3",
+      "início utc_4",
+      "début utc_5",
+      "Start utc_6",
+      "начало utc_7"
+    ],
+    "starts at": [
+      "comienza a las",
+      "开始于",
+      "पर शुरू होता है",
+      "يبدأ عند",
+      "começa às",
+      "commence à",
+      "beginnt um",
+      "начинается в"
+    ],
+    "state": [
+      "Estado",
+      "状态",
+      "राज्य",
+      "حالة",
+      "Estado",
+      "État",
+      "Staat",
+      "Состояние"
+    ],
+    "status": [
+      "estado",
+      "状态",
+      "स्थिति",
+      "حالة",
+      "status",
+      "statut",
+      "Status",
+      "статус"
+    ],
+    "status before conflict": [
+      "estado previo",
+      "冲突前状态",
+      "संघर्ष से पहले",
+      "الحالة قبل",
+      "status prévio",
+      "statut précédent",
+      "Status davor",
+      "статус до"
+    ],
+    "taken": [
+      "tomado",
+      "被占用",
+      "लिया गया",
+      "مأخوذة",
+      "ocupado",
+      "pris",
+      "genommen",
+      "занято"
+    ],
+    "tenant id": [
+      "id de cuenta",
+      "租户标识",
+      "खाता पहचान",
+      "معرف الحساب",
+      "id da conta",
+      "identifiant du compte",
+      "Konto-ID",
+      "идентификатор аккаунта"
+    ],
+    "time format: HH:MM": [
+      "Formato de hora: HH:MM",
+      "时间格式：HH:MM",
+      "समय प्रारूप: HH:MM",
+      "تنسيق الوقت: HH:MM",
+      "Formato de hora: HH:MM",
+      "Format de l'heure: HH:MM",
+      "Zeitformat: HH:MM",
+      "Формат времени: HH:MM"
+    ],
+    "timezone": [
+      "zona horaria",
+      "时区",
+      "समय क्षेत्र",
+      "منطقة زمنية",
+      "fuso horário",
+      "fuseau horaire",
+      "Zeitzone",
+      "часовой пояс"
+    ],
+    "to": [
+      "hasta",
+      "到",
+      "तक",
+      "إلى",
+      "até",
+      "à",
+      "bis",
+      "до"
+    ],
+    "token": [
+      "token español",
+      "token 中文",
+      "token हिंदी",
+      "token عربي",
+      "token português",
+      "token français",
+      "token deutsch",
+      "token русский"
+    ],
+    "type": [
+      "tipo",
+      "类型",
+      "प्रकार",
+      "نوع",
+      "tipo",
+      "type",
+      "Typ",
+      "тип"
+    ],
+    "updated at": [
+      "actualizado en",
+      "更新于",
+      "अद्यतन",
+      "محدث في",
+      "atualizado em",
+      "mis à jour à",
+      "aktualisiert am",
+      "обновлено в"
+    ],
+    "updated by": [
+      "actualizado por",
+      "更新者",
+      "द्वारा अद्यतन",
+      "محدث بواسطة",
+      "atualizado por",
+      "mis à jour par",
+      "aktualisiert von",
+      "обновлено пользователем"
+    ],
+    "user agent": [
+      "Agente de usuario",
+      "用户代理",
+      "उपयोगकर्ता एजेंट",
+      "وكيل المستخدم",
+      "Agente de usuário",
+      "Agent utilisateur",
+      "User-Agent",
+      "Пользовательский агент"
+    ],
+    "user id": [
+      "user id español",
+      "user id 中文",
+      "user id हिंदी",
+      "user id عربي",
+      "user id português",
+      "user id français",
+      "user id deutsch",
+      "user id русский"
+    ]
+  }
+}

@@ -13,24 +13,20 @@ import (
 // compares them by asserting this type and comparing the value: == between two
 // error values compiles, under TinyGo, to runtime.interfaceEqual, which pulls
 // internal/reflectlite into the wasm binary.
-type domainError string
-
-func (e domainError) Error() string { return string(e) }
-
 const (
-	ErrCalendarConfigNotFound    domainError = "calendar config not found"
-	ErrSlotTaken                 domainError = "slot taken"
-	ErrMissingArgs               domainError = "missing args"
-	ErrInvalidBlock              domainError = "appointment_booking: start_min must be < end_min and both within 0..1439"
-	ErrBlocksOverlap             domainError = "appointment_booking: two blocks of the same day overlap"
-	ErrBlockOutsideBusinessHours domainError = "appointment_booking: block falls outside the establishment's opening hours"
-	ErrBlockOnClosedDay          domainError = "appointment_booking: the establishment is closed on that date"
-	ErrNoServiceConfig           domainError = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
-	ErrIncompleteSlot            domainError = "appointment_booking: a booking needs both a day and an hour"
-	ErrIdTaken                   domainError = "reservation id already used"
-	ErrOverbookNotAllowed        domainError = "overbooking not allowed for this professional and day"
-	ErrSlotNotInSchedule         domainError = "appointment_booking: slot is not within professional's scheduled blocks"
-	ErrClientNotFound            domainError = "client not found"
+	ErrCalendarConfigNotFound    model.NotFound = "calendar config not found"
+	ErrSlotTaken                 model.Conflict = "slot taken"
+	ErrMissingArgs               model.Invalid = "missing args"
+	ErrInvalidBlock              model.Invalid = "appointment_booking: start_min must be < end_min and both within 0..1439"
+	ErrBlocksOverlap             model.Invalid = "appointment_booking: two blocks of the same day overlap"
+	ErrBlockOutsideBusinessHours model.Invalid = "appointment_booking: block falls outside the establishment's opening hours"
+	ErrBlockOnClosedDay          model.Invalid = "appointment_booking: the establishment is closed on that date"
+	ErrNoServiceConfig           model.Invalid = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
+	ErrIncompleteSlot            model.Invalid = "appointment_booking: a booking needs both a day and an hour"
+	ErrIdTaken                   model.Invalid = "reservation id already used"
+	ErrOverbookNotAllowed        model.Invalid = "overbooking not allowed for this professional and day"
+	ErrSlotNotInSchedule         model.Invalid = "appointment_booking: slot is not within professional's scheduled blocks"
+	ErrClientNotFound            model.NotFound = "client not found"
 )
 
 // Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).
@@ -298,7 +294,7 @@ func (m *Module) UpsertCalendarConfig(cfg WorkCalendarConfig) error {
 func (m *Module) requireCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error) {
 	cfg, err := m.repo.GetCalendarConfig(tenantId, staffId)
 	if err != nil {
-		if e, ok := err.(domainError); ok && e == ErrNotFound {
+		if model.KindOf(err) == model.ErrorNotFound {
 			return WorkCalendarConfig{}, ErrCalendarConfigNotFound
 		}
 		return WorkCalendarConfig{}, err
@@ -797,7 +793,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			return existing, nil
 		}
 		return Reservation{}, ErrIdTaken
-	} else if de, ok := err.(domainError); !ok || de != ErrNotFound {
+	} else if model.KindOf(err) != model.ErrorNotFound {
 		return Reservation{}, err
 	}
 
@@ -952,7 +948,7 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 			return existing, nil
 		}
 		return Reservation{}, ErrIdTaken
-	} else if de, ok := err.(domainError); !ok || de != ErrNotFound {
+	} else if model.KindOf(err) != model.ErrorNotFound {
 		return Reservation{}, err
 	}
 

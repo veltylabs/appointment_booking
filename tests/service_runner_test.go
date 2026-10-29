@@ -2,6 +2,7 @@ package tests
 
 import (
 	"testing"
+	"webtyp.com/model"
 
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
@@ -42,7 +43,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			SlotStartUtc:            1000,
 			Origin:                  ab.OriginCounter,
 		})
-		if err == nil || err.Error() != ab.ErrNotFound.Error() {
+		if err == nil || model.KindOf(err) != model.ErrorNotFound {
 			t.Fatalf("expected ab.ErrNotFound, got: %v", err)
 		}
 	})
@@ -335,7 +336,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		})
 
 		_, err := s.GetReservation("T2", res.Id)
-		if err == nil || err.Error() != ab.ErrNotFound.Error() {
+		if err == nil || model.KindOf(err) != model.ErrorNotFound {
 			t.Fatalf("expected ErrNotFound for cross tenant Get, got %v", err)
 		}
 	})
@@ -361,7 +362,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			ActorId:  "u1",
 			Revision: 0,
 		})
-		if err == nil || err.Error() != ab.ErrNotFound.Error() {
+		if err == nil || model.KindOf(err) != model.ErrorNotFound {
 			t.Fatalf("expected ErrNotFound for cross tenant ChangeStatus, got %v", err)
 		}
 	})

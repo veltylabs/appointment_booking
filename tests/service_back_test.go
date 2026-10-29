@@ -2,6 +2,7 @@ package tests
 
 import (
 	"testing"
+	"webtyp.com/model"
 
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
@@ -91,7 +92,7 @@ func TestService_Back(t *testing.T) {
 			ActorId:  "u1",
 			Revision: 0, // Wrong revision, should be 1
 		})
-		if err2 == nil || err2.Error() != ab.ErrConflict.Error() {
+		if err2 == nil || model.KindOf(err2) != model.ErrorConflict {
 			t.Fatalf("Second change should fail with ab.ErrConflict, got: %v", err2)
 		}
 

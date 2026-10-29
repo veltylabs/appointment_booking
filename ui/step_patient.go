@@ -88,7 +88,7 @@ func (s *stepPatientForm) search() {
 			switch {
 			case err == nil: // M1-encontrado
 				s.showCard(*p)
-			case err.Error() == patientdirectory.ErrNotFound.Error(): // M1-404
+			case model.KindOf(err) == model.ErrorNotFound: // M1-404
 				s.result.Set([]*Element{actionButton(textRegisterPatient, nil, s.openRegister)})
 			default: // M1-otro
 				s.errMsg.Set(err.Error())

@@ -20,9 +20,10 @@ const (
 	MaxOnlineHolds                 = 2   // retenciones online activas por paciente
 )
 
-const (
-	ResourceBookingCatalog    = "booking_catalog"    // lecturas del flujo online
-	ResourceReservationOnline = "reservation_online" // crear reserva online
+var (
+	ResourceBookingCatalog    = model.FeatureResource("booking_catalog")    // lecturas del flujo online
+	ResourceReservationOnline = model.FeatureResource("reservation_online") // crear reserva online
+	ResourceOverbooking = model.FeatureResource("overbooking")
 )
 
 // EmployeeServiceConfigModel: que servicios realiza un profesional, durante cuanto
@@ -111,7 +112,7 @@ var ReservationModel = model.Definition{
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "client_id", Type: model.Text(), NotNull: true, Item: model.ItemLabel},
 		{Name: "creator_user_id", Type: model.Text()},
-		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true},
+		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true, Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
 		{Name: "staff_idsnapshot", Type: model.Text()},
 		{Name: "service_idsnapshot", Type: model.Text()},
 		{Name: "duration_min_snapshot", Type: model.Int()},
@@ -125,7 +126,7 @@ var ReservationModel = model.Definition{
 		// literales viven SOLO en esas constantes (regla anti magic-string, ver service_catalog).
 		{Name: "status", Type: model.Text(), NotNull: true},
 		{Name: "origin", Type: model.Text(), NotNull: true},
-		{Name: "rescheduled_from_id", Type: model.Text()},
+		{Name: "rescheduled_from_id", Type: model.Text(), DB: &model.FieldDB{RefColumn: "id"}},
 		// status_before_conflict: el estado anterior cuando Status == CONFLICTED —
 		// es la columna del campo StatusBeforeConflict del struct generado: se
 		// escribe al entrar en conflicto y se limpia al salir. Sin él,
@@ -196,10 +197,10 @@ var CreateReservationArgsModel = model.Definition{
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
 		{Name: "client_id", Type: model.Text()},
 		{Name: "creator_user_id", Type: model.Text()},
-		{Name: "employee_service_config_id", Type: model.Text()},
+		{Name: "employee_service_config_id", Type: model.Text(), Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
 		{Name: "slot_start_utc", Type: model.UnixTime()},
 		{Name: "notes", Type: model.Text()},
-		{Name: "rescheduled_from_id", Type: model.Text()},
+		{Name: "rescheduled_from_id", Type: model.Text(), DB: &model.FieldDB{RefColumn: "id"}},
 		{Name: "origin", Type: model.Text()},
 	},
 }
@@ -211,10 +212,10 @@ var CreateOverbookingArgsModel = model.Definition{
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
 		{Name: "client_id", Type: model.Text()},
 		{Name: "creator_user_id", Type: model.Text()},
-		{Name: "employee_service_config_id", Type: model.Text()},
+		{Name: "employee_service_config_id", Type: model.Text(), Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
 		{Name: "slot_start_utc", Type: model.UnixTime()},
 		{Name: "notes", Type: model.Text()},
-		{Name: "rescheduled_from_id", Type: model.Text()},
+		{Name: "rescheduled_from_id", Type: model.Text(), DB: &model.FieldDB{RefColumn: "id"}},
 		{Name: "origin", Type: model.Text()},
 	},
 }
@@ -507,8 +508,17 @@ var CreateOnlineReservationArgsModel = model.Definition{
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "id", Type: model.Text(), NotNull: true},
 		{Name: "client_id", Type: model.Text(), NotNull: true},
-		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true},
+		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true, Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
 		{Name: "slot_start_utc", Type: model.UnixTime(), NotNull: true},
 		{Name: "notes", Type: model.Text()},
 	},
+}
+
+
+func init() {
+	for i := range ReservationModel.Fields {
+		if ReservationModel.Fields[i].Name == "rescheduled_from_id" {
+			ReservationModel.Fields[i].Ref = &ReservationModel
+		}
+	}
 }
