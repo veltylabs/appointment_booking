@@ -7,7 +7,7 @@ require (
 	github.com/veltylabs/device_manager v0.2.75
 	github.com/veltylabs/patient_directory v0.1.65
 	github.com/veltylabs/payment_manager v0.4.19
-	github.com/veltylabs/service_catalog v0.6.15
+	github.com/veltylabs/service_catalog v0.6.21
 	github.com/veltylabs/staff_manager v0.1.157
 	webtyp.com/auth v0.0.87
 	webtyp.com/components v0.8.57
@@ -40,6 +40,7 @@ require (
 	webtyp.com/fetch v0.1.29 // indirect
 	webtyp.com/filepath v0.1.0 // indirect
 	webtyp.com/money v0.2.0 // indirect
+	webtyp.com/rpc v0.2.7 // indirect
 )
 
 require (
