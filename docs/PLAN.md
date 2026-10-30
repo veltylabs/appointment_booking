@@ -2,8 +2,10 @@
 PLAN: "feat: the demo shows its API and its database (layout v0.3.99 developer tools)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 16064739039509092501
+PR: https://github.com/veltylabs/appointment_booking/pull/23
+REVIEWED_COMMIT: b883950817bd402452a4d60da1b5d3b98fd0a514
 ---
 
 > Read AGENTS.md at the repo root before any change.

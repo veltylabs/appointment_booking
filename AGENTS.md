@@ -52,7 +52,7 @@ Los archivos Go de un módulo que **no sean de prueba** pueden importar, desde `
 | `events` | `Publisher`/`Subscriber`/`Event` | Contrato de pub/sub; el broker (en proceso, `sse`, una cola) es inyectado |
 | `orm` | `*orm.DB`, constructor de consultas (`Create`/`Update`/`Delete`/`Query`) | Capa ergonómica sobre `storage.Conn` — el equivalente de `database/sql`, agnóstico del backend por construcción |
 | `storage` | `Conn`/`Condition`/`Query` (mayormente transitivo, vía las re-exportaciones de `orm` en `reexport.go`) | El **puerto** de almacenamiento real — `orm` nunca lo redefine |
-| `ddl` | `CreateTable`/`Sync` (esquema en tiempo de ejecución) | Hermano de `orm` sobre `storage.Conn` — sigue siendo agnóstico del backend |
+| `ddl` | `Sync` (esquema en tiempo de ejecución) | Hermano de `orm` sobre `storage.Conn` — sigue siendo agnóstico del backend |
 | `form/input` | `input.Text()`, `input.Number()`, … (`Kind` con un widget de UI) | Solo cuando un campo de `model.Definition` necesita un widget para un formulario; sigue siendo solo un `Kind`, sin renderizador |
 | `fmt` | manejo de cadenas/números/errores, `Err(...)` | El reemplazo de stdlib del ecosistema — ver la sección de stdlib a continuación |
 | `time` | ayudantes de fecha/hora | El reemplazo de `time` del ecosistema (isomórfico, seguro para wasm) |
@@ -178,7 +178,7 @@ libre de reflexión y de tamaño TinyGo. Un módulo apunta a `wasm`/TinyGo prime
   construye un generador.
 - **Persistencia**: `New(db *orm.DB, deps Deps)` recibe un `*orm.DB` ya conectado (respaldado por
   cualquiera que sea el `storage.Conn` que eligió la aplicación) y posee su propia migración de esquema vía
-  `github.com/webtyp/ddl`, reemplazando el eliminado `orm.DB.CreateTable`. `ddl.New` toma **dos**
+  `github.com/webtyp/ddl` (`orm.DB.CreateTable` ya no existe; usa `ddl.DB.Sync`). `ddl.New` toma **dos**
   argumentos — `ddl.New(conn storage.Conn, ddlCompiler ddl.Compiler)` — y `ddl.Compiler` es una
   capacidad que solo los backends SQL (`sqlt`, `postgres`) implementan; el backend de pruebas en memoria
   (`storage/mem`) no lo hace, porque crea tablas perezosamente en el primer `Exec` y no necesita DDL en absoluto.
@@ -186,13 +186,13 @@ libre de reflexión y de tamaño TinyGo. Un módulo apunta a `wasm`/TinyGo prime
   que `storage.TxExecutor` ya usa para transacciones opcionales):
   ```go
   if ddlCompiler, ok := db.RawConn().(ddl.Compiler); ok {
-      if err := ddl.New(db.RawConn(), ddlCompiler).CreateTable(&CatalogItem{}); err != nil {
+      if err := ddl.New(db.RawConn(), ddlCompiler).Sync(&CatalogItem{}); err != nil {
           return nil, err
       }
   }
   ```
   Contra `storage/mem` (pruebas del módulo) esto es una operación nula (no-op) — nada que crear. Contra un backend SQL real
-  migra el esquema, exactamente como lo hacía el antiguo `orm.DB.CreateTable`. El módulo nunca
+  migra el esquema con `ddl.DB.Sync` (crea lo que falta y agrega columnas nuevas). El módulo nunca
   recibe una cadena de conexión sin procesar ni elige un controlador.
 - **Transporte**: el módulo implementa `router.OperationModule` — `ModelName() string` +
   `MountOperations(reg router.OperationRegistry)`, registrando cada operación con `.Requires(resource, action)`
