@@ -20,11 +20,11 @@ require (
 	webtyp.com/input v0.0.28
 	webtyp.com/json v0.5.37
 	webtyp.com/lang v0.1.10
-	webtyp.com/layout v0.3.95
+	webtyp.com/layout v0.3.99
 	webtyp.com/model v0.2.12
 	webtyp.com/orm v0.12.20
 	webtyp.com/router v0.4.17
-	webtyp.com/rpc v0.2.14
+	webtyp.com/rpc v0.2.15
 	webtyp.com/storage v0.1.10
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
