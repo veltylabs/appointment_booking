@@ -9,7 +9,7 @@ require (
 	github.com/veltylabs/payment_manager v0.4.19
 	github.com/veltylabs/service_catalog v0.6.21
 	github.com/veltylabs/staff_manager v0.1.157
-	webtyp.com/auth v0.0.89
+	webtyp.com/auth v0.0.96
 	webtyp.com/components v0.8.57
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.36
