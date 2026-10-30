@@ -2,8 +2,8 @@ github.com/disintegration/imaging v1.6.2 h1:w1LecBlG2Lnp8B3jk5zSuNqd7b4DXhcjwek1
 github.com/disintegration/imaging v1.6.2/go.mod h1:44/5580QXChDfwIclfc/PCwrr44amcmDAg8hxG0Ewe4=
 github.com/veltylabs/business_calendar v0.5.20 h1:beyzam5Ivt9C1NBm2+Jbjdyc2Bgmbq1nCzRnAHOSwVA=
 github.com/veltylabs/business_calendar v0.5.20/go.mod h1:NLKBr1wrSnWZxCRyBkUQL/jtpjMFlXiq2xDYJMzlKbQ=
-github.com/veltylabs/device_manager v0.2.86 h1:J+xSoetb56iC/FTwNdjYj4/38Vbzvi5B1b2mfhuGl+M=
-github.com/veltylabs/device_manager v0.2.86/go.mod h1:BpU2ky6xvmI+YbULhKqdnjUi7gvBZoik9VJS7XSzuIU=
+github.com/veltylabs/device_manager v0.2.89 h1:f45GcTK9DY5JS2FIz3qF3YnOleUxRlWNYlBwpkuHm30=
+github.com/veltylabs/device_manager v0.2.89/go.mod h1:sh5hGpDJ8Gnws7nFmpPOr7M7D0ilwntFWKvRvJlGURE=
 github.com/veltylabs/patient_directory v0.1.76 h1:ynRfm/NIQ5ZmH91NsEVcT2HZM+V4XjTu4pBqfGJxvAg=
 github.com/veltylabs/patient_directory v0.1.76/go.mod h1:+8y+9cf3L+UV+0DChOrbcN4EpkGQNu0zf1Sfwnq8gUs=
 github.com/veltylabs/payment_manager v0.4.19 h1:nDDETsrLa3iHP/B+VL6BzUktBDSIVoYWuefajKfXqPU=
