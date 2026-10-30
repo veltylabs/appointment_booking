@@ -3,7 +3,7 @@ module github.com/veltylabs/appointment_booking
 go 1.26.8
 
 require (
-	github.com/veltylabs/business_calendar v0.5.20
+	github.com/veltylabs/business_calendar v0.5.31
 	github.com/veltylabs/device_manager v0.2.89
 	github.com/veltylabs/patient_directory v0.1.76
 	github.com/veltylabs/payment_manager v0.4.19
@@ -29,7 +29,7 @@ require (
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
 	webtyp.com/unixid v0.3.1
-	webtyp.com/view v0.6.53
+	webtyp.com/view v0.6.55
 	webtyp.com/widget v0.6.46
 )
 
