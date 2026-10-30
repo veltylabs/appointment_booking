@@ -2,7 +2,7 @@
 
 > **Nota de estado:** este documento describe la estructura actual del módulo tras la adopción
 > del harness de módulos reutilizables (`router.OpModule`, `Deps.IDs model.IDGenerator`, `events.Publisher`,
-> `ddl.CreateTable`, pruebas con `storage/mem`) y la adición del editor de horarios.
+> `ddl.Sync`, pruebas con `storage/mem`) y la adición del editor de horarios.
 > `AGENTS.md` (en la raíz de este repositorio) es la autoridad sobre la lista blanca/negra que este módulo respeta.
 
 ## 1. Alcance del Dominio
