@@ -43,7 +43,7 @@ func TestSeed_LoadPopulatesServicesAndReservations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("staffmanager.New: %v", err)
 	}
-	ic, err := servicecatalog.New(db, servicecatalog.Deps{IDs: ids, Publisher: broker})
+	ic, err := servicecatalog.New(db, servicecatalog.Deps{IDs: ids, Publisher: broker, TenantID: "test_tenant"})
 	if err != nil {
 		t.Fatalf("servicecatalog.New: %v", err)
 	}

@@ -6,13 +6,13 @@ require (
 	github.com/veltylabs/business_calendar v0.5.31
 	github.com/veltylabs/device_manager v0.2.89
 	github.com/veltylabs/patient_directory v0.1.76
-	github.com/veltylabs/payment_manager v0.4.19
-	github.com/veltylabs/service_catalog v0.6.21
+	github.com/veltylabs/payment_manager v0.4.35
+	github.com/veltylabs/service_catalog v0.6.35
 	github.com/veltylabs/staff_manager v0.1.157
 	webtyp.com/auth v0.0.96
 	webtyp.com/components v0.8.57
 	webtyp.com/css v0.4.31
-	webtyp.com/ddl v0.0.37
+	webtyp.com/ddl v0.0.38
 	webtyp.com/dom v0.13.29
 	webtyp.com/events v0.1.0
 	webtyp.com/fmt v1.0.0
@@ -25,7 +25,7 @@ require (
 	webtyp.com/orm v0.12.20
 	webtyp.com/router v0.4.17
 	webtyp.com/rpc v0.2.15
-	webtyp.com/storage v0.1.10
+	webtyp.com/storage v0.1.18
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
 	webtyp.com/unixid v0.3.1

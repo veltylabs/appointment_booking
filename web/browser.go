@@ -17,6 +17,16 @@ import (
 
 	"webtyp.com/auth/trusted_ip"
 
+	devicemanagermigrate "github.com/veltylabs/device_manager/migrate"
+	staffmanagermigrate "github.com/veltylabs/staff_manager/migrate"
+	servicecatalogmigrate "github.com/veltylabs/service_catalog/migrate"
+	patientdirectorymigrate "github.com/veltylabs/patient_directory/migrate"
+	businesscalendarmigrate "github.com/veltylabs/business_calendar/migrate"
+	paymentmanagermigrate "github.com/veltylabs/payment_manager/migrate"
+	abmigrate "github.com/veltylabs/appointment_booking/migrate"
+	"webtyp.com/ddl"
+	"webtyp.com/router"
+
 	ab "github.com/veltylabs/appointment_booking"
 	"github.com/veltylabs/appointment_booking/seed"
 	"github.com/veltylabs/appointment_booking/ui"
@@ -83,7 +93,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ic, err := servicecatalog.New(db, servicecatalog.Deps{IDs: ids, Publisher: broker})
+	ic, err := servicecatalog.New(db, servicecatalog.Deps{IDs: ids, Publisher: broker, TenantID: demoTenantID})
 	if err != nil {
 		panic(err)
 	}
@@ -103,7 +113,6 @@ func main() {
 	pm, err := paymentmanager.New(db, paymentmanager.Deps{
 		Publisher: broker,
 		Gateway:   sandbox.New("/"),
-		ReturnURL: "/",
 		Charges:   []paymentmanager.ChargeSource{{Module: ab.ModelName, Reader: chargeViaBooking{&abMod}}},
 	})
 	if err != nil {
@@ -170,7 +179,22 @@ func main() {
 	// 5. Construir vistas del navegador
 	paymentsScreens := paymentmanagerui.Screens(caller)
 	allScreens := append(ui.Screens(caller, ids, demoTenantID), paymentsScreens...)
-	menu, err := app.BuildMenu(allScreens, ids, func(model.Resource) bool { return true })
+
+	steps := []ddl.Step{
+		{Name: devicemanager.ModelName, Run: devicemanagermigrate.Migrate},
+		{Name: staffmanager.ModelName, Run: staffmanagermigrate.Migrate},
+		{Name: servicecatalog.ModelName, Run: servicecatalogmigrate.Migrate},
+		{Name: patientdirectory.ModelName, Run: patientdirectorymigrate.Migrate},
+		{Name: businesscalendar.ModelName, Run: businesscalendarmigrate.Migrate},
+		{Name: paymentmanager.ModelName, Run: paymentmanagermigrate.Migrate},
+		{Name: ab.ModelName, Run: abmigrate.Migrate},
+	}
+	tools, err := app.LocalTools([]router.OperationModule{abMod, sm, dm, ic, pd, bc, pm}, steps...)
+	if err != nil {
+		panic(err)
+	}
+
+	menu, err := app.BuildMenu(allScreens, ids, func(model.Resource) bool { return true }, tools)
 	if err != nil {
 		panic(err)
 	}
