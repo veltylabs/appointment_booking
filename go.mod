@@ -7,26 +7,26 @@ require (
 	github.com/veltylabs/device_manager v0.2.89
 	github.com/veltylabs/patient_directory v0.1.76
 	github.com/veltylabs/payment_manager v0.4.35
-	github.com/veltylabs/service_catalog v0.6.35
+	github.com/veltylabs/service_catalog v0.6.44
 	github.com/veltylabs/staff_manager v0.1.157
-	webtyp.com/auth v0.0.96
+	webtyp.com/auth v0.0.102
 	webtyp.com/components v0.8.57
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.39
 	webtyp.com/dom v0.13.29
-	webtyp.com/events v0.1.0
+	webtyp.com/events v0.1.7
 	webtyp.com/fmt v1.0.0
 	webtyp.com/html v0.0.30
 	webtyp.com/input v0.0.28
 	webtyp.com/json v0.5.37
-	webtyp.com/lang v0.1.10
+	webtyp.com/lang v0.1.11
 	webtyp.com/layout v0.3.99
-	webtyp.com/model v0.2.12
+	webtyp.com/model v0.2.13
 	webtyp.com/orm v0.12.25
 	webtyp.com/router v0.4.17
 	webtyp.com/rpc v0.2.15
 	webtyp.com/storage v0.1.18
-	webtyp.com/svg v0.3.30
+	webtyp.com/svg v0.3.33
 	webtyp.com/time v0.6.2
 	webtyp.com/unixid v0.3.1
 	webtyp.com/view v0.6.55
@@ -47,7 +47,7 @@ require (
 	webtyp.com/color v0.1.3 // indirect
 	webtyp.com/escape v0.1.0 // indirect
 	webtyp.com/font v0.0.6 // indirect
-	webtyp.com/form v0.4.52 // indirect
+	webtyp.com/form v0.4.61 // indirect
 	webtyp.com/icons v0.0.38 // indirect
 	webtyp.com/image v0.1.16
 	webtyp.com/msgtype v0.1.0 // indirect
