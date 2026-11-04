@@ -42,3 +42,4 @@ func build(d appkit.Deps) (model.ModuleNaming, error) {
 		Payments:  payments,
 	})
 }
+
