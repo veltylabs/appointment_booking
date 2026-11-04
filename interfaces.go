@@ -20,12 +20,12 @@ type CatalogReader interface {
 	ServiceCard(tenantId, serviceId string) (name string, price float64, currency string, active bool, err error)
 }
 
-// PatientDirectory busca y registra pacientes por su número de documento o ID.
-// Ejemplo: id, name, phone, email, err := p.FindPatient("t1", "12.345.678-5")
+// PatientDirectory es la parte de patient_directory que este módulo usa.
+// Ejemplo: id, name, phone, email, ok, err := p.FindPatient("t1", "12.345.678-5")
 type PatientDirectory interface {
-	PatientExists(tenantID, patientID string) (bool, error)
-	FindPatient(tenantID, documentNumber string) (id, name, phone, email string, err error)
-	RegisterPatient(tenantID, id, documentNumber, name, phone, email string) (patientID string, err error)
+	GetPatient(tenantID, id string) (name, documentNumber, phone, email string, found bool, err error)
+	FindPatient(tenantID, documentNumber string) (id, name, phone, email string, found bool, err error)
+	CreatePatient(tenantID, id, documentNumber, name, phone, email string) (patientID string, err error)
 }
 
 // OpeningHours informa las ventanas horarias y días cerrados del establecimiento.

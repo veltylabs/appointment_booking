@@ -280,7 +280,7 @@ type SchedulingService interface {
 ```
 
 Esta interfaz depende de los lectores inyectados en `interfaces.go`:
-- `PatientDirectory` — busca y registra pacientes
+- `PatientDirectory{GetPatient, FindPatient, CreatePatient}` — busca y registra pacientes
 - `StaffReader` — valida la existencia y ficha del personal
 - `CatalogReader` — valida la existencia y tarifas del servicio
 - `OpeningHours` — responde las ventanas horarias del establecimiento (opcional: `nil = time.Unlimited()`)

@@ -39,7 +39,7 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 		return Reservation{}, ErrNotFound
 	}
 
-	patientExists, err := m.patients.PatientExists(r.TenantId, r.ClientId)
+	_, _, _, _, patientExists, err := m.patients.GetPatient(r.TenantId, r.ClientId)
 	if err != nil {
 		return Reservation{}, err
 	}
