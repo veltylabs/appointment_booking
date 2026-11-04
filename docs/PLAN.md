@@ -2,6 +2,8 @@
 PLAN: "feat!: one zone for the clinic (Deps.Zone), one instant per booking — drop reservation_date, local strings and per-professional timezone"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 3228069055081192423
 ---
 
 > Read AGENTS.md at the repo root before any change.
