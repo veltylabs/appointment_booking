@@ -2,6 +2,8 @@
 PLAN: "feat: ImportReservation — store a past or future booking from a previous system with its real date and status"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 14647235089885463148
 ---
 
 > Read AGENTS.md at the repo root before any change.
