@@ -2,6 +2,8 @@
 PLAN: "feat!: PatientDirectory uses patient_directory's six-verb names (GetPatient, FindPatient, CreatePatient)"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 8681623758950735825
 ---
 
 > Read AGENTS.md at the repo root before any change.
