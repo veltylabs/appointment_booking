@@ -2,7 +2,8 @@
 PLAN: "feat!: clinic zone (Deps.Zone), single instant per booking, and decouple from all sibling modules via interfaces.go"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: dispatch
+STATUS: running
+SESSION: 6566919614011040797
 ---
 
 > Read AGENTS.md at the repo root before any change.
