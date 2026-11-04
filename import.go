@@ -68,8 +68,9 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 
 	r.ReservationDate = tinytime.MidnightUTC(tinytime.Unix(r.ReservationTime))
 
-	r.LocalStringDate = tinytime.FormatISO8601(tinytime.Unix(r.ReservationTime))[:10]
-	r.LocalStringTime = tinytime.FormatISO8601(tinytime.Unix(r.ReservationTime))[11:16]
+	// Same helpers as CreateReservation: the local date and time, never the UTC ones (21:30 in Santiago is the next day in UTC).
+	r.LocalStringDate = tinytime.FormatDate(tinytime.Unix(r.ReservationTime))
+	r.LocalStringTime = tinytime.FormatTime(tinytime.Unix(r.ReservationTime))
 
 	r.UpdatedAt = tinytime.NowNano()
 	r.UpdatedBy = r.CreatorUserId
