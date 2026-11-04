@@ -195,3 +195,13 @@ Prioridad de excepciones: `HOLIDAY` > `SPECIAL_HOURS` > `BLOCKED`.
 - [Diagrama de Base de Datos](diagrams/database.md)
 - [Diagrama FSM](diagrams/fsm.md)
 - [Diagramas de Secuencia](diagrams/sequence.md)
+
+## Importar historia
+
+`ImportReservation` almacena una reserva de un sistema anterior con su propio id, fecha y estado. Comprueba lo que comprueba `CreateReservation` sobre los datos: el id, el inquilino, un estado y origen conocidos, que el cliente, el profesional y el servicio existen, y que existe la configuración (activa o no: un historial puede ser inactivo). Sin embargo, omite deliberadamente todas las reglas en vivo: no requiere un espacio libre, no obliga a un inicio `PENDING`, no tiene reserva, no emite eventos, y no abre su propia transacción (el importador ya ejecuta dentro de una).
+
+Ejemplo:
+```go
+r, err := booking.ImportReservation(Reservation{Id: "1650000000000000000", TenantId: t, ClientId: p,
+	EmployeeServiceConfigId: cfg, ReservationTime: int64(start), Status: StatusCompleted, Origin: OriginCounter})
+```

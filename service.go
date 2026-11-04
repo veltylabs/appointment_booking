@@ -24,6 +24,7 @@ const (
 	ErrNoServiceConfig           model.Invalid = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
 	ErrIncompleteSlot            model.Invalid = "appointment_booking: a booking needs both a day and an hour"
 	ErrIdTaken                   model.Invalid = "reservation id already used"
+	ErrImportStatus              model.Invalid = "an imported reservation must be confirmed, cancelled, completed or no-show"
 	ErrOverbookNotAllowed        model.Invalid = "overbooking not allowed for this professional and day"
 	ErrSlotNotInSchedule         model.Invalid = "appointment_booking: slot is not within professional's scheduled blocks"
 	ErrClientNotFound            model.NotFound = "client not found"
