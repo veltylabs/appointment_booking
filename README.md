@@ -311,3 +311,13 @@ Run `webtyp` at the repository root to open the demo — in-browser, in-memory, 
 - **Errores por rpc.WriteError**: Todo el módulo gestiona y devuelve errores mediante `rpc.WriteError`, utilizando códigos de tipo HTTP (`model.NotFound`, `model.Conflict`, etc.).
 - **Permisos por tabla (model.ResourceOf)**: Las operaciones declaran sus permisos mapeando directamente sobre los modelos ORM (`model.ResourceOf`) o vía recursos declarados explícitamente (`model.FeatureResource`).
 - **Claves foráneas declaradas**: Los esquemas ORM declaran ahora referencias directas a otras tablas con `Ref: &Model, DB: &model.FieldDB{RefColumn: "id"}`.
+
+## Importar historia
+
+`ImportReservation` almacena una reserva de un sistema anterior con su propio id, fecha y estado. Comprueba lo que comprueba `CreateReservation` sobre los datos: el id, el inquilino, un estado y origen conocidos, que el cliente, el profesional y el servicio existen, y que existe la configuración (activa o no: un historial puede ser inactivo). Sin embargo, omite deliberadamente todas las reglas en vivo: no requiere un espacio libre, no obliga a un inicio `PENDING`, no tiene reserva, no emite eventos, y no abre su propia transacción (el importador ya ejecuta dentro de una).
+
+Ejemplo:
+```go
+r, err := booking.ImportReservation(Reservation{Id: "1650000000000000000", TenantId: t, ClientId: p,
+	EmployeeServiceConfigId: cfg, ReservationTime: int64(start), Status: StatusCompleted, Origin: OriginCounter})
+```

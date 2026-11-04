@@ -2,8 +2,10 @@
 PLAN: "feat: ImportReservation — store a past or future booking from a previous system with its real date and status"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 14647235089885463148
+PR: https://github.com/veltylabs/appointment_booking/pull/24
+REVIEWED_COMMIT: 3406e88313709ee3de9e378cd8b2f562c070963e
 ---
 
 > Read AGENTS.md at the repo root before any change.
