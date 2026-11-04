@@ -5,7 +5,7 @@ import (
 	"webtyp.com/components/chipgrid"
 	"webtyp.com/fmt"
 	"webtyp.com/lang"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 
 	. "webtyp.com/dom"
 	. "webtyp.com/html"
@@ -18,23 +18,21 @@ import (
 // casilla Sobrecupo suma las horas ya tomadas.
 type stepSlotPicker struct {
 	Element
-	f      *BookingFlow
-	errMsg *SignalString
-	notice *SignalString
-	cal    *SignalNodes
-	extra  *SignalNodes // la casilla Sobrecupo, solo en mesón con profesional fijo
-	hours  *chipgrid.ChipGrid
-	hourEl *Element
-
-	slots    []ab.BookableSlot
+	f        *BookingFlow
+	errMsg   *SignalString
+	notice   *SignalString
+	cal      *SignalNodes
+	hours    *chipgrid.ChipGrid
+	extra    *SignalNodes
 	day      string
 	overbook bool
+	slots    []ab.BookableSlot
 }
 
 func newStepSlotPicker(f *BookingFlow) *stepSlotPicker {
 	s := &stepSlotPicker{f: f, errMsg: NewString(""), notice: NewString(""), cal: NewNodes(), extra: NewNodes()}
-	s.hours = &chipgrid.ChipGrid{Empty: textNoTimesAvailable, OnPick: s.pickHour}
-	s.hourEl = s.hours.Render()
+	s.hours = &chipgrid.ChipGrid{OnPick: s.pickHour}
+	s.hours.Init(nil)
 	return s
 }
 
@@ -43,9 +41,13 @@ func (s *stepSlotPicker) Render() *Element {
 		noticeLine(s.notice),
 		errorLine(s.errMsg),
 		stepBox().BindChildren(s.cal),
+		s.hours,
 		stepBox().BindChildren(s.extra),
-		s.hourEl,
 	)
+}
+
+func (s *stepSlotPicker) show() {
+	s.load()
 }
 
 // load pide las horas del rango del calendario. Con un profesional fijo trae
@@ -56,7 +58,7 @@ func (s *stepSlotPicker) load() {
 	s.cal.Set(nil)
 	s.hours.SetChips(nil)
 	s.extra.Set(nil)
-	from := tinytime.MidnightUTC(tinytime.NowUnix())
+	from := time.MidnightUTC(time.NowUnix())
 	args := &ab.ListServiceAvailabilityArgs{
 		TenantId:     s.f.tenantID,
 		ServiceId:    s.f.offer0().ServiceId,
@@ -74,7 +76,7 @@ func (s *stepSlotPicker) load() {
 		for _, it := range list {
 			s.slots = append(s.slots, *it)
 		}
-		cal := &calendarslider.CalendarSlider{NumMonths: calendarMonths, Occupation: dayOccupation(s.slots), OnSelect: s.pickDay}
+		cal := &calendarslider.CalendarSlider{NumMonths: calendarMonths, Occupation: s.dayOccupation(s.slots), OnSelect: s.pickDay}
 		cal.Init(nil)
 		s.cal.Set([]*Element{cal.Render()})
 		if !s.f.online && s.f.choice.staffID != "" { // U7: sobrecupo solo en mesón y con profesional fijo
@@ -89,27 +91,35 @@ func (s *stepSlotPicker) load() {
 	})
 }
 
-// dayLoad cuenta las horas libres y tomadas de un día "YYYY-MM-DD".
-type dayLoad struct {
-	day         string
-	free, taken int
+func (s *stepSlotPicker) slotDay(startUtc time.Unix) string {
+	return s.f.zone.Date(startUtc)
 }
 
-// dayOccupation es, por día, tomadas / (tomadas + libres). Un día sin horas
-// queda fuera de la lista, y eso lo deja no seleccionable en el calendario.
-func dayOccupation(slots []ab.BookableSlot) []calendarslider.OccupationDay {
-	var loads []dayLoad
+func (s *stepSlotPicker) slotTime(startUtc time.Unix) string {
+	return s.f.zone.Clock(startUtc)
+}
+
+// dayOccupation agrupa las horas por día y calcula el porcentaje de ocupación
+// (0 si no hay horas).
+func (s *stepSlotPicker) dayOccupation(slots []ab.BookableSlot) []calendarslider.OccupationDay {
+	type dayLoad struct {
+		day   string
+		free  int
+		taken int
+	}
+	var loads []*dayLoad
 	at := func(day string) *dayLoad {
-		for i := range loads {
-			if loads[i].day == day {
-				return &loads[i]
+		for _, l := range loads {
+			if l.day == day {
+				return l
 			}
 		}
-		loads = append(loads, dayLoad{day: day})
-		return &loads[len(loads)-1]
+		l := &dayLoad{day: day}
+		loads = append(loads, l)
+		return l
 	}
 	for _, sl := range slots {
-		l := at(slotDay(sl.StartUtc))
+		l := at(s.slotDay(sl.StartUtc))
 		if sl.Taken {
 			l.taken++
 		} else {
@@ -133,10 +143,10 @@ func (s *stepSlotPicker) pickDay(day string) {
 func (s *stepSlotPicker) showHours() {
 	var chips []chipgrid.Chip
 	for _, sl := range s.slots {
-		if slotDay(sl.StartUtc) != s.day || (sl.Taken && !s.overbook) {
+		if s.slotDay(sl.StartUtc) != s.day || (sl.Taken && !s.overbook) {
 			continue
 		}
-		chips = append(chips, chipgrid.Chip{Value: fmt.Convert(sl.StartUtc).String(), Label: slotTime(sl.StartUtc)})
+		chips = append(chips, chipgrid.Chip{Value: fmt.Convert(sl.StartUtc).String(), Label: s.slotTime(sl.StartUtc)})
 	}
 	s.hours.SetChips(chips)
 }
@@ -145,7 +155,7 @@ func (s *stepSlotPicker) showHours() {
 // hora (U6) y avanza con "2026-10-13 · 10:30".
 func (s *stepSlotPicker) pickHour(value string) {
 	for _, sl := range s.slots {
-		if fmt.Convert(sl.StartUtc).String() != value || slotDay(sl.StartUtc) != s.day {
+		if fmt.Convert(sl.StartUtc).String() != value || s.slotDay(sl.StartUtc) != s.day {
 			continue
 		}
 		c := &s.f.choice
@@ -155,7 +165,7 @@ func (s *stepSlotPicker) pickHour(value string) {
 			c.staffID = sl.StaffId
 		}
 		s.notice.Set("")
-		s.f.next(slotLabel(sl.StartUtc))
+		s.f.next(s.f.slotLabel(sl.StartUtc))
 		return
 	}
 }

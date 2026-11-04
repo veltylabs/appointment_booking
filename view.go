@@ -2,7 +2,7 @@ package appointmentbooking
 
 import (
 	"webtyp.com/router"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 	"webtyp.com/view"
 )
 
@@ -33,25 +33,14 @@ type FormConfig struct {
 	// ServiceConfigId es el employee_service_config al que apunta la reserva.
 	// Es lo que fija la duración y el precio; requerido para guardar o listar huecos.
 	ServiceConfigId string
-	// Timezone es la zona IANA en la que se lee el par día/hora, p. ej.
-	// "America/Santiago". Requerido.
-	//
-	// LIMITACIÓN CONOCIDA: el valor autorizado vive en work_calendar_config.timezone
-	// de este módulo, y no existe operación de lectura para él — por lo tanto, el
-	// llamador lo proporciona. Agregar get_calendar_config está fuera del alcance
-	// de este plan.
-	Timezone string
+	// Zone es la zona de la instalación, appkit.Deps.Zone.
+	Zone time.Zone
 	// From y To delimitan el listado, como segundos a medianoche UTC.
 	From, To int64
 	// ActorId se graba como creator_user_id. Opcional.
 	ActorId string
 	// LabelFor convierte un id de cliente en el nombre que se muestra en la lista. Opcional: nil
 	// recurre al id sin formato.
-	//
-	// Es una función, no una dependencia de directorio, a propósito — este módulo
-	// resuelve un cliente a través del DirectoryReader inyectado en el SERVIDOR, y
-	// no debe adquirir una segunda dependencia en el lado del cliente sobre ninguna
-	// implementación particular de directorio.
 	LabelFor func(clientId string) string
 }
 
@@ -81,7 +70,7 @@ func NewFormView(caller router.Caller, cfg FormConfig) view.Presenter {
 }
 
 // FreeSlots devuelve los huecos reservables de un día como cadenas "HH:MM" en
-// cfg.Timezone, listos para que un widget de lista los renderice como filas vacías.
+// m.zone, listos para que un widget de lista los renderice como filas vacías.
 //
 // day es "YYYY-MM-DD". done recibe (nil, nil) cuando el alcance está incompleto —
 // sin staff o sin configuración de servicio significa que no hay nada que calcular, no un
@@ -117,10 +106,7 @@ func FreeSlots(caller router.Caller, cfg FormConfig, day string, done func([]str
 			slots := make([]string, 0, out.Len())
 			for i := 0; i < out.Len(); i++ {
 				ts := out.At(i).(*TimeSlot)
-				tStr := tinytime.FormatTime(ts.StartUtc)
-				if len(tStr) >= 5 {
-					tStr = tStr[:5]
-				}
+				tStr := cfg.Zone.Clock(ts.StartUtc)
 				slots = append(slots, tStr)
 			}
 			done(slots, nil)

@@ -46,7 +46,7 @@ func TestPrice_CurrencyFromCatalogOrCLP(t *testing.T) {
 func TestPrice_OverbookingUsesPriceFor(t *testing.T) {
 	e := newBookEnv(t)
 	cfg := e.config(t, "s1", 0, false)
-	if err := e.m.UpsertCalendarConfig(ab.WorkCalendarConfig{TenantId: bTenant, StaffId: "s1", Timezone: "UTC", IsActive: true, MaxOverbookPerDay: 2}); err != nil {
+	if err := e.m.UpsertCalendarConfig(ab.WorkCalendarConfig{TenantId: bTenant, StaffId: "s1", IsActive: true, MaxOverbookPerDay: 2}); err != nil {
 		t.Fatal(err)
 	}
 	e.reserve(t, "r1", cfg, "c1", 9, ab.OriginCounter)

@@ -35,22 +35,22 @@ Ver: [Diagrama FSM](diagrams/fsm.md)
 Decisiones clave:
 - `RESCHEDULED` es un estado terminal distinto (no `CANCELLED`) para preservar la claridad de la traza de auditoría en analítica.
 - `EXPIRED` es activado exclusivamente por un programador externo a través de la operación `expire_pending_reservations` — el módulo no ejecuta goroutines en segundo plano.
-- `CONFLICTED` **no** es terminal: un recomputo entra a este estado desde `PENDING`/`CONFIRMED` cuando el horario actual (bloques del profesional o ventana del establecimiento) ya no cubre la cita, y sale de él — restaurando exactamente lo que registró `StatusBeforeConflict` — cuando el horario la vuelve a cubrir. Por qué un día está cerrado es asunto del establecimiento: este módulo solo razona sobre "¿todavía encaja el instante?", nunca sobre la razón (la neutralidad se hereda de `time.DayBounds`).
+- `CONFLICTED` **no** es terminal: un recomputo entra a este estado desde `PENDING`/`CONFIRMED` cuando el horario actual (bloques del profesional o ventana del establecimiento) ya no cubre la cita, y sale de él — restaurando exactamente lo que registró `StatusBeforeConflict` — cuando el horario la vuelve a cubrir. Por qué un día está cerrado es asunto del establecimiento: este módulo solo razona sobre "¿todavía encaja el instante?", nunca sobre la razón (la neutralidad se hereda de `time.DayLimits`).
 
 ## 4. Patrones Arquitectónicos
 
-1. **Inyección de Dependencias:** el módulo recibe lectores externos (`StaffReader`,
-   `CatalogReader`, `DirectoryReader`), un `BoundsReader` opcional (la ventana diaria utilizable del establecimiento; nil = sin límites, correcto para una aplicación sin institución por encima del profesional)
+1. **Inyección de Dependencias:** el módulo recibe contratos externos (`StaffReader`,
+   `CatalogReader`, `PatientDirectory`), un `OpeningHours` opcional (la ventana diaria utilizable del establecimiento; nil = `time.Unlimited()`, correcto para una aplicación sin institución por encima del profesional), `PaymentGateway` opcional
    y un `events.Publisher` a través de `Deps` en la construcción (`New(db, deps)`). Sin estado global, sin importaciones directas de otros módulos.
 
 2. **Acceso directo a ORM (sin interfaces de almacenamiento):** el módulo mantiene `*orm.DB` directamente (a través de un
-   `*Repository` interno) y llama a funciones de ORM de `model_orm.go`. No hay interfaz intermedia `ReservationStore`, `CalendarStore` o `ConfigStore` — `Repository` es una estructura simple, no un límite de abstracción que una prueba pueda cambiar por un mock. Esto mantiene el límite interno delgado y permite que las propias pruebas del módulo ejerciten el generador de consultas real de `github.com/webtyp/orm` contra `github.com/webtyp/storage/mem` — el backend de referencia en memoria — detectando errores reales de restricciones y concurrencia (conflictos de bloqueo optimista, violaciones de unicidad) en lugar de ocultarlos detrás de mocks, sin ningún controlador concreto de base de datos en el grafo de dependencias del módulo. Solo las interfaces entre módulos (`StaffReader`, `CatalogReader`, `DirectoryReader`) y el `events.Publisher` inyectado son mockeables.
+   `*Repository` interno) y llama a funciones de ORM de `model_orm.go`. No hay interfaz intermedia `ReservationStore`, `CalendarStore` o `ConfigStore` — `Repository` es una estructura simple, no un límite de abstracción que una prueba pueda cambiar por un mock. Esto mantiene el límite interno delgado y permite que las propias pruebas del módulo ejerciten el generador de consultas real de `webtyp.com/orm` contra `webtyp.com/storage/mem` — el backend de referencia en memoria — detectando errores reales de restricciones y concurrencia (conflictos de bloqueo optimista, violaciones de unicidad) en lugar de ocultarlos detrás de mocks, sin ningún controlador concreto de base de datos en el grafo de dependencias del módulo. Solo las interfaces entre módulos (`StaffReader`, `CatalogReader`, `PatientDirectory`, `OpeningHours`, `PaymentGateway`) y el `events.Publisher` inyectado son mockeables.
 
 3. **Referencias Blandas (sin FK física):** `client_id`, `staff_id`, `service_id`, `creator_user_id` y `payment_id` referencian entidades en otros módulos solo por ID. La existencia entre módulos se valida en la capa de aplicación a través de lectores inyectados, no mediante restricciones de BD.
 
 4. **Instantáneas (Snapshotting):** Precio, moneda, duración, ID de personal e ID de servicio se guardan en instantáneas al crear la reserva. Los cambios posteriores en el catálogo o datos del personal no alteran las reservas existentes.
 
-5. **Tiempo Entero Local + Zona Horaria IANA (Única Fuente de Verdad):** Las horas de trabajo en `WorkCalendarBlock` se almacenan como minutos enteros locales desde la medianoche (p. ej., `540 = 09:00`). La zona horaria IANA se almacena exclusivamente en `WorkCalendarConfig` (una fila por personal) — los bloques y excepciones no llevan campos de zona horaria. Esto evita la inconsistencia de zonas horarias por fila por construcción. El algoritmo `ListAvailability` carga primero `WorkCalendarConfig` para obtener la zona horaria, luego convierte los límites locales a Unix UTC utilizando `webtyp.com/time` (`LocalMinutesToUnixUTC`). Este diseño garantiza que los horarios recurrentes se mantengan correctos a través de las transiciones de horario de verano (DST).
+5. **Instante UTC Único + Zona Horaria Inyectada (T4):** Cada reserva persiste un único instante `reservation_time` (int64 en UTC). La zona horaria viene inyectada en `Deps.Zone` (`time.Zone`). Las horas de trabajo en `WorkCalendarBlock` se almacenan como minutos enteros locales desde la medianoche (p. ej., `540 = 09:00`). El algoritmo `ListAvailability` convierte los límites locales al instante UTC utilizando `m.zone.At(date, minutes)`. Este diseño garantiza que los horarios recurrentes se mantengan correctos a través de las transiciones de horario de verano (DST) sin duplicar campos locales en la BD.
 
 6. **Concurrencia Optimista:** `Reservation.revision` se incrementa en cada actualización de estado. `UpdateReservationStatus` aplica `WHERE revision = N` — un desacuerdo devuelve `ErrConflict`, evitando sobreescrituras silenciosas.
 
@@ -158,7 +158,7 @@ El módulo implementa `router.OpModule` (`ModelName() string` + `MountOps(reg ro
 
 ```go
 staffSvc     := staffmodule.New(db, staffmodule.Deps{IDs: idGen})            // implementa StaffReader
-directorySvc := directorymodule.New(db, directorymodule.Deps{IDs: idGen})   // implementa DirectoryReader
+patientSvc   := patientdirectory.New(db, patientdirectory.Deps{IDs: idGen}) // implementa PatientDirectory
 
 catalogSvc, _ := itemcatalog.New(db, itemcatalog.Deps{
     IDs:       idGen,       // model.IDGenerator
@@ -168,22 +168,24 @@ catalogSvc, _ := itemcatalog.New(db, itemcatalog.Deps{
 scheduling, _ := appointmentbooking.New(db, appointmentbooking.Deps{
     Staff:     staffSvc,
     Catalog:   catalogSvc,   // *itemcatalog.Module satisface CatalogReader
-    Directory: directorySvc,
+    Patients:  patientSvc,
     IDs:       idGen,        // model.IDGenerator
     Publisher: eventBroker,  // events.Publisher, nil deshabilita la publicación
-    Bounds:    calendarSvc,  // *business_calendar.Module satisface BoundsReader; nil = sin límites
+    Hours:     calendarSvc,  // *business_calendar.Module satisface OpeningHours; nil = time.Unlimited()
+    Zone:      zone,         // time.Zone
+    TenantID:  tenantId,
 })
 
 scheduling.MountOps(opRegistry)               // router.OpRegistry
 reservationsView := scheduling.NewView(caller, tenantId, staffId) // router.Caller -> view.Presenter
 ```
 
-Ningún módulo importa a otro directamente — `appointment_booking` define `StaffReader`, `CatalogReader` y `DirectoryReader`; los módulos hermanos los satisfacen estructuralmente sin importar de vuelta este paquete.
+Ningún módulo importa a otro directamente — `appointment_booking` define `StaffReader`, `CatalogReader`, `PatientDirectory`, `OpeningHours` y `PaymentGateway` en `interfaces.go`; los módulos hermanos los satisfacen estructuralmente sin importar de vuelta este paquete.
 
 ## 8. Cálculo de Disponibilidad
 
 Los horarios libres se derivan en tiempo de consulta de la intersección de:
-- La ventana utilizable del establecimiento (`BoundsReader.GetDayBounds`, resuelta una vez a `tinytime.Unbounded()` cuando `Deps.Bounds` es nil). Un edificio cerrado cierra a todos antes de consultar a cualquier profesional.
+- La ventana utilizable del establecimiento (`OpeningHours.DayLimits`, resuelta una vez a `time.Unlimited()` cuando `Deps.Hours` es nil). Un edificio cerrado cierra a todos antes de consultar a cualquier profesional.
 - Por día, **bloques datados primero** (ABREN su día independientemente de si la plantilla semanal cubre el día de la semana), luego **bloques semanales** activos para ese día de la semana — cada uno recortado a la ventana del establecimiento.
 - Excepciones puntuales aplicadas sobre esas ventanas: `HOLIDAY` anula el día, `SPECIAL_HOURS` lo estrecha a una sola ventana, `BLOCKED` resta un intervalo de las ventanas del día.
 - Reservas no terminales existentes (bloquean intervalos ocupados incluyendo tiempo de amortiguación o buffer).

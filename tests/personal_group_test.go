@@ -12,7 +12,7 @@ func TestPersonalGroup(t *testing.T) {
 	ids := &fakeIDs{}
 	tenantID := "tenant-test"
 
-	screens := ui.Screens(caller, ids, tenantID)
+	screens := ui.Screens(caller, zoneSantiago, ids, tenantID)
 	if len(screens) != 3 {
 		t.Fatalf("Expected 3 screens, got %d", len(screens))
 	}
@@ -26,11 +26,10 @@ func TestPersonalGroup(t *testing.T) {
 	if personalGroup.ID != ui.PersonalID {
 		t.Fatalf("expected personal group, got %s", personalGroup.ID)
 	}
-	if len(personalGroup.Children) != 3 {
-		t.Fatalf("Expected 3 children, got %d", len(personalGroup.Children))
+	if len(personalGroup.Children) != 2 {
+		t.Fatalf("Expected 2 children, got %d", len(personalGroup.Children))
 	}
 	expectedIDs := []string{
-		"personal.staff",
 		"personal.schedule",
 		"personal.services",
 	}

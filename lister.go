@@ -96,8 +96,8 @@ func (s *reservationFormStore) List(done func([]view.Record, error)) {
 				rows = append(rows, &ReservationForm{
 					Id:         r.Id,
 					ClientId:   clientId,
-					Day:        r.LocalStringDate,
-					Hour:       r.LocalStringTime,
+					Day:        s.cfg.Zone.Date(time.Unix(r.ReservationTime)),
+					Hour:       s.cfg.Zone.Clock(time.Unix(r.ReservationTime)),
 					Notes:      r.Notes,
 					Status:     r.Status,
 					Origin:     r.Origin,
@@ -137,14 +137,13 @@ func (s *reservationFormStore) Save(recs []model.Model, done func(error)) {
 			done(fmt.Err("appointment_booking: save: expected *ReservationForm"))
 			return
 		}
-		d := dayToUnix(r.Day)
 		m := minutesOfDay(r.Hour)
-		if d == 0 || m < 0 {
+		if m < 0 {
 			done(ErrIncompleteSlot)
 			return
 		}
-		slot := LocalIntToUnixUTC(d, m, s.cfg.Timezone)
-		if slot == 0 {
+		slot, err := s.cfg.Zone.At(r.Day, m)
+		if err != nil || slot == 0 {
 			done(ErrIncompleteSlot)
 			return
 		}
@@ -261,7 +260,7 @@ var (
 // dayToUnix convierte "YYYY-MM-DD" a segundos de medianoche UTC — la codificación
 // que usan work_calendar_block.specific_date y los argumentos de op From/To. 0 en caso de fallo.
 func dayToUnix(day string) time.Unix {
-	u, _ := time.ParseDate(day)
+	u, _ := time.ParseDateUTC(day)
 	return u
 }
 

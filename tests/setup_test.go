@@ -5,11 +5,11 @@ import (
 
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
-func Date(year, month, day, hour, min, sec, _ int) tinytime.Unix {
-	return tinytime.Date(year, month, day, hour, min, sec)
+func Date(year, month, day, hour, min, sec, _ int) time.Unix {
+	return time.DateUTC(year, month, day, hour, min, sec)
 }
 
 // RunServicePureTests tests generic logic of the service (Availability, FSM changes, CreateReservation)
@@ -37,7 +37,6 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		if err := s.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: "t1",
 			StaffId:  "s1",
-			Timezone: "UTC",
 			IsActive: true,
 		}); err != nil {
 			t.Fatalf("UpsertCalendarConfig: %v", err)
@@ -138,7 +137,6 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		s.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: "t2",
 			StaffId:  "s2",
-			Timezone: "UTC",
 			IsActive: true,
 		})
 
@@ -197,7 +195,6 @@ func RunServicePureTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposito
 		s.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: "t3",
 			StaffId:  "s3",
-			Timezone: "UTC",
 			IsActive: true,
 		})
 

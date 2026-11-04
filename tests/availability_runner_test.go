@@ -5,11 +5,11 @@ import (
 
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Repository, db *orm.DB) {
-	setupValidConfig := func(tenant, staff string, slotStart tinytime.Unix) string {
+	setupValidConfig := func(tenant, staff string, slotStart time.Unix) string {
 		cfg := ab.EmployeeServiceConfig{
 			TenantId:    tenant,
 			StaffId:     staff,
@@ -24,11 +24,10 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 		s.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: tenant,
 			StaffId:  staff,
-			Timezone: "UTC",
 			IsActive: true,
 		})
 
-		dow := tinytime.Weekday(slotStart)
+		dow := int(time.WeekdayUTC(slotStart))
 
 		s.SaveDayBlocks(tenant, staff, dow, []ab.WorkCalendarBlock{
 			{StartMin: 540, EndMin: 1020, IsActive: true}, // 09:00–17:00
@@ -124,7 +123,7 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 		dayStart := Date(2025, 3, 4, 0, 0, 0, 0)
 
 		// Un día con DOS bloques: la comida es el GAP entre ellos (CU-09).
-		s.SaveDayBlocks("t_uc11", "s_uc11", tinytime.Weekday(slot), []ab.WorkCalendarBlock{
+		s.SaveDayBlocks("t_uc11", "s_uc11", int(time.WeekdayUTC(slot)), []ab.WorkCalendarBlock{
 			{StartMin: 540, EndMin: 720, IsActive: true},  // 09:00–12:00
 			{StartMin: 780, EndMin: 1020, IsActive: true}, // 13:00–17:00
 		})
@@ -157,7 +156,6 @@ func RunAvailabilityTests(t *testing.T, s ab.SchedulingService, repo *ab.Reposit
 		s.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: "t_uc16",
 			StaffId:  "s_uc16",
-			Timezone: "UTC",
 			IsActive: false, // inactive
 		})
 

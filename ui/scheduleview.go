@@ -2,7 +2,7 @@ package ui
 
 import (
 	"webtyp.com/fmt"
-	tintime "webtyp.com/time"
+	"webtyp.com/time"
 
 	"webtyp.com/components/scheduleeditor"
 	"webtyp.com/layout/rightpanel"
@@ -13,7 +13,6 @@ import (
 	. "webtyp.com/html"
 
 	ab "github.com/veltylabs/appointment_booking"
-	businesscalendar "github.com/veltylabs/business_calendar"
 )
 
 // NameScheduleView es la identidad de widget de esta pestaña.
@@ -27,22 +26,22 @@ var clsHeader = NameScheduleView.Class(PartHeader)
 func (s *ScheduleView) WidgetName() widget.Name { return NameScheduleView }
 func (s *ScheduleView) WidgetKind() widget.Kind { return widget.Region }
 
-const timezoneClinic = "America/Santiago"
-
 // NewScheduleView construye la pestaña "Horario" de la pantalla Personal.
-func NewScheduleView(caller router.Caller, tenantID string) Component {
+func NewScheduleView(caller router.Caller, zone time.Zone, tenantID string) Component {
 	v := &ScheduleView{
 		caller:      caller,
+		zone:        zone,
 		tenantID:    tenantID,
 		overbookVal: NewString("0"),
 	}
-	v.picker = newStaffPicker(caller, func(string) { v.reload() })
+	v.picker = newStaffPicker(caller, tenantID, func(string) { v.reload() })
 	return v
 }
 
 type ScheduleView struct {
 	Element
 	caller      router.Caller
+	zone        time.Zone
 	tenantID    string
 	picker      *staffPicker
 	editor      *SignalNodes
@@ -74,7 +73,6 @@ func (s *ScheduleView) reload() {
 					&ab.UpsertCalendarConfigArgs{
 						TenantId:          s.tenantID,
 						StaffId:           staffID,
-						Timezone:          timezoneClinic,
 						IsActive:          true,
 						MaxOverbookPerDay: 0,
 					},
@@ -91,14 +89,14 @@ func (s *ScheduleView) reload() {
 func (s *ScheduleView) fetchAndBuild(staffID string) {
 	var blocks ab.WorkCalendarBlockList
 	var exceptions ab.WorkCalendarExceptionList
-	var holidays businesscalendar.HolidayList
-	var closures businesscalendar.ClosureList
-	pending := 4
+	var closures ab.CalendarClosureList
+	pending := 3
 
 	done := func() {
 		pending--
 		if pending == 0 {
-			s.editor.Set([]*Element{s.buildEditor(staffID, blocks, exceptions, holidays, closures)})
+			holidays, closed := splitClosures(closures)
+			s.editor.Set([]*Element{s.buildEditor(staffID, blocks, exceptions, holidays, closed)})
 		}
 	}
 
@@ -107,28 +105,30 @@ func (s *ScheduleView) fetchAndBuild(staffID string) {
 	s.caller.Call(ab.ModelName+"."+ab.OpListExceptions,
 		&ab.ListExceptionsArgs{TenantId: s.tenantID, StaffId: staffID, From: 0, To: 0}, &exceptions,
 		func(error) { done() })
-	s.caller.Call(businesscalendar.ModelName+"."+businesscalendar.OpListHolidays, nil, &holidays, func(error) { done() })
-	s.caller.Call(businesscalendar.ModelName+"."+businesscalendar.OpListClosures, nil, &closures, func(error) { done() })
+	s.caller.Call(ab.ModelName+"."+ab.OpListCalendarClosures,
+		&ab.ListCalendarClosuresArgs{TenantId: s.tenantID, From: 0, To: 0}, &closures,
+		func(error) { done() })
 }
 
 func (s *ScheduleView) buildEditor(
 	staffID string,
 	blocks ab.WorkCalendarBlockList,
 	exceptions ab.WorkCalendarExceptionList,
-	holidays businesscalendar.HolidayList,
-	closures businesscalendar.ClosureList,
+	holidays []string,
+	closures []string,
 ) *Element {
 	editor := &scheduleeditor.ScheduleEditor{
+		Zone:     s.zone,
 		Pattern:  blocksToPattern(blocks),
-		Marked:   blocksToMarked(blocks),
-		Holidays: datesOf(holidays),
-		Closures: closureDatesOf(closures),
+		Marked:   s.blocksToMarked(blocks),
+		Holidays: holidays,
+		Closures: closures,
 		Exceptions: func() []scheduleeditor.Exception {
 			out := make([]scheduleeditor.Exception, 0, len(exceptions))
 			for _, x := range exceptions {
 				out = append(out, scheduleeditor.Exception{
 					ID:       x.Id,
-					Date:     unixToDay(x.SpecificDate),
+					Date:     s.unixToDay(x.SpecificDate),
 					Type:     x.ExceptionType,
 					StartMin: int(x.StartTime),
 					EndMin:   int(x.EndTime),
@@ -152,7 +152,7 @@ func (s *ScheduleView) buildEditor(
 		},
 		OnExceptionAdd: func(x scheduleeditor.Exception) {
 			s.caller.Call(ab.ModelName+"."+ab.OpAddCalendarException, &ab.AddCalendarExceptionArgs{
-				TenantId: s.tenantID, StaffId: staffID, SpecificDate: int64(dayToUnix(x.Date)),
+				TenantId: s.tenantID, StaffId: staffID, SpecificDate: int64(s.dayToUnix(x.Date)),
 				ExceptionType: x.Type, StartTime: int64(x.StartMin), EndTime: int64(x.EndMin), Notes: x.Notes,
 			}, nil, func(error) { s.reload() })
 		},
@@ -185,7 +185,6 @@ func (s *ScheduleView) Render() *Element {
 					&ab.UpsertCalendarConfigArgs{
 						TenantId:          s.tenantID,
 						StaffId:           staffID,
-						Timezone:          timezoneClinic,
 						IsActive:          true,
 						MaxOverbookPerDay: val,
 					},
@@ -232,7 +231,7 @@ func (s *ScheduleView) saveDayBlocks(staffID string, rows []scheduleeditor.Patte
 func (s *ScheduleView) markDays(staffID string, dates []string, startMin, endMin int) {
 	unixDates := make([]int, 0, len(dates))
 	for _, d := range dates {
-		unixDates = append(unixDates, int(dayToUnix(d)))
+		unixDates = append(unixDates, int(s.dayToUnix(d)))
 	}
 	s.caller.Call(ab.ModelName+"."+ab.OpMarkWorkingDays,
 		&ab.MarkWorkingDaysArgs{TenantId: s.tenantID, StaffId: staffID, Dates: unixDates, StartMin: int64(startMin), EndMin: int64(endMin)},
@@ -242,7 +241,7 @@ func (s *ScheduleView) markDays(staffID string, dates []string, startMin, endMin
 func (s *ScheduleView) unmarkDays(staffID string, dates []string) {
 	unixDates := make([]int, 0, len(dates))
 	for _, d := range dates {
-		unixDates = append(unixDates, int(dayToUnix(d)))
+		unixDates = append(unixDates, int(s.dayToUnix(d)))
 	}
 	s.caller.Call(ab.ModelName+"."+ab.OpUnmarkWorkingDays,
 		&ab.UnmarkWorkingDaysArgs{TenantId: s.tenantID, StaffId: staffID, Dates: unixDates},
@@ -250,7 +249,7 @@ func (s *ScheduleView) unmarkDays(staffID string, dates []string) {
 }
 
 func (s *ScheduleView) saveDateBlock(staffID string, day scheduleeditor.MarkedDay) {
-	specificDate := dayToUnix(day.Date)
+	specificDate := s.dayToUnix(day.Date)
 	s.caller.Call(ab.ModelName+"."+ab.OpSaveDateBlocks, &ab.SaveDateBlocksArgs{
 		TenantId: s.tenantID, StaffId: staffID, SpecificDate: int64(specificDate),
 		Blocks: []ab.WorkCalendarBlock{{
@@ -294,11 +293,11 @@ func blocksToPattern(blocks ab.WorkCalendarBlockList) []scheduleeditor.PatternRo
 }
 
 type markedDateKV struct {
-	date tintime.Unix
+	date time.Unix
 	day  scheduleeditor.MarkedDay
 }
 
-func blocksToMarked(blocks ab.WorkCalendarBlockList) []scheduleeditor.MarkedDay {
+func (s *ScheduleView) blocksToMarked(blocks ab.WorkCalendarBlockList) []scheduleeditor.MarkedDay {
 	var kvs []markedDateKV
 	for _, b := range blocks {
 		if !b.IsActive || b.SpecificDate == 0 {
@@ -314,7 +313,7 @@ func blocksToMarked(blocks ab.WorkCalendarBlockList) []scheduleeditor.MarkedDay 
 		if found == nil {
 			kvs = append(kvs, markedDateKV{
 				date: b.SpecificDate,
-				day:  scheduleeditor.MarkedDay{Date: unixToDay(b.SpecificDate), StartMin: int(b.StartMin), EndMin: int(b.EndMin)},
+				day:  scheduleeditor.MarkedDay{Date: s.unixToDay(b.SpecificDate), StartMin: int(b.StartMin), EndMin: int(b.EndMin)},
 			})
 		} else {
 			if int(b.StartMin) < found.StartMin {
@@ -332,28 +331,22 @@ func blocksToMarked(blocks ab.WorkCalendarBlockList) []scheduleeditor.MarkedDay 
 	return out
 }
 
-func datesOf(holidays businesscalendar.HolidayList) []string {
-	out := make([]string, 0, len(holidays))
-	for _, h := range holidays {
-		out = append(out, unixToDay(tintime.Unix(h.SpecificDate)))
-	}
-	return out
-}
-
-func closureDatesOf(closures businesscalendar.ClosureList) []string {
-	out := make([]string, 0, len(closures))
+func splitClosures(closures ab.CalendarClosureList) (holidays, closed []string) {
 	for _, c := range closures {
-		out = append(out, unixToDay(tintime.Unix(c.SpecificDate)))
+		if c.IsHoliday {
+			holidays = append(holidays, c.Date)
+		} else {
+			closed = append(closed, c.Date)
+		}
 	}
-	return out
+	return
 }
 
-func dayToUnix(day string) tintime.Unix {
-	u, _ := tintime.ParseDate(day)
+func (s *ScheduleView) dayToUnix(day string) time.Unix {
+	u, _ := time.ParseDateUTC(day)
 	return u
 }
 
-func unixToDay(seconds tintime.Unix) string {
-	y, m, d, _, _, _ := tintime.CivilDate(seconds)
-	return fmt.Sprintf("%04d-%02d-%02d", y, m, d)
+func (s *ScheduleView) unixToDay(seconds time.Unix) string {
+	return s.zone.Date(seconds)
 }

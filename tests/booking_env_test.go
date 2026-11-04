@@ -8,7 +8,7 @@ import (
 	"webtyp.com/orm"
 	"webtyp.com/storage"
 	"webtyp.com/storage/mem"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
 )
@@ -21,8 +21,7 @@ type staffCard struct {
 	active              bool
 }
 
-// fakeStaff responde StaffExists/StaffCard desde una lista (como staff_manager:
-// un id ausente es (false, nil) en StaffExists y un error en StaffCard).
+// fakeStaff responde StaffExists/StaffCard desde una lista.
 type fakeStaff struct {
 	cards     []staffCard
 	existsErr error
@@ -55,6 +54,14 @@ func (f *fakeStaff) StaffCard(tenantId, staffId string) (string, string, bool, e
 		return "", "", false, wfmt.Err("staff not found")
 	}
 	return c.name, c.specialty, c.active, nil
+}
+
+func (f *fakeStaff) OccupantOptions(tenantID string) ([]wfmt.KeyValue, error) {
+	var opts []wfmt.KeyValue
+	for _, c := range f.cards {
+		opts = append(opts, wfmt.KeyValue{Key: c.id, Value: c.name})
+	}
+	return opts, nil
 }
 
 // serviceItem es un servicio del doble de service_catalog.
@@ -98,8 +105,7 @@ func (f *fakeCatalog) ServiceCard(tenantId, serviceId string) (string, float64, 
 	return it.name, it.price, it.currency, it.active, nil
 }
 
-// fakePayments es el PaymentReader. onPaid corre antes de responder (para
-// simular otro proceso que cambia la reserva al mismo tiempo).
+// fakePayments es el PaymentGateway. onPaid corre antes de responder.
 type fakePayments struct {
 	amount   int64
 	currency string
@@ -115,8 +121,27 @@ func (f *fakePayments) PaidAmount(tenantId, paymentId, referenceModule, referenc
 	return f.amount, f.currency, f.err
 }
 
-// failConn envuelve storage/mem y hace fallar una tabla y acción a pedido,
-// después de dejar pasar skip coincidencias.
+func (f *fakePayments) ChargeDetail(tenantID, referenceModule, referenceID string) (bool, bool, int64, string, error) {
+	return true, false, f.amount, f.currency, nil
+}
+
+func (f *fakePayments) RegisterCounterPayment(tenantID, id, referenceModule, referenceID, method, actorID string) (string, error) {
+	return id, nil
+}
+
+func (f *fakePayments) StartTerminalPayment(tenantID, id, referenceModule, referenceID, method string) (string, error) {
+	return id, nil
+}
+
+func (f *fakePayments) RefreshTerminalPayment(tenantID, paymentID string) (string, error) {
+	return "paid", nil
+}
+
+func (f *fakePayments) StartOnlinePayment(tenantID, id, referenceModule, referenceID, returnTo string) (string, string, string, error) {
+	return "/pay", "", "", nil
+}
+
+// failConn envuelve storage/mem y hace fallar una tabla y acción a pedido.
 type failConn struct {
 	storage.Conn
 	table  string
@@ -144,10 +169,13 @@ func (f *failConn) failOn(table string, action storage.Action, skip int) {
 }
 
 const (
-	bTenant  = "t1"
-	bService = "srv1"
-	tblCfg   = "employee_service_config"
+	bTenant  = "tenant_t"
+	bService = "srv_general"
 	tblRes   = "reservation"
+	tblCfg   = "employee_service_config"
+	tblCal   = "work_calendar_config"
+	tblBlk   = "work_calendar_block"
+	tblExc   = "work_calendar_exception"
 )
 
 // bookDay es un lunes futuro; las horas libres van de 09:00 a 17:00 UTC.
@@ -166,15 +194,19 @@ type bookEnv struct {
 	bounds  *errBounds
 }
 
-// errBounds es un BoundsReader que no limita, salvo cuando err no es nil.
+// errBounds es un OpeningHours que no limita, salvo cuando err no es nil.
 type errBounds struct{ err error }
 
-func (b *errBounds) GetDayBounds(tinytime.Unix) (tinytime.DayBounds, error) {
-	return tinytime.Unbounded(), b.err
+func (b *errBounds) DayLimits(time.Unix) (time.DayLimits, error) {
+	return time.Unlimited(), b.err
 }
 
-func (b *errBounds) GetWeekdayBounds(int) (tinytime.DayBounds, error) {
-	return tinytime.Unbounded(), nil
+func (b *errBounds) WeekdayLimits(int) (time.DayLimits, error) {
+	return time.Unlimited(), nil
+}
+
+func (b *errBounds) ClosedDates(from, to time.Unix) ([]string, []string, error) {
+	return nil, nil, nil
 }
 
 func newBookEnv(t *testing.T) *bookEnv {
@@ -194,7 +226,16 @@ func buildBookEnv(t *testing.T, withPayments bool) *bookEnv {
 		bounds:  &errBounds{},
 	}
 	e.db = orm.New(e.conn)
-	deps := ab.Deps{Staff: e.staff, Catalog: e.catalog, Directory: e.dir, IDs: &fakeIDs{}, Publisher: e.pub, Bounds: e.bounds}
+	deps := ab.Deps{
+		Staff:     e.staff,
+		Catalog:   e.catalog,
+		Patients:  e.dir,
+		IDs:       &fakeIDs{},
+		Publisher: e.pub,
+		Hours:     e.bounds,
+		Zone:      zoneUTC,
+		TenantID:  bTenant,
+	}
 	if withPayments {
 		deps.Payments = e.pay
 	}
@@ -218,13 +259,13 @@ func (e *bookEnv) config(t *testing.T, staff string, override float64, paymentRe
 		t.Fatalf("CreateEmployeeServiceConfig: %v", err)
 	}
 	ensureCalendarConfig(t, e.m, bTenant, staff)
-	seedWeekdayBlock(t, e.m, bTenant, staff, int(tinytime.Weekday(bookDay)), defaultBlocks())
+	seedWeekdayBlock(t, e.m, bTenant, staff, int(time.WeekdayUTC(bookDay)), defaultBlocks())
 	return cfg.Id
 }
 
 func (e *bookEnv) reserve(t *testing.T, id, cfgID, client string, hour int64, origin string) ab.Reservation {
 	t.Helper()
-	r, err := e.m.CreateReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + tinytime.Unix(hour*3600), Origin: origin})
+	r, err := e.m.CreateReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + time.Unix(hour*3600), Origin: origin})
 	if err != nil {
 		t.Fatalf("CreateReservation: %v", err)
 	}
@@ -233,7 +274,7 @@ func (e *bookEnv) reserve(t *testing.T, id, cfgID, client string, hour int64, or
 
 func (e *bookEnv) online(t *testing.T, id, cfgID, client string, hour int64) ab.Reservation {
 	t.Helper()
-	r, err := e.m.CreateOnlineReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + tinytime.Unix(hour*3600)})
+	r, err := e.m.CreateOnlineReservation(ab.CreateReservationCmd{Id: id, TenantId: bTenant, ClientId: client, EmployeeServiceConfigId: cfgID, SlotStartUtc: bookDay + time.Unix(hour*3600)})
 	if err != nil {
 		t.Fatalf("CreateOnlineReservation: %v", err)
 	}
@@ -259,7 +300,7 @@ func (e *bookEnv) patch(t *testing.T, id string, change func(*ab.Reservation)) {
 	}
 }
 
-func bookNow() tinytime.Unix { return tinytime.NowUnix() }
+func bookNow() time.Unix { return time.NowUnix() }
 
 func wantErrIs(t *testing.T, got, want error) {
 	t.Helper()

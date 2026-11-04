@@ -3,21 +3,15 @@ module github.com/veltylabs/appointment_booking
 go 1.26.8
 
 require (
-	github.com/veltylabs/business_calendar v0.5.31
-	github.com/veltylabs/device_manager v0.2.89
-	github.com/veltylabs/patient_directory v0.1.86
-	github.com/veltylabs/payment_manager v0.4.35
-	github.com/veltylabs/service_catalog v0.6.44
-	github.com/veltylabs/staff_manager v0.1.157
-	webtyp.com/auth v0.0.102
-	webtyp.com/components v0.8.57
+	webtyp.com/appkit v0.2.8
+	webtyp.com/components v0.8.64
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.39
 	webtyp.com/dom v0.13.29
 	webtyp.com/events v0.1.7
 	webtyp.com/fmt v1.0.0
 	webtyp.com/html v0.0.30
-	webtyp.com/input v0.0.28
+	webtyp.com/input v0.0.33
 	webtyp.com/json v0.5.37
 	webtyp.com/lang v0.1.11
 	webtyp.com/layout v0.3.99
@@ -27,20 +21,46 @@ require (
 	webtyp.com/rpc v0.2.15
 	webtyp.com/storage v0.1.18
 	webtyp.com/svg v0.3.33
-	webtyp.com/time v0.6.2
+	webtyp.com/time v0.6.4
 	webtyp.com/unixid v0.3.1
 	webtyp.com/view v0.6.55
 	webtyp.com/widget v0.6.46
 )
 
 require (
+	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
+	github.com/go-acme/lego/v4 v4.35.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/miekg/dns v1.1.72 // indirect
+	github.com/smallstep/truststore v0.13.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/image v0.45.0 // indirect
+	golang.org/x/mod v0.38.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/tools v0.48.0 // indirect
+	howett.net/plist v1.0.0 // indirect
+	webtyp.com/access v0.0.41 // indirect
+	webtyp.com/auth v0.0.102 // indirect
+	webtyp.com/await v0.1.2 // indirect
+	webtyp.com/base64 v0.0.6 // indirect
 	webtyp.com/calendar v0.1.0 // indirect
+	webtyp.com/context v0.0.23 // indirect
+	webtyp.com/crypto v0.0.30 // indirect
+	webtyp.com/dbus v0.1.1 // indirect
+	webtyp.com/env v0.1.3 // indirect
 	webtyp.com/erd v0.0.16 // indirect
 	webtyp.com/fetch v0.1.29 // indirect
 	webtyp.com/filepath v0.1.0 // indirect
-	webtyp.com/money v0.2.0 // indirect
+	webtyp.com/keyring v0.2.9 // indirect
+	webtyp.com/mcp v0.3.20 // indirect
+	webtyp.com/pwa v0.2.13 // indirect
+	webtyp.com/rbac v0.0.29 // indirect
+	webtyp.com/server v0.2.105 // indirect
+	webtyp.com/webauthn v0.1.16 // indirect
 )
 
 require (
@@ -51,6 +71,5 @@ require (
 	webtyp.com/icons v0.0.38 // indirect
 	webtyp.com/image v0.1.16
 	webtyp.com/msgtype v0.1.0 // indirect
-	webtyp.com/network v0.1.2 // indirect
 	webtyp.com/user v0.3.14 // indirect
 )

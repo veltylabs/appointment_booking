@@ -15,8 +15,7 @@ func TestViewConformance(t *testing.T) {
 		Id:              "res-1",
 		TenantId:        "t1",
 		ClientId:        "c1",
-		LocalStringDate: "2026-03-04",
-		LocalStringTime: "14:30",
+		ReservationTime: 1772634600,
 		Status:          ab.StatusPending,
 		Origin:          ab.OriginCounter,
 	}
@@ -24,8 +23,7 @@ func TestViewConformance(t *testing.T) {
 		Id:              "res-2",
 		TenantId:        "t1",
 		ClientId:        "c2",
-		LocalStringDate: "2026-03-04",
-		LocalStringTime: "15:00",
+		ReservationTime: 1772636400,
 		Status:          ab.StatusConfirmed,
 		Origin:          ab.OriginCounter,
 	}
@@ -58,11 +56,11 @@ func TestViewConformance(t *testing.T) {
 		t.Fatalf("expected 2 items, got %d", len(items))
 	}
 
-	if items[0].ID != "res-1" || items[0].Label != "c1" || items[0].Description != "2026-03-04 · 14:30" {
+	if items[0].ID != "res-1" || items[0].Label != "c1" || items[0].Badge != "1772634600" {
 		t.Fatalf("unexpected first item: %+v", items[0])
 	}
 
-	if items[1].ID != "res-2" || items[1].Label != "c2" || items[1].Description != "2026-03-04 · 15:00" {
+	if items[1].ID != "res-2" || items[1].Label != "c2" || items[1].Badge != "1772636400" {
 		t.Fatalf("unexpected second item: %+v", items[1])
 	}
 

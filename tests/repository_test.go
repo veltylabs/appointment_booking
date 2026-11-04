@@ -86,9 +86,10 @@ func TestUpsertCalendarConfig_CreateAndUpdate(t *testing.T) {
 
 	// Create
 	cfg1 := ab.WorkCalendarConfig{
-		TenantId: "t1",
-		StaffId:  "s1",
-		Timezone: "America/Santiago",
+		TenantId:          "t1",
+		StaffId:           "s1",
+		IsActive:          true,
+		MaxOverbookPerDay: 2,
 	}
 	err := repo.UpsertCalendarConfig(cfg1)
 	if err != nil {
@@ -99,15 +100,16 @@ func TestUpsertCalendarConfig_CreateAndUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCalendarConfig failed: %v", err)
 	}
-	if got1.Timezone != "America/Santiago" {
-		t.Fatalf("Expected timezone America/Santiago, got %s", got1.Timezone)
+	if got1.MaxOverbookPerDay != 2 {
+		t.Fatalf("Expected MaxOverbookPerDay 2, got %d", got1.MaxOverbookPerDay)
 	}
 
 	// Update
 	cfg2 := ab.WorkCalendarConfig{
-		TenantId: "t1",
-		StaffId:  "s1",
-		Timezone: "America/New_York",
+		TenantId:          "t1",
+		StaffId:           "s1",
+		IsActive:          false,
+		MaxOverbookPerDay: 5,
 	}
 	err = repo.UpsertCalendarConfig(cfg2)
 	if err != nil {
@@ -118,8 +120,8 @@ func TestUpsertCalendarConfig_CreateAndUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCalendarConfig failed: %v", err)
 	}
-	if got2.Timezone != "America/New_York" {
-		t.Fatalf("Expected timezone America/New_York, got %s", got2.Timezone)
+	if got2.MaxOverbookPerDay != 5 {
+		t.Fatalf("Expected MaxOverbookPerDay 5, got %d", got2.MaxOverbookPerDay)
 	}
 	if got2.Id != got1.Id {
 		t.Fatalf("Expected ID to be preserved across upsert, old=%s new=%s", got1.Id, got2.Id)
@@ -247,24 +249,24 @@ func TestInsertGet_Reservation(t *testing.T) {
 func TestListReservationsByStaff(t *testing.T) {
 	repo := newTestRepo(t)
 
-	repo.InsertReservation(&ab.Reservation{Id: "t1", TenantId: "t1", StaffIdsnapshot: "s1", ReservationDate: 100})
+	repo.InsertReservation(&ab.Reservation{Id: "t1", TenantId: "t1", StaffIdsnapshot: "s1", ReservationTime: 100})
 	for i := 0; i < 1000000; i++ {
 	} // avoid conflict
-	repo.InsertReservation(&ab.Reservation{Id: "t2", TenantId: "t1", StaffIdsnapshot: "s1", ReservationDate: 200})
+	repo.InsertReservation(&ab.Reservation{Id: "t2", TenantId: "t1", StaffIdsnapshot: "s1", ReservationTime: 200})
 	for i := 0; i < 1000000; i++ {
 	} // avoid conflict
-	repo.InsertReservation(&ab.Reservation{Id: "t3", TenantId: "t1", StaffIdsnapshot: "s1", ReservationDate: 300})
+	repo.InsertReservation(&ab.Reservation{Id: "t3", TenantId: "t1", StaffIdsnapshot: "s1", ReservationTime: 300})
 	for i := 0; i < 1000000; i++ {
 	} // avoid conflict
-	repo.InsertReservation(&ab.Reservation{Id: "t4", TenantId: "t1", StaffIdsnapshot: "s2", ReservationDate: 200})
+	repo.InsertReservation(&ab.Reservation{Id: "t4", TenantId: "t1", StaffIdsnapshot: "s2", ReservationTime: 200})
 
 	res, err := repo.ListReservationsByStaff("t1", "s1", 150, 250)
 	if err != nil {
 		t.Fatalf("ListReservationsByStaff failed: %v", err)
 	}
 
-	if len(res) != 1 || res[0].ReservationDate != 200 {
-		t.Fatalf("Expected 1 reservation with date 200, got %v", res)
+	if len(res) != 1 || res[0].ReservationTime != 200 {
+		t.Fatalf("Expected 1 reservation with time 200, got %v", res)
 	}
 }
 

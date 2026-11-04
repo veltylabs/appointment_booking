@@ -29,7 +29,7 @@ func (s *ServiceConfigView) WidgetKind() widget.Kind { return widget.Region }
 func NewServiceConfigView(caller router.Caller, tenantID string) Component {
 	v := &ServiceConfigView{caller: caller, tenantID: tenantID}
 	v.panel = NewNodes()
-	v.picker = newStaffPicker(caller, func(string) { v.rebuildPanel() })
+	v.picker = newStaffPicker(caller, tenantID, func(string) { v.rebuildPanel() })
 	return v
 }
 

@@ -23,7 +23,7 @@ const (
 var (
 	ResourceBookingCatalog    = model.FeatureResource("booking_catalog")    // lecturas del flujo online
 	ResourceReservationOnline = model.FeatureResource("reservation_online") // crear reserva online
-	ResourceOverbooking = model.FeatureResource("overbooking")
+	ResourceOverbooking       = model.FeatureResource("overbooking")
 )
 
 // EmployeeServiceConfigModel: que servicios realiza un profesional, durante cuanto
@@ -54,7 +54,6 @@ var WorkCalendarConfigModel = model.Definition{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
-		{Name: "timezone", Type: model.Text(), NotNull: true},
 		{Name: "is_active", Type: model.Bool()},
 		{Name: "max_overbook_per_day", Type: model.Int(), NotNull: true},
 	},
@@ -80,9 +79,9 @@ var WorkCalendarBlockModel = model.Definition{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
-		{Name: "day_of_week", Type: model.Int(), NotNull: true},       // 0..6, meaningful when specific_date == 0
+		{Name: "day_of_week", Type: model.Int(), NotNull: true},        // 0..6, meaningful when specific_date == 0
 		{Name: "specific_date", Type: model.UnixTime(), NotNull: true}, // 0 = weekly; else midnight UTC seconds
-		{Name: "start_min", Type: model.Int(), NotNull: true},         // minutes from midnight
+		{Name: "start_min", Type: model.Int(), NotNull: true},          // minutes from midnight
 		{Name: "end_min", Type: model.Int(), NotNull: true},
 		{Name: "is_active", Type: model.Bool(), NotNull: true},
 	},
@@ -118,10 +117,7 @@ var ReservationModel = model.Definition{
 		{Name: "duration_min_snapshot", Type: model.Int()},
 		{Name: "price_snapshot", Type: model.Float()},
 		{Name: "currency_snapshot", Type: model.Text()},
-		{Name: "reservation_date", Type: model.UnixTime(), Item: model.ItemBadge},
-		{Name: "reservation_time", Type: model.Int()},
-		{Name: "local_string_date", Type: model.Text(), Item: model.ItemDescription},
-		{Name: "local_string_time", Type: model.Text(), Item: model.ItemDescription},
+		{Name: "reservation_time", Type: model.Int(), Item: model.ItemBadge},
 		// status: valores válidos = las constantes FSM exportadas de fsm.go/service.go — los
 		// literales viven SOLO en esas constantes (regla anti magic-string, ver service_catalog).
 		{Name: "status", Type: model.Text(), NotNull: true},
@@ -299,7 +295,6 @@ var UpsertCalendarConfigArgsModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
 		{Name: "staff_id", Type: input.Text()},
-		{Name: "timezone", Type: input.Text()},
 		{Name: "is_active", Type: input.Checkbox()},
 		{Name: "max_overbook_per_day", Type: input.Number()},
 	},
@@ -361,8 +356,8 @@ var ListBlocksArgsModel = model.Definition{
 	},
 }
 
-var GetDayBoundsArgsModel = model.Definition{
-	Name: "get_day_bounds_args",
+var GetDayLimitsArgsModel = model.Definition{
+	Name: "get_day_limits_args",
 	Fields: model.Fields{
 		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
 		{Name: "date", Type: input.Number()},    // midnight UTC seconds
@@ -400,12 +395,12 @@ var ConflictingReservationModel = model.Definition{
 	},
 }
 
-// DayBoundsResultModel es transport-only (salida de get_day_bounds) — la
-// proyección encodable de time.DayBounds para que el editor acote sus controles
-// (§6.2). time.DayBounds NO es model.Encodable, así que se cruza por esta
+// DayLimitsResultModel es transport-only (salida de get_day_limits) — la
+// proyección encodable de time.DayLimits para que el editor acote sus controles
+// (§6.2). time.DayLimits NO es model.Encodable, así que se cruza por esta
 // forma.
-var DayBoundsResultModel = model.Definition{
-	Name: "day_bounds_result",
+var DayLimitsResultModel = model.Definition{
+	Name: "day_limits_result",
 	Fields: model.Fields{
 		{Name: "open", Type: model.Bool()},
 		{Name: "open_min", Type: model.Int()},
@@ -514,6 +509,97 @@ var CreateOnlineReservationArgsModel = model.Definition{
 	},
 }
 
+var ListStaffOptionsArgsModel = model.Definition{
+	Name: "list_staff_options_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()},
+	},
+}
+
+var StaffOptionModel = model.Definition{
+	Name: "staff_option",
+	Fields: model.Fields{
+		{Name: "id", Type: model.Text()},
+		{Name: "name", Type: model.Text()},
+	},
+}
+
+var ListCalendarClosuresArgsModel = model.Definition{
+	Name: "list_calendar_closures_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()},
+		{Name: "from", Type: model.Int()},
+		{Name: "to", Type: model.Int()},
+	},
+}
+
+var CalendarClosureModel = model.Definition{
+	Name: "calendar_closure",
+	Fields: model.Fields{
+		{Name: "date", Type: model.Text()},
+		{Name: "is_holiday", Type: model.Bool()},
+	},
+}
+
+var FindBookingPatientArgsModel = model.Definition{
+	Name: "find_booking_patient_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()},
+		{Name: "document_number", Type: model.Text(), NotNull: true},
+	},
+}
+
+var BookingPatientModel = model.Definition{
+	Name: "booking_patient",
+	Fields: model.Fields{
+		{Name: "id", Type: model.Text()},
+		{Name: "tenant_id", Type: model.Text()},
+		{Name: "document_number", Type: model.Text(), NotNull: true},
+		{Name: "name", Type: model.Text(), NotNull: true},
+		{Name: "phone", Type: model.Text()},
+		{Name: "email", Type: model.Text()},
+	},
+}
+
+var BookingChargeArgsModel = model.Definition{
+	Name: "booking_charge_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()},
+		{Name: "reservation_id", Type: model.Text()},
+	},
+}
+
+var BookingChargeResultModel = model.Definition{
+	Name: "booking_charge_result",
+	Fields: model.Fields{
+		{Name: "payable", Type: model.Bool()},
+		{Name: "terminal", Type: model.Bool()},
+		{Name: "amount", Type: model.Int()},
+		{Name: "currency", Type: model.Text()},
+	},
+}
+
+var BookingPaymentArgsModel = model.Definition{
+	Name: "booking_payment_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text()},
+		{Name: "id", Type: model.Text()},
+		{Name: "reservation_id", Type: model.Text()},
+		{Name: "method", Type: model.Text()},
+		{Name: "return_to", Type: model.Text()},
+	},
+}
+
+var BookingPaymentResultModel = model.Definition{
+	Name: "booking_payment_result",
+	Fields: model.Fields{
+		{Name: "payment_id", Type: model.Text()},
+		{Name: "status", Type: model.Text()},
+		{Name: "redirect_url", Type: model.Text()},
+		{Name: "token_field", Type: model.Text()},
+		{Name: "token", Type: model.Text()},
+	},
+}
 
 func init() {
 	for i := range ReservationModel.Fields {

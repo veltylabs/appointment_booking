@@ -3,10 +3,9 @@ package tests
 import (
 	"testing"
 
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
-	patientdirectory "github.com/veltylabs/patient_directory"
 )
 
 // TestBookingFlow_ProgressionSteps verifica la progresión lógica de los 6 pasos:
@@ -40,7 +39,7 @@ func TestBookingFlow_ProgressionSteps(t *testing.T) {
 
 	// Configurar calendario para el staff
 	if err := svc.UpsertCalendarConfig(ab.WorkCalendarConfig{
-		TenantId: tenant, StaffId: staff, Timezone: "UTC", IsActive: true,
+		TenantId: tenant, StaffId: staff, IsActive: true,
 	}); err != nil {
 		t.Fatalf("UpsertCalendarConfig: %v", err)
 	}
@@ -128,7 +127,7 @@ func TestBookingFlow_CounterOriginDirectConfirm(t *testing.T) {
 	}
 
 	if err := svc.UpsertCalendarConfig(ab.WorkCalendarConfig{
-		TenantId: tenant, StaffId: staff, Timezone: "UTC", IsActive: true,
+		TenantId: tenant, StaffId: staff, IsActive: true,
 	}); err != nil {
 		t.Fatalf("UpsertCalendarConfig: %v", err)
 	}
@@ -179,16 +178,22 @@ func TestBookingFlow_CounterOriginDirectConfirm(t *testing.T) {
 	}
 }
 
-// MockPatientDirectory simula el comportamiento de búsqueda y creación de patient_directory
+type testPatient struct {
+	Id   string
+	Rut  string
+	Name string
+}
+
+// MockPatientDirectory simula el comportamiento de búsqueda y creación de directorio de pacientes
 type MockPatientDirectory struct {
-	patients map[string]patientdirectory.Patient
+	patients map[string]testPatient
 }
 
 func NewMockPatientDirectory() *MockPatientDirectory {
-	return &MockPatientDirectory{patients: make(map[string]patientdirectory.Patient)}
+	return &MockPatientDirectory{patients: make(map[string]testPatient)}
 }
 
-func (m *MockPatientDirectory) FindByRUT(rut string) (*patientdirectory.Patient, bool) {
+func (m *MockPatientDirectory) FindByRUT(rut string) (*testPatient, bool) {
 	p, ok := m.patients[rut]
 	if !ok {
 		return nil, false
@@ -196,13 +201,13 @@ func (m *MockPatientDirectory) FindByRUT(rut string) (*patientdirectory.Patient,
 	return &p, true
 }
 
-func (m *MockPatientDirectory) SavePatient(p patientdirectory.Patient) {
+func (m *MockPatientDirectory) SavePatient(p testPatient) {
 	m.patients[p.Rut] = p
 }
 
 func TestBookingFlow_PatientLookupRUT(t *testing.T) {
 	pd := NewMockPatientDirectory()
-	pd.SavePatient(patientdirectory.Patient{
+	pd.SavePatient(testPatient{
 		Id:   "p-1",
 		Rut:  "11.111.111-1",
 		Name: "Ana Gómez",
@@ -219,7 +224,7 @@ func TestBookingFlow_PatientLookupRUT(t *testing.T) {
 	if exists2 {
 		t.Fatalf("expected patient 22.222.222-2 to not exist initially")
 	}
-	pd.SavePatient(patientdirectory.Patient{
+	pd.SavePatient(testPatient{
 		Id:   "p-2",
 		Rut:  "22.222.222-2",
 		Name: "Carlos Pérez",
@@ -230,4 +235,4 @@ func TestBookingFlow_PatientLookupRUT(t *testing.T) {
 	}
 }
 
-var _ = tinytime.NowUnix
+var _ = time.NowUnix

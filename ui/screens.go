@@ -2,46 +2,35 @@ package ui
 
 import (
 	ab "github.com/veltylabs/appointment_booking"
-	staffmanager "github.com/veltylabs/staff_manager"
 	"webtyp.com/lang"
 	"webtyp.com/model"
 	"webtyp.com/router"
+	"webtyp.com/time"
 	"webtyp.com/view"
 )
 
 const (
-	tabStaff    = "staff"
 	tabSchedule = "schedule"
 	tabServices = "services"
 
-	labelStaff    = "Datos y dispositivos"
 	labelSchedule = "Horario"
 	labelServices = "Servicios"
 
 	descBooking        lang.Text = "Reserva de horas médicas y de atención para mesón y recepción."
 	descOnline         lang.Text = "Flujo de reserva de horas online para pacientes."
-	descPersonal       lang.Text = "Gestión de personal: datos, horario y configuración de servicios."
-	descStaff          lang.Text = "Datos personales, de contacto y credenciales del profesional."
+	descPersonal       lang.Text = "Gestión de personal: horario y configuración de servicios."
 	descSchedule       lang.Text = "Configuración del horario semanal y excepciones de atención."
 	descServicesConfig lang.Text = "Configuración de servicios, duración y precios por profesional."
 )
 
 // Screens declara las pantallas que este módulo ofrece al menú de la app.
-func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []view.Screen {
-	staffScreen := view.Screen{
-		ID:         PersonalID + "." + tabStaff,
-		Label:      lang.Text(labelStaff),
-		Icon:       PersonalID,
-		Permission: model.FeatureResource("staff_manager"),
-		Presenter:  staffmanager.NewView(caller, view.WithDescription(descStaff)),
-	}
-
+func Screens(caller router.Caller, zone time.Zone, ids model.IDGenerator, tenantID string) []view.Screen {
 	scheduleScreen := view.Screen{
 		ID:         PersonalID + "." + tabSchedule,
 		Label:      lang.Text(labelSchedule),
 		Icon:       PersonalID,
 		Permission: model.ResourceOf(&ab.WorkCalendarConfigModel),
-		Component:  NewScheduleView(caller, tenantID),
+		Component:  NewScheduleView(caller, zone, tenantID),
 		Help:       descSchedule,
 	}
 
@@ -59,7 +48,7 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		Label:    lang.Text(PersonalLabel),
 		Icon:     PersonalID,
 		Help:     descPersonal,
-		Children: []view.Screen{staffScreen, scheduleScreen, servicesScreen},
+		Children: []view.Screen{scheduleScreen, servicesScreen},
 	}
 
 	bookingScreen := view.Screen{
@@ -67,7 +56,7 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		Label:      lang.Text(NavLabel),
 		Icon:       ID,
 		Permission: model.ResourceOf(&ab.ReservationModel),
-		Component:  NewBookingView(caller, ids, tenantID),
+		Component:  NewBookingView(caller, zone, ids, tenantID),
 		Help:       descBooking,
 	}
 
@@ -76,10 +65,9 @@ func Screens(caller router.Caller, ids model.IDGenerator, tenantID string) []vie
 		Label:      lang.Text(OnlineLabel),
 		Icon:       ID,
 		Permission: ab.ResourceReservationOnline,
-		Component:  newBookingFlow(caller, ids, tenantID, true),
+		Component:  newBookingFlow(caller, zone, ids, tenantID, true),
 		Help:       descOnline,
 	}
 
 	return []view.Screen{bookingScreen, personalGroup, onlineScreen}
 }
-

@@ -2,12 +2,9 @@ package seed
 
 import (
 	"webtyp.com/fmt"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
-	patientseed "github.com/veltylabs/patient_directory/seed"
-	catalogseed "github.com/veltylabs/service_catalog/seed"
-	staffseed "github.com/veltylabs/staff_manager/seed"
 )
 
 // Constantes para IDs determinísticos de demo
@@ -20,13 +17,26 @@ const (
 // las reservas de demo.
 const maxSeedDays = 14
 
-// Upstream contiene las estructuras de datos semilla provistas por los módulos
-// aguas arriba (staff, catálogo, pacientes).
-type Upstream struct {
-	Staff    staffseed.Data
-	Catalog  catalogseed.Data
-	Patients patientseed.Data
+type StaffSeed struct {
+	ID        string
+	Name      string
+	Specialty string
 }
+
+type ServiceSeed struct {
+	ID        string
+	Specialty string
+}
+
+// LoadOptions contiene los identificadores y opciones sembradas por la app.
+type LoadOptions struct {
+	Staff      []StaffSeed
+	Services   []ServiceSeed
+	PatientIDs []string
+}
+
+// Upstream es un alias retrocompatible para LoadOptions.
+type Upstream = LoadOptions
 
 // Data contiene las filas sembradas por este módulo.
 type Data struct {
@@ -36,15 +46,14 @@ type Data struct {
 
 // Load puebla los datos iniciales de demostración en appointment_booking a través
 // de los métodos del módulo.
-func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
+func Load(m *ab.Module, tenantID string, up LoadOptions) (Data, error) {
 	var data Data
 
 	// 1. Configuración de calendario por cada funcionario.
-	for _, sm := range up.Staff.Staff {
+	for _, sm := range up.Staff {
 		err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: tenantID,
-			StaffId:  sm.Id,
-			Timezone: "America/Santiago",
+			StaffId:  sm.ID,
 			IsActive: true,
 		})
 		if err != nil {
@@ -53,33 +62,30 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 	}
 
 	// 2. Bloques de atención: Lunes a Viernes (1–5), 09:00–13:00 (540–780) y 15:00–18:00 (900–1080).
-	for _, sm := range up.Staff.Staff {
+	for _, sm := range up.Staff {
 		for dow := 1; dow <= 5; dow++ {
 			blocks := []ab.WorkCalendarBlock{
-				{TenantId: tenantID, StaffId: sm.Id, DayOfWeek: int64(dow), StartMin: 540, EndMin: 780, IsActive: true},
-				{TenantId: tenantID, StaffId: sm.Id, DayOfWeek: int64(dow), StartMin: 900, EndMin: 1080, IsActive: true},
+				{TenantId: tenantID, StaffId: sm.ID, DayOfWeek: int64(dow), StartMin: 540, EndMin: 780, IsActive: true},
+				{TenantId: tenantID, StaffId: sm.ID, DayOfWeek: int64(dow), StartMin: 900, EndMin: 1080, IsActive: true},
 			}
-			if err := m.SaveDayBlocks(tenantID, sm.Id, dow, blocks); err != nil {
+			if err := m.SaveDayBlocks(tenantID, sm.ID, dow, blocks); err != nil {
 				return data, err
 			}
 		}
 	}
 
 	// 3. Servicio por funcionario buscando coincidencia entre especialidad y catálogo.
-	for _, sm := range up.Staff.Staff {
+	for _, sm := range up.Staff {
 		var matchedServiceID string
-		for _, sp := range up.Catalog.Specialties {
-			if sp.Name == sm.Specialty {
-				for _, it := range up.Catalog.Items {
-					if it.SpecialtyId == sp.Id {
-						matchedServiceID = it.Id
-						break
-					}
-				}
-				if matchedServiceID != "" {
-					break
-				}
+		for _, s := range up.Services {
+			if s.Specialty == sm.Specialty {
+				matchedServiceID = s.ID
+				break
 			}
+		}
+
+		if matchedServiceID == "" && len(up.Services) > 0 {
+			matchedServiceID = up.Services[0].ID
 		}
 
 		if matchedServiceID == "" {
@@ -90,7 +96,7 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 		// recorre así el pago del paso 6.
 		esc, err := m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{
 			TenantId:        tenantID,
-			StaffId:         sm.Id,
+			StaffId:         sm.ID,
 			ServiceId:       matchedServiceID,
 			DurationMin:     30,
 			BufferMin:       0,
@@ -106,54 +112,50 @@ func Load(m *ab.Module, tenantID string, up Upstream) (Data, error) {
 	if len(data.ServiceConfigs) == 0 {
 		return data, fmt.Err("no service configurations created")
 	}
-	if len(up.Patients.Patients) == 0 {
-		return data, fmt.Err("no patients found in patient directory module")
+	if len(up.PatientIDs) == 0 {
+		return data, fmt.Err("no patients found for seed")
 	}
 
-	// 4. Dos reservas para el próximo día hábil que las acepte (09:00 y 09:30
-	// Santiago). Se prueba hasta maxSeedDays días hacia adelante, saltando fines
-	// de semana: el día siguiente puede ser feriado o cierre del calendario
-	// institucional, y la semilla no debe fallar según la fecha en que corre.
-	patient1ID := up.Patients.Patients[0].Id
+	patient1ID := up.PatientIDs[0]
 	patient2ID := patient1ID
-	if len(up.Patients.Patients) > 1 {
-		patient2ID = up.Patients.Patients[1].Id
+	if len(up.PatientIDs) > 1 {
+		patient2ID = up.PatientIDs[1]
 	}
 
-	nowSec := tinytime.NowUnix()
+	zone := m.Zone()
+	nowSec := time.NowUnix()
 	var res1 ab.Reservation
-	var daySec tinytime.Unix
+	var targetDay string
 	var lastErr error
 	booked := false
 	for offset := int64(1); offset <= maxSeedDays && !booked; offset++ {
-		candidate := nowSec + tinytime.Unix(offset)*tinytime.Day
-		wd := tinytime.Weekday(candidate)
+		candidate := nowSec + time.Unix(offset)*time.Day
+		wd := zone.Weekday(candidate)
 		if wd == 0 || wd == 6 {
 			continue
 		}
-		isoDate := tinytime.FormatISO8601(candidate)
-		if len(isoDate) >= 10 {
-			isoDate = isoDate[:10]
-		}
-		var err error
-		daySec, err = tinytime.ParseDate(isoDate)
+		dayStr := zone.Date(candidate)
+		slotStartUtc, err := zone.At(dayStr, 540) // 09:00
 		if err != nil {
-			return data, err
+			continue
 		}
 		res1, lastErr = m.CreateReservation(ab.CreateReservationCmd{
 			Id:                      DemoReservation1ID,
 			TenantId:                tenantID,
 			ClientId:                patient1ID,
 			EmployeeServiceConfigId: data.ServiceConfigs[0].Id,
-			SlotStartUtc:            ab.LocalIntToUnixUTC(daySec, 540, "America/Santiago"), // 09:00
+			SlotStartUtc:            slotStartUtc,
 			Origin:                  ab.OriginCounter,
 		})
-		booked = lastErr == nil
+		if lastErr == nil {
+			booked = true
+			targetDay = dayStr
+		}
 	}
 	if !booked {
 		return data, fmt.Err("seed: ningún día hábil aceptó la reserva de demo: " + lastErr.Error())
 	}
-	slotStartUtc2 := ab.LocalIntToUnixUTC(daySec, 570, "America/Santiago") // 09:30
+	slotStartUtc2, _ := zone.At(targetDay, 570) // 09:30
 
 	// Primera reserva: confirmarla.
 	if err := m.ChangeReservationStatus(ab.ChangeStatusCmd{

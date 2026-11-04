@@ -45,7 +45,7 @@ func (s *stepSummaryCard) show() {
 	s.notes.Set(s.f.choice.notes)
 	body := Div().Child(
 		P().Text(o.ServiceName+" · "+fmt.Convert(o.DurationMin).String()+" min"),
-		P().Text(slotLabel(s.f.choice.slot.StartUtc)),
+		P().Text(s.f.slotLabel(s.f.choice.slot.StartUtc)),
 		P().Text(s.f.choice.patientName),
 		Strong().Text(priceLabel(o.Price, o.Currency)),
 	)

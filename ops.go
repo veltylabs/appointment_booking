@@ -29,7 +29,7 @@ const (
 	OpMarkWorkingDays                   = "mark_working_days"
 	OpUnmarkWorkingDays                 = "unmark_working_days"
 	OpListBlocks                        = "list_blocks"
-	OpGetDayBounds                      = "get_day_bounds"
+	OpGetDayLimits                      = "get_day_limits"
 	OpAddCalendarException              = "add_calendar_exception"
 	OpRemoveCalendarException           = "remove_calendar_exception"
 	OpListAvailability                  = "list_availability"
@@ -40,6 +40,17 @@ const (
 	OpGetEmployeeServiceConfig          = "get_employee_service_config"
 	OpListEmployeeServiceConfigsByStaff = "list_employee_service_configs_by_staff"
 	OpUpdateEmployeeServiceConfig       = "update_employee_service_config"
+
+	OpListStaffOptions              = "list_staff_options"
+	OpListCalendarClosures          = "list_calendar_closures"
+	OpFindBookingPatient            = "find_booking_patient"
+	OpRegisterBookingPatient        = "register_booking_patient"
+	OpResolveOnlinePatient          = "resolve_online_patient"
+	OpGetBookingCharge              = "get_booking_charge"
+	OpCreateBookingCounterPayment   = "create_booking_counter_payment"
+	OpStartBookingTerminalPayment   = "start_booking_terminal_payment"
+	OpRefreshBookingTerminalPayment = "refresh_booking_terminal_payment"
+	OpStartBookingOnlinePayment     = "start_booking_online_payment"
 )
 
 // ModelName is this module's identity: mcp.HarvestOps qualifies every op
@@ -89,7 +100,7 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpMarkWorkingDays, m.opMarkWorkingDays).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Create|model.Update).Accepts(&MarkWorkingDaysArgs{})
 	reg.Operation(OpUnmarkWorkingDays, m.opUnmarkWorkingDays).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Delete).Accepts(&UnmarkWorkingDaysArgs{})
 	reg.Operation(OpListBlocks, m.opListBlocks).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&ListBlocksArgs{})
-	reg.Operation(OpGetDayBounds, m.opGetDayBounds).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&GetDayBoundsArgs{})
+	reg.Operation(OpGetDayLimits, m.opGetDayLimits).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&GetDayLimitsArgs{})
 	reg.Operation(OpAddCalendarException, m.opAddCalendarException).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Create).Accepts(&AddCalendarExceptionArgs{})
 	reg.Operation(OpRemoveCalendarException, m.opRemoveCalendarException).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Delete).Accepts(&RemoveCalendarExceptionArgs{})
 	reg.Operation(OpListAvailability, m.opListAvailability).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&ListAvailabilityArgs{})
@@ -100,6 +111,17 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpGetEmployeeServiceConfig, m.opGetEmployeeServiceConfig).Requires(model.ResourceOf(&EmployeeServiceConfigModel), model.Read).Accepts(&GetEmployeeServiceConfigArgs{})
 	reg.Operation(OpListEmployeeServiceConfigsByStaff, m.opListEmployeeServiceConfigsByStaff).Requires(model.ResourceOf(&EmployeeServiceConfigModel), model.Read).Accepts(&ListEmployeeServiceConfigsByStaffArgs{})
 	reg.Operation(OpUpdateEmployeeServiceConfig, m.opUpdateEmployeeServiceConfig).Requires(model.ResourceOf(&EmployeeServiceConfigModel), model.Update).Accepts(&EmployeeServiceConfig{})
+
+	reg.Operation(OpListStaffOptions, m.opListStaffOptions).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&ListStaffOptionsArgs{})
+	reg.Operation(OpListCalendarClosures, m.opListCalendarClosures).Requires(model.ResourceOf(&WorkCalendarConfigModel), model.Read).Accepts(&ListCalendarClosuresArgs{})
+	reg.Operation(OpFindBookingPatient, m.opFindBookingPatient).Requires(model.ResourceOf(&ReservationModel), model.Read).Accepts(&FindBookingPatientArgs{})
+	reg.Operation(OpRegisterBookingPatient, m.opRegisterBookingPatient).Requires(model.ResourceOf(&ReservationModel), model.Create).Accepts(&BookingPatient{})
+	reg.Operation(OpResolveOnlinePatient, m.opResolveOnlinePatient).Requires(ResourceReservationOnline, model.Create).Accepts(&BookingPatient{})
+	reg.Operation(OpGetBookingCharge, m.opGetBookingCharge).Requires(model.ResourceOf(&ReservationModel), model.Read).Accepts(&BookingChargeArgs{})
+	reg.Operation(OpCreateBookingCounterPayment, m.opCreateBookingCounterPayment).Requires(model.ResourceOf(&ReservationModel), model.Create).Accepts(&BookingPaymentArgs{})
+	reg.Operation(OpStartBookingTerminalPayment, m.opStartBookingTerminalPayment).Requires(model.ResourceOf(&ReservationModel), model.Create).Accepts(&BookingPaymentArgs{})
+	reg.Operation(OpRefreshBookingTerminalPayment, m.opRefreshBookingTerminalPayment).Requires(model.ResourceOf(&ReservationModel), model.Read).Accepts(&BookingPaymentArgs{})
+	reg.Operation(OpStartBookingOnlinePayment, m.opStartBookingOnlinePayment).Requires(ResourceReservationOnline, model.Create).Accepts(&BookingPaymentArgs{})
 }
 
 var _ router.OperationModule = (*Module)(nil)
@@ -117,7 +139,6 @@ var _ router.OperationModule = (*Module)(nil)
 // badRequest is a payload the operation could not read, or one that failed the constraints its
 // Definition declares: 400, with the decoder's or the validation's own text.
 type badRequest struct{ err error }
-
 
 // writeError answers every refusal with its status and its text: a client (rpc, a sync engine's
 // conflict tray) shows the text, so an empty body is never an answer.
@@ -373,7 +394,6 @@ func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 	cfg := WorkCalendarConfig{
 		TenantId:          args.TenantId,
 		StaffId:           args.StaffId,
-		Timezone:          args.Timezone,
 		IsActive:          args.IsActive,
 		MaxOverbookPerDay: args.MaxOverbookPerDay,
 	}
@@ -464,18 +484,18 @@ func (m *Module) opListBlocks(ctx router.Context) {
 	}
 }
 
-func (m *Module) opGetDayBounds(ctx router.Context) {
-	var args GetDayBoundsArgs
+func (m *Module) opGetDayLimits(ctx router.Context) {
+	var args GetDayLimitsArgs
 	if err := ctx.Decode(&args); err != nil {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
-	b, err := m.GetDayBounds(time.Unix(args.Date))
+	lim, err := m.GetDayLimits(time.Unix(args.Date))
 	if err != nil {
 		rpc.WriteError(ctx, err)
 		return
 	}
-	res := DayBoundsResult{Open: b.Open, OpenMin: int64(b.OpenMin), CloseMin: int64(b.CloseMin)}
+	res := DayLimitsResult{Open: lim.Open, OpenMin: int64(lim.OpenMin), CloseMin: int64(lim.CloseMin)}
 	if err := ctx.Encode(&res); err != nil {
 		rpc.WriteError(ctx, err)
 	}
@@ -647,4 +667,287 @@ func (m *Module) opCreateOnlineReservation(ctx router.Context) {
 	}
 	ctx.WriteStatus(200)
 	ctx.Encode(&res)
+}
+
+func (m *Module) opListStaffOptions(ctx router.Context) {
+	var args ListStaffOptionsArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	opts, err := m.staff.OccupantOptions(args.TenantId)
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	list := make(StaffOptionList, len(opts))
+	for i, o := range opts {
+		list[i] = &StaffOption{Id: o.Key, Name: o.Value}
+	}
+	if err := ctx.Encode(&list); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opListCalendarClosures(ctx router.Context) {
+	var args ListCalendarClosuresArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	if m.hours == nil {
+		list := CalendarClosureList{}
+		_ = ctx.Encode(&list)
+		return
+	}
+	holidays, closures, err := m.hours.ClosedDates(time.Unix(args.From), time.Unix(args.To))
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	list := make(CalendarClosureList, 0, len(holidays)+len(closures))
+	for _, h := range holidays {
+		list = append(list, &CalendarClosure{Date: h, IsHoliday: true})
+	}
+	for _, c := range closures {
+		list = append(list, &CalendarClosure{Date: c, IsHoliday: false})
+	}
+	if err := ctx.Encode(&list); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opFindBookingPatient(ctx router.Context) {
+	var args FindBookingPatientArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	id, name, phone, email, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingPatient{
+		Id:             id,
+		TenantId:       args.TenantId,
+		DocumentNumber: args.DocumentNumber,
+		Name:           name,
+		Phone:          phone,
+		Email:          email,
+	}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opRegisterBookingPatient(ctx router.Context) {
+	var args BookingPatient
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	id := args.Id
+	if id == "" {
+		id = m.ids.NewID()
+	}
+	patientID, err := m.patients.RegisterPatient(args.TenantId, id, args.DocumentNumber, args.Name, args.Phone, args.Email)
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingPatient{
+		Id:             patientID,
+		TenantId:       args.TenantId,
+		DocumentNumber: args.DocumentNumber,
+		Name:           args.Name,
+		Phone:          args.Phone,
+		Email:          args.Email,
+	}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opResolveOnlinePatient(ctx router.Context) {
+	var args BookingPatient
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	id, name, phone, email, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
+	if err == nil && id != "" {
+		res := BookingPatient{
+			Id:             id,
+			TenantId:       args.TenantId,
+			DocumentNumber: args.DocumentNumber,
+			Name:           name,
+			Phone:          phone,
+			Email:          email,
+		}
+		if err := ctx.Encode(&res); err != nil {
+			rpc.WriteError(ctx, err)
+		}
+		return
+	}
+	newID := args.Id
+	if newID == "" {
+		newID = m.ids.NewID()
+	}
+	regID, err := m.patients.RegisterPatient(args.TenantId, newID, args.DocumentNumber, args.Name, args.Phone, args.Email)
+	if err != nil {
+		if id2, name2, phone2, email2, err2 := m.patients.FindPatient(args.TenantId, args.DocumentNumber); err2 == nil && id2 != "" {
+			res := BookingPatient{
+				Id:             id2,
+				TenantId:       args.TenantId,
+				DocumentNumber: args.DocumentNumber,
+				Name:           name2,
+				Phone:          phone2,
+				Email:          email2,
+			}
+			_ = ctx.Encode(&res)
+			return
+		}
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingPatient{
+		Id:             regID,
+		TenantId:       args.TenantId,
+		DocumentNumber: args.DocumentNumber,
+		Name:           args.Name,
+		Phone:          args.Phone,
+		Email:          args.Email,
+	}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opGetBookingCharge(ctx router.Context) {
+	var args BookingChargeArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	if m.payments == nil {
+		res := BookingChargeResult{Payable: false}
+		_ = ctx.Encode(&res)
+		return
+	}
+	payable, terminal, amount, currency, err := m.payments.ChargeDetail(args.TenantId, ModelName, args.ReservationId)
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingChargeResult{
+		Payable:  payable,
+		Terminal: terminal,
+		Amount:   amount,
+		Currency: currency,
+	}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opCreateBookingCounterPayment(ctx router.Context) {
+	var args BookingPaymentArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	if m.payments == nil {
+		rpc.WriteError(ctx, fmt.Err("payments not configured"))
+		return
+	}
+	id := args.Id
+	if id == "" {
+		id = m.ids.NewID()
+	}
+	pid, err := m.payments.RegisterCounterPayment(args.TenantId, id, ModelName, args.ReservationId, args.Method, "")
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingPaymentResult{PaymentId: pid, Status: "paid"}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opStartBookingTerminalPayment(ctx router.Context) {
+	var args BookingPaymentArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	if m.payments == nil {
+		rpc.WriteError(ctx, fmt.Err("payments not configured"))
+		return
+	}
+	id := args.Id
+	if id == "" {
+		id = m.ids.NewID()
+	}
+	pid, err := m.payments.StartTerminalPayment(args.TenantId, id, ModelName, args.ReservationId, args.Method)
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingPaymentResult{PaymentId: pid, Status: "pending"}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opRefreshBookingTerminalPayment(ctx router.Context) {
+	var args BookingPaymentArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	if m.payments == nil {
+		rpc.WriteError(ctx, fmt.Err("payments not configured"))
+		return
+	}
+	status, err := m.payments.RefreshTerminalPayment(args.TenantId, args.Id)
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingPaymentResult{PaymentId: args.Id, Status: status}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
+}
+
+func (m *Module) opStartBookingOnlinePayment(ctx router.Context) {
+	var args BookingPaymentArgs
+	if err := ctx.Decode(&args); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	if m.payments == nil {
+		rpc.WriteError(ctx, fmt.Err("payments not configured"))
+		return
+	}
+	id := args.Id
+	if id == "" {
+		id = m.ids.NewID()
+	}
+	redirectURL, tokenField, token, err := m.payments.StartOnlinePayment(args.TenantId, id, ModelName, args.ReservationId, args.ReturnTo)
+	if err != nil {
+		rpc.WriteError(ctx, err)
+		return
+	}
+	res := BookingPaymentResult{
+		PaymentId:   id,
+		RedirectUrl: redirectURL,
+		TokenField:  tokenField,
+		Token:       token,
+	}
+	if err := ctx.Encode(&res); err != nil {
+		rpc.WriteError(ctx, err)
+	}
 }

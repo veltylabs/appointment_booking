@@ -10,13 +10,15 @@ import (
 	"webtyp.com/orm"
 	"webtyp.com/router/loopback"
 	"webtyp.com/storage/mem"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 func seedCalendar(t *testing.T, m *ab.Module, tenantId, staffId string) {
 	t.Helper()
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
-		TenantId: tenantId, StaffId: staffId, Timezone: "UTC", IsActive: true,
+		TenantId: tenantId,
+		StaffId:  staffId,
+		IsActive: true,
 	}); err != nil {
 		t.Fatalf("UpsertCalendarConfig: %v", err)
 	}
@@ -60,18 +62,18 @@ func TestListBlocksOp_ReturnsRows(t *testing.T) {
 	}
 }
 
-func TestGetDayBoundsOp_NilBoundsMeansUnbounded(t *testing.T) {
+func TestGetDayLimitsOp_NilHoursMeansUnlimited(t *testing.T) {
 	m, _ := newModuleWithBroker(t)
 
 	caller := loopback.New(m)
-	out := &ab.DayBoundsResult{}
+	out := &ab.DayLimitsResult{}
 	var got error
-	caller.Call(ab.ModelName+"."+ab.OpGetDayBounds, &ab.GetDayBoundsArgs{TenantId: "t1", Date: 1767139200}, out, func(err error) { got = err })
+	caller.Call(ab.ModelName+"."+ab.OpGetDayLimits, &ab.GetDayLimitsArgs{TenantId: "t1", Date: 1767139200}, out, func(err error) { got = err })
 	if got != nil {
 		t.Fatalf("Call: %v", got)
 	}
 	if !out.Open || out.OpenMin != 0 || out.CloseMin != 1440 {
-		t.Fatalf("expected unbounded bounds when Deps.Bounds is nil, got %+v", out)
+		t.Fatalf("expected unlimited limits when Deps.Hours is nil, got %+v", out)
 	}
 }
 
@@ -83,7 +85,7 @@ func TestListExceptionsOp_RangeFilter(t *testing.T) {
 	outOfRange := int64(1767312000)                  // Jan 2 2026
 	for _, date := range []int64{from, to, outOfRange} {
 		if err := m.AddException(ab.WorkCalendarException{
-			TenantId: "t1", StaffId: "s1", SpecificDate: tinytime.Unix(date),
+			TenantId: "t1", StaffId: "s1", SpecificDate: time.Unix(date),
 			ExceptionType: ab.ExcBlocked, StartTime: 0, EndTime: 1439,
 		}); err != nil {
 			t.Fatalf("AddException: %v", err)
@@ -128,7 +130,7 @@ func TestAddExceptionHoliday_ConflictsAndPublishes(t *testing.T) {
 	m, repo, _ := newTestModule(t, deps)
 	seedCalendar(t, m, "t1", "s1")
 	d := Date(2027, 6, 7, 0, 0, 0, 0)
-	seedWeekdayBlock(t, m, "t1", "s1", int(tinytime.Weekday(d)), defaultBlocks())
+	seedWeekdayBlock(t, m, "t1", "s1", int(time.WeekdayUTC(d)), defaultBlocks())
 	cfgID := seedEmployeeConfig(t, repo, "t1", "s1", 60)
 	createBooked(t, m, "t1", "s1", cfgID, d+10*3600)
 
@@ -157,7 +159,7 @@ func TestRemoveExceptionHoliday_RestoresAndIsSilentOnNewConflicts(t *testing.T) 
 	m, repo, _ := newTestModule(t, deps)
 	seedCalendar(t, m, "t1", "s1")
 	d := Date(2027, 6, 8, 0, 0, 0, 0)
-	seedWeekdayBlock(t, m, "t1", "s1", int(tinytime.Weekday(d)), defaultBlocks())
+	seedWeekdayBlock(t, m, "t1", "s1", int(time.WeekdayUTC(d)), defaultBlocks())
 	cfgID := seedEmployeeConfig(t, repo, "t1", "s1", 60)
 	createBooked(t, m, "t1", "s1", cfgID, d+10*3600)
 

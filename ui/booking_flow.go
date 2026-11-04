@@ -6,14 +6,13 @@ import (
 	"webtyp.com/lang"
 	"webtyp.com/model"
 	"webtyp.com/router"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 	"webtyp.com/widget"
 
 	. "webtyp.com/dom"
 	. "webtyp.com/html"
 
 	ab "github.com/veltylabs/appointment_booking"
-	paymentmanager "github.com/veltylabs/payment_manager"
 )
 
 // NameBookingFlow es la identidad de widget de la reserva en 6 pasos (mesón y
@@ -102,6 +101,7 @@ type BookingFlow struct {
 	Element // value embed — NEVER pointer
 
 	caller   router.Caller
+	zone     time.Zone
 	ids      model.IDGenerator
 	tenantID string
 	online   bool
@@ -140,8 +140,8 @@ type booking struct {
 func (f *BookingFlow) WidgetName() widget.Name { return NameBookingFlow }
 func (f *BookingFlow) WidgetKind() widget.Kind { return widget.Form }
 
-func newBookingFlow(caller router.Caller, ids model.IDGenerator, tenantID string, online bool) *BookingFlow {
-	return &BookingFlow{caller: caller, ids: ids, tenantID: tenantID, online: online}
+func newBookingFlow(caller router.Caller, zone time.Zone, ids model.IDGenerator, tenantID string, online bool) *BookingFlow {
+	return &BookingFlow{caller: caller, zone: zone, ids: ids, tenantID: tenantID, online: online}
 }
 
 // Init arma el acordeón y carga el paso 1. En la pantalla online, si la página
@@ -283,7 +283,7 @@ func (f *BookingFlow) finish() {
 // servicio, día, hora, paciente y, si se pagó, el monto.
 func (f *BookingFlow) summaryLines() []string {
 	o := f.offer()
-	lines := []string{o.StaffName, o.ServiceName, slotLabel(f.choice.slot.StartUtc), f.choice.patientName}
+	lines := []string{o.StaffName, o.ServiceName, f.slotLabel(f.choice.slot.StartUtc), f.choice.patientName}
 	if f.choice.paymentID != "" {
 		lines = append(lines, priceLabel(o.Price, o.Currency))
 	}
@@ -302,35 +302,29 @@ func (f *BookingFlow) finalPanel(title lang.Text, lines []string, again lang.Tex
 	return panel.Child(Div().Set(clsFlowActions.AsAttr()).Child(actionButton(again, nil, f.restart)))
 }
 
-// slotLabel es "2026-10-13 · 10:30": día y hora de un inicio en segundos UTC.
-func slotLabel(startUtc tinytime.Unix) string {
+// slotLabel es "2026-10-13 · 10:30": día y hora de un inicio en segundos UTC formateados en la zona del establecimiento.
+func (f *BookingFlow) slotLabel(startUtc time.Unix) string {
 	if startUtc == 0 {
 		return ""
 	}
-	return slotDay(startUtc) + " · " + slotTime(startUtc)
+	return f.zone.Date(startUtc) + " · " + f.zone.Clock(startUtc)
 }
 
-// hourMinuteLen es el largo de "HH:MM" dentro de "HH:MM:SS".
-const hourMinuteLen = 5
-
-func slotDay(startUtc tinytime.Unix) string { return tinytime.FormatDate(startUtc) }
-
-// slotTime es la hora "10:30" (sin segundos) de un inicio en segundos UTC.
-func slotTime(startUtc tinytime.Unix) string {
-	t := tinytime.FormatTime(startUtc)
-	if len(t) > hourMinuteLen {
-		return t[:hourMinuteLen]
+// FormatAmount formatea un monto para la UI.
+func FormatAmount(amount int64, currency string) string {
+	if currency == "" {
+		currency = "CLP"
 	}
-	return t
+	return fmt.Sprintf("$%d %s", amount, currency)
 }
 
-// priceLabel muestra un precio con el formato de payment_manager.
+// priceLabel muestra un precio formateado.
 func priceLabel(price float64, currency string) string {
 	amount, err := ab.MinorUnits(price, currency)
 	if err != nil {
 		return fmt.Convert(price).String() + " " + currency
 	}
-	return paymentmanager.FormatAmount(amount, currency)
+	return FormatAmount(amount, currency)
 }
 
 // stepBox es el contenedor del contenido de un paso.

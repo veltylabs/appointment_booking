@@ -6,7 +6,7 @@ import (
 
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/orm"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 func contains(s, substr string) bool {
@@ -120,7 +120,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		cfgs, _ := repo.ListEmployeeServiceConfigByStaff("t_uc04", "s_uc04")
 		cfgID := cfgs[0].Id
 
-		mockDirectory := deps.Directory.(*MockDirectoryReader)
+		mockDirectory := deps.Patients.(*MockDirectoryReader)
 		mockDirectory.Exists = false
 		defer func() { mockDirectory.Exists = true }()
 
@@ -138,7 +138,7 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		}
 	})
 
-	setupValidConfig := func(tenant, staff string, slotStart tinytime.Unix) string {
+	setupValidConfig := func(tenant, staff string, slotStart time.Unix) string {
 		cfg := ab.EmployeeServiceConfig{
 			TenantId:    tenant,
 			StaffId:     staff,
@@ -153,15 +153,16 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 		s.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: tenant,
 			StaffId:  staff,
-			Timezone: "UTC",
 			IsActive: true,
 		})
 
-		dow := tinytime.Weekday(slotStart)
+		dow := int(time.WeekdayUTC(slotStart))
 
-		s.SaveDayBlocks(tenant, staff, dow, []ab.WorkCalendarBlock{
+		if err := s.SaveDayBlocks(tenant, staff, dow, []ab.WorkCalendarBlock{
 			{StartMin: 0, EndMin: 1440, IsActive: true}, // all day
-		})
+		}); err != nil {
+			t.Fatalf("setupValidConfig SaveDayBlocks: %v", err)
+		}
 		return cfgID
 	}
 
@@ -377,28 +378,28 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 	})
 
 	t.Run("SaveDayBlocks_WeekdayBoundsWithHolidays", func(t *testing.T) {
-		mockBounds, ok := deps.Bounds.(*MockBoundsReader)
+		mockBounds, ok := deps.Hours.(*MockBoundsReader)
 		if !ok {
 			mockBounds = &MockBoundsReader{Default: OpenDayBounds}
-			deps.Bounds = mockBounds
+			deps.Hours = mockBounds
 
 			_, mOk := s.(*ab.Module)
 			if mOk {
 				newDeps := deps
-				newDeps.Bounds = mockBounds
+				newDeps.Hours = mockBounds
 				s2, _ := ab.New(db, newDeps)
 				s = s2
 			} else {
-				t.Fatalf("Deps.Bounds is not MockBoundsReader and unable to mock it")
+				t.Fatalf("Deps.Hours is not MockBoundsReader and unable to mock it")
 			}
 		}
 
 		// Un feriado (cerrado) que cae justo en el próximo lunes
-		start := tinytime.MidnightUTC(tinytime.NowUnix())
-		var nextMon tinytime.Unix
+		start := time.MidnightUTC(time.NowUnix())
+		var nextMon time.Unix
 		for i := 0; i < 7; i++ {
-			d := start + tinytime.Unix(i)*tinytime.Day
-			if tinytime.Weekday(d) == 1 { // Lunes = 1
+			d := start + time.Unix(i)*time.Day
+			if time.WeekdayUTC(d) == 1 { // Lunes = 1
 				nextMon = d
 				break
 			}
@@ -412,9 +413,9 @@ func RunServiceValidationTests(t *testing.T, s ab.SchedulingService, repo *ab.Re
 			mockBounds.WeekdayOverrides = origWeekdayOverrides
 		}()
 
-		mockBounds.Overrides = []DateBound{{Date: nextMon, Bounds: tinytime.DayBounds{Open: false}}}
+		mockBounds.Overrides = []DateBound{{Date: nextMon, Bounds: time.DayLimits{Open: false}}}
 		mockBounds.WeekdayOverrides = []WeekdayBound{
-			{DayOfWeek: 0, Bounds: tinytime.DayBounds{Open: false}}, // Domingo cerrado siempre
+			{DayOfWeek: 0, Bounds: time.DayLimits{Open: false}}, // Domingo cerrado siempre
 		}
 
 		repo.UpsertCalendarConfig(ab.WorkCalendarConfig{

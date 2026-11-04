@@ -4,7 +4,7 @@ import (
 	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/orm"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 // ImportReservation stores a booking from a previous system with its own id, date and status: it creates it, or
@@ -14,13 +14,16 @@ import (
 // slot, no PENDING start, no hold, no event, and no transaction of its own (the importer already runs inside one).
 //
 // Example: r, err := booking.ImportReservation(Reservation{Id: "1650000000000000000", TenantId: t, ClientId: p,
+//
 //	EmployeeServiceConfigId: cfg, ReservationTime: int64(start), Status: StatusCompleted, Origin: OriginCounter})
 func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 	if r.Id == "" || r.TenantId == "" || r.ClientId == "" || r.EmployeeServiceConfigId == "" || r.ReservationTime <= 0 {
 		return Reservation{}, ErrMissingArgs
 	}
 
-	if r.Status != StatusConfirmed && r.Status != StatusCancelled && r.Status != StatusCompleted && r.Status != StatusNoShow {
+	switch r.Status {
+	case StatusConfirmed, StatusCancelled, StatusCompleted, StatusNoShow:
+	default:
 		return Reservation{}, ErrImportStatus
 	}
 
@@ -36,11 +39,11 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 		return Reservation{}, ErrNotFound
 	}
 
-	clientExists, err := m.directory.ClientExists(r.TenantId, r.ClientId)
+	patientExists, err := m.patients.PatientExists(r.TenantId, r.ClientId)
 	if err != nil {
 		return Reservation{}, err
 	}
-	if !clientExists {
+	if !patientExists {
 		return Reservation{}, ErrClientNotFound
 	}
 
@@ -66,19 +69,7 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 		r.DurationMinSnapshot = cfg.DurationMin
 	}
 
-	r.ReservationDate = tinytime.MidnightUTC(tinytime.Unix(r.ReservationTime))
-
-	// La fecha y hora locales que trae el sistema anterior son la verdad (ver docs/TIEMPO.md): se conservan.
-	// Solo si vienen vacías se calculan, con el desfase fijo de webtyp/time (puede errar en 1 hora por el
-	// horario de verano, por eso no se usan cuando el dato original existe).
-	if r.LocalStringDate == "" {
-		r.LocalStringDate = tinytime.FormatDate(tinytime.Unix(r.ReservationTime))
-	}
-	if r.LocalStringTime == "" {
-		r.LocalStringTime = tinytime.FormatTime(tinytime.Unix(r.ReservationTime))
-	}
-
-	r.UpdatedAt = tinytime.NowNano()
+	r.UpdatedAt = time.NowNano()
 	r.UpdatedBy = r.CreatorUserId
 	r.Revision = 1
 

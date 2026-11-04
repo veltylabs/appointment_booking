@@ -6,21 +6,10 @@ import (
 	"webtyp.com/events/mock"
 	"webtyp.com/orm"
 	"webtyp.com/storage/mem"
-
-	trustedip "webtyp.com/auth/trusted_ip"
+	"webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
 	"github.com/veltylabs/appointment_booking/seed"
-	businesscalendar "github.com/veltylabs/business_calendar"
-	calendarseed "github.com/veltylabs/business_calendar/seed"
-	devicemanager "github.com/veltylabs/device_manager"
-	deviceseed "github.com/veltylabs/device_manager/seed"
-	patientdirectory "github.com/veltylabs/patient_directory"
-	patientseed "github.com/veltylabs/patient_directory/seed"
-	servicecatalog "github.com/veltylabs/service_catalog"
-	catalogseed "github.com/veltylabs/service_catalog/seed"
-	staffmanager "github.com/veltylabs/staff_manager"
-	staffseed "github.com/veltylabs/staff_manager/seed"
 )
 
 func TestSeed_LoadPopulatesServicesAndReservations(t *testing.T) {
@@ -28,69 +17,40 @@ func TestSeed_LoadPopulatesServicesAndReservations(t *testing.T) {
 	ids := &fakeIDs{}
 	broker := &mock.Broker{}
 	tenantID := "demo"
+	zone, _ := time.LoadZone("America/Santiago")
 
-	dm, err := devicemanager.New(db, devicemanager.Deps{IDs: ids, Publisher: broker, TenantID: tenantID})
-	if err != nil {
-		t.Fatalf("devicemanager.New: %v", err)
-	}
-	sm, err := staffmanager.New(db, staffmanager.Deps{
-		IDs:         ids,
-		Publisher:   broker,
-		TenantID:    tenantID,
-		ValidateRUT: trustedip.ValidateRUT,
-		Devices:     devicemanager.IPLocator{Devices: dm, TenantID: tenantID},
-	})
-	if err != nil {
-		t.Fatalf("staffmanager.New: %v", err)
-	}
-	ic, err := servicecatalog.New(db, servicecatalog.Deps{IDs: ids, Publisher: broker, TenantID: "test_tenant"})
-	if err != nil {
-		t.Fatalf("servicecatalog.New: %v", err)
-	}
-	pd, err := patientdirectory.New(db, patientdirectory.Deps{
-		Publisher:   broker,
-		TenantID:    tenantID,
-		ValidateRUT: trustedip.ValidateRUT,
-	})
-	if err != nil {
-		t.Fatalf("patientdirectory.New: %v", err)
-	}
-	bc, err := businesscalendar.New(db, businesscalendar.Deps{IDs: ids, Publisher: broker})
-	if err != nil {
-		t.Fatalf("businesscalendar.New: %v", err)
-	}
+	staffMock := &MockStaffReader{Exists: true}
+	catMock := &MockCatalogReader{Exists: true, Name: "Consulta General", Price: 35000, Currency: "CLP", Active: true}
+	patMock := &MockDirectoryReader{Exists: true}
 
 	abMod, err := ab.New(db, ab.Deps{
-		Staff: sm, Catalog: ic, Directory: pd, Bounds: bc, IDs: ids, Publisher: broker,
+		Staff:     staffMock,
+		Catalog:   catMock,
+		Patients:  patMock,
+		IDs:       ids,
+		Publisher: broker,
+		Zone:      zone,
+		TenantID:  tenantID,
 	})
 	if err != nil {
 		t.Fatalf("ab.New: %v", err)
 	}
 
-	if _, err := deviceseed.Load(dm, tenantID); err != nil {
-		t.Fatalf("deviceseed.Load: %v", err)
-	}
-	staffData, err := staffseed.Load(sm, tenantID)
-	if err != nil {
-		t.Fatalf("staffseed.Load: %v", err)
-	}
-	catalogData, err := catalogseed.Load(ic, tenantID)
-	if err != nil {
-		t.Fatalf("catalogseed.Load: %v", err)
-	}
-	patientData, err := patientseed.Load(pd, tenantID)
-	if err != nil {
-		t.Fatalf("patientseed.Load: %v", err)
-	}
-	if _, err := calendarseed.Load(bc); err != nil {
-		t.Fatalf("calendarseed.Load: %v", err)
+	opts := seed.LoadOptions{
+		Staff: []seed.StaffSeed{
+			{ID: "sm-1", Name: "Dr. Uno", Specialty: "Pediatría"},
+			{ID: "sm-2", Name: "Dra. Dos", Specialty: "Cardiología"},
+			{ID: "sm-3", Name: "Dr. Tres", Specialty: "Medicina General"},
+		},
+		Services: []seed.ServiceSeed{
+			{ID: "svc-1", Specialty: "Pediatría"},
+			{ID: "svc-2", Specialty: "Cardiología"},
+			{ID: "svc-3", Specialty: "Medicina General"},
+		},
+		PatientIDs: []string{"pat-1", "pat-2"},
 	}
 
-	data, err := seed.Load(abMod, tenantID, seed.Upstream{
-		Staff:    staffData,
-		Catalog:  catalogData,
-		Patients: patientData,
-	})
+	data, err := seed.Load(abMod, tenantID, opts)
 	if err != nil {
 		t.Fatalf("seed.Load: %v", err)
 	}
@@ -103,12 +63,13 @@ func TestSeed_LoadPopulatesServicesAndReservations(t *testing.T) {
 	}
 
 	firstConfig := data.ServiceConfigs[0]
-	resDay := data.Reservations[0].ReservationDate
-	slots, err := abMod.ListAvailability(tenantID, firstConfig.StaffId, firstConfig.Id, resDay, resDay)
+	resUtc := data.Reservations[0].ReservationTime
+	resDay := time.MidnightUTC(time.Unix(resUtc))
+	slots, err := abMod.ListAvailability(tenantID, firstConfig.StaffId, firstConfig.Id, resDay, resDay+time.Day)
 	if err != nil {
 		t.Fatalf("ListAvailability: %v", err)
 	}
 	if len(slots) == 0 {
-		t.Errorf("ListAvailability returned 0 slots for day %d", resDay)
+		t.Errorf("ListAvailability returned 0 slots for day %v", resDay)
 	}
 }

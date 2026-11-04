@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	ab "github.com/veltylabs/appointment_booking"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 // openBounds establecimiento típicamente abierto 08:00–20:00.
@@ -82,7 +82,7 @@ func TestSingleBlockAppliedToSeveralWeekdays(t *testing.T) {
 
 	monday := Date(2027, 6, 7, 0, 0, 0, 0)
 	wednesday := Date(2027, 6, 9, 0, 0, 0, 0)
-	for _, day := range []tinytime.Unix{monday, wednesday} {
+	for _, day := range []time.Unix{monday, wednesday} {
 		slots, err := s.ListAvailability("t1", "s1", cfgID, day, day)
 		if err != nil {
 			t.Fatalf("ListAvailability(%d): %v", day, err)
@@ -109,7 +109,7 @@ func TestMarkedDaysShareTheCommonWindow(t *testing.T) {
 		t.Fatalf("MarkWorkingDays: %v", err)
 	}
 
-	for _, day := range []tinytime.Unix{d1, d2, d3} {
+	for _, day := range []time.Unix{d1, d2, d3} {
 		slots, err := s.ListAvailability("t1", "s1", cfgID, day, day)
 		if err != nil {
 			t.Fatalf("ListAvailability(%d): %v", day, err)
@@ -140,7 +140,7 @@ func TestOneMarkedDayCanDivergeFromTheCommonWindow(t *testing.T) {
 		t.Fatalf("SaveDateBlocks: %v", err)
 	}
 
-	for _, day := range []tinytime.Unix{d1, d2} {
+	for _, day := range []time.Unix{d1, d2} {
 		slots, err := s.ListAvailability("t1", "s1", cfgID, day, day)
 		if err != nil {
 			t.Fatalf("ListAvailability(%d): %v", day, err)
@@ -269,8 +269,8 @@ func TestBlockOutsideBusinessHoursIsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MarkWorkingDays within hours should succeed, got %v", err)
 	}
-	bounds := deps.Bounds.(*MockBoundsReader)
-	bounds.Overrides = append(bounds.Overrides, DateBound{Date: d, Bounds: tinytime.DayBounds{}})
+	bounds := deps.Hours.(*MockBoundsReader)
+	bounds.Overrides = append(bounds.Overrides, DateBound{Date: d, Bounds: time.DayLimits{}})
 	err = s.MarkWorkingDays("t1", "s1", []int64{int64(d)}, 540, 1020)
 	if err == nil || err.Error() != ab.ErrBlockOnClosedDay.Error() {
 		t.Fatalf("expected ErrBlockOnClosedDay, got %v", err)
@@ -286,8 +286,8 @@ func TestClosedEstablishmentDayYieldsNoSlots(t *testing.T) {
 	seedWeekdayBlock(t, s, "t1", "s1", 1, defaultBlocks())
 
 	d := Date(2027, 6, 7, 0, 0, 0, 0) // Monday
-	bounds := deps.Bounds.(*MockBoundsReader)
-	bounds.Overrides = []DateBound{{Date: d, Bounds: tinytime.DayBounds{}}} // closed
+	bounds := deps.Hours.(*MockBoundsReader)
+	bounds.Overrides = []DateBound{{Date: d, Bounds: time.DayLimits{}}} // closed
 
 	slots, err := s.ListAvailability("t1", "s1", cfgID, d, d)
 	if err != nil {
@@ -302,7 +302,7 @@ func TestNarrowingBusinessHoursClampsOfferedSlots(t *testing.T) {
 	// CU-02 — recortar las horas del establecimiento recorta los huecos que se
 	// ofrecen sin reescribir los bloques de nadie.
 	deps := SetupDependenciesWithBounds(&MockBoundsReader{
-		Default: tinytime.DayBounds{Open: true, OpenMin: 540, CloseMin: 780}, // 09:00–13:00
+		Default: time.DayLimits{Open: true, OpenMin: 540, CloseMin: 780}, // 09:00–13:00
 	})
 	s, repo := newTestModuleService(t, deps)
 	cfgID := seedEmployeeConfig(t, repo, "t1", "s1", 60)

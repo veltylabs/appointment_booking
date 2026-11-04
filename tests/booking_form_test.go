@@ -1,18 +1,17 @@
 package tests
 
 import (
-	"errors"
 	"os"
-	"strings"
 	"testing"
 
+	"webtyp.com/fmt"
 	"webtyp.com/json"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/router"
 	"webtyp.com/router/mock"
 	"webtyp.com/storage/mem"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 	"webtyp.com/view"
 
 	ab "github.com/veltylabs/appointment_booking"
@@ -47,7 +46,7 @@ func (l loopbackCaller) Call(op string, in model.Encodable, out model.Decodable,
 	l.reg.Invoke("OP", "/"+op, ctx)
 
 	if ctx.Status != 0 && ctx.Status != 200 {
-		cb(errors.New(string(ctx.ResponseBody())))
+		cb(fmt.Err(string(ctx.ResponseBody())))
 		return
 	}
 	if out != nil {
@@ -92,7 +91,6 @@ func setupBookingFormTestEnv(t *testing.T) (*mock.Router, *ab.EmployeeServiceCon
 	if err := db.Create(&ab.WorkCalendarConfig{
 		TenantId: "t1",
 		StaffId:  "s1",
-		Timezone: "UTC",
 		IsActive: true,
 	}); err != nil {
 		t.Fatalf("Create WorkCalendarConfig: %v", err)
@@ -136,7 +134,7 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 		TenantId:        "t1",
 		StaffId:         "s1",
 		ServiceConfigId: cfg.Id,
-		Timezone:        "UTC",
+		Zone: time.MachineZone(),
 		From:            1736121600, // Jan 6, 2025 midnight UTC
 		To:              1736208000,
 	}
@@ -159,7 +157,7 @@ func TestFormView_ListsScopedReservations(t *testing.T) {
 	if item.Label != "c1" {
 		t.Errorf("expected Label %q, got %q", "c1", item.Label)
 	}
-	wantDesc := model.JoinItem(res.LocalStringDate, res.LocalStringTime)
+	wantDesc := model.JoinItem(formCfg.Zone.Date(time.Unix(res.ReservationTime)), formCfg.Zone.Clock(time.Unix(res.ReservationTime)))
 	if item.Description != wantDesc {
 		t.Errorf("expected Description %q, got %q", wantDesc, item.Description)
 	}
@@ -173,7 +171,7 @@ func TestFormView_ListEmptyWithoutStaff(t *testing.T) {
 		TenantId:        "t1",
 		StaffId:         "", // empty staff id
 		ServiceConfigId: cfg.Id,
-		Timezone:        "UTC",
+		Zone: time.MachineZone(),
 	}
 
 	pv := ab.NewFormView(caller, formCfg)
@@ -197,7 +195,7 @@ func TestFormView_SaveCreatesReservation(t *testing.T) {
 		TenantId:        "t1",
 		StaffId:         "s1",
 		ServiceConfigId: cfg.Id,
-		Timezone:        "UTC",
+		Zone: time.MachineZone(),
 		From:            1736121600, // Jan 6, 2025 midnight UTC
 		To:              1736208000,
 		ActorId:         "u1",
@@ -242,7 +240,7 @@ func TestFormView_SaveWithoutServiceConfig(t *testing.T) {
 		TenantId:        "t1",
 		StaffId:         "s1",
 		ServiceConfigId: "", // missing service config
-		Timezone:        "UTC",
+		Zone: time.MachineZone(),
 	}
 
 	pv := ab.NewFormView(caller, formCfg)
@@ -269,7 +267,7 @@ func TestFormView_SaveWithoutHour(t *testing.T) {
 		TenantId:        "t1",
 		StaffId:         "s1",
 		ServiceConfigId: cfg.Id,
-		Timezone:        "UTC",
+		Zone: time.MachineZone(),
 	}
 
 	pv := ab.NewFormView(caller, formCfg)
@@ -296,7 +294,7 @@ func TestFormView_NoUpdateNoDelete(t *testing.T) {
 		TenantId:        "t1",
 		StaffId:         "s1",
 		ServiceConfigId: cfg.Id,
-		Timezone:        "UTC",
+		Zone: time.MachineZone(),
 	}
 
 	pv := ab.NewFormView(caller, formCfg)
@@ -312,12 +310,12 @@ func TestFormView_NoUpdateNoDelete(t *testing.T) {
 func TestDayToUnix_RoundTripsAtNegativeOffset(t *testing.T) {
 	dayStr := "2026-09-08"
 
-	u, err := tinytime.ParseDate(dayStr)
+	u, err := time.ParseDateUTC(dayStr)
 	if err != nil {
 		t.Fatalf("ParseDate error: %v", err)
 	}
 
-	iso := tinytime.FormatISO8601(u)
+	iso := time.FormatISO8601(u)
 	if len(iso) < 10 {
 		t.Fatalf("unexpected ISO string: %q", iso)
 	}
@@ -359,7 +357,7 @@ func TestFreeSlots_EmptyWithoutServiceConfig(t *testing.T) {
 		TenantId:        "t1",
 		StaffId:         "s1",
 		ServiceConfigId: "", // empty
-		Timezone:        "UTC",
+		Zone: time.MachineZone(),
 	}
 
 	done := make(chan struct{})
@@ -394,7 +392,22 @@ func TestFreeSlots_NeverBlocksOnAChannel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading view.go: %v", err)
 	}
-	if strings.Contains(string(src), "make(chan") {
+	hasChan := false
+	target := []byte("make(chan")
+	for i := 0; i+len(target) <= len(src); i++ {
+		match := true
+		for j := range target {
+			if src[i+j] != target[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			hasChan = true
+			break
+		}
+	}
+	if hasChan {
 		t.Fatal("view.go contains a blocking channel (\"make(chan\") — this is exactly the " +
 			"deadlock shape TestFreeSlots_EmptyWithoutServiceConfig's doc comment explains. " +
 			"Every transport call in this package must be callback-shaped (done func(...)), " +

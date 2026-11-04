@@ -6,7 +6,7 @@ import (
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/svg"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 // domainError is the concrete type of this package's sentinel errors. Code
@@ -16,17 +16,17 @@ import (
 const (
 	ErrCalendarConfigNotFound    model.NotFound = "calendar config not found"
 	ErrSlotTaken                 model.Conflict = "slot taken"
-	ErrMissingArgs               model.Invalid = "missing args"
-	ErrInvalidBlock              model.Invalid = "appointment_booking: start_min must be < end_min and both within 0..1439"
-	ErrBlocksOverlap             model.Invalid = "appointment_booking: two blocks of the same day overlap"
-	ErrBlockOutsideBusinessHours model.Invalid = "appointment_booking: block falls outside the establishment's opening hours"
-	ErrBlockOnClosedDay          model.Invalid = "appointment_booking: the establishment is closed on that date"
-	ErrNoServiceConfig           model.Invalid = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
-	ErrIncompleteSlot            model.Invalid = "appointment_booking: a booking needs both a day and an hour"
-	ErrIdTaken                   model.Invalid = "reservation id already used"
-	ErrImportStatus              model.Invalid = "an imported reservation must be confirmed, cancelled, completed or no-show"
-	ErrOverbookNotAllowed        model.Invalid = "overbooking not allowed for this professional and day"
-	ErrSlotNotInSchedule         model.Invalid = "appointment_booking: slot is not within professional's scheduled blocks"
+	ErrMissingArgs               model.Invalid  = "missing args"
+	ErrInvalidBlock              model.Invalid  = "appointment_booking: start_min must be < end_min and both within 0..1439"
+	ErrBlocksOverlap             model.Invalid  = "appointment_booking: two blocks of the same day overlap"
+	ErrBlockOutsideBusinessHours model.Invalid  = "appointment_booking: block falls outside the establishment's opening hours"
+	ErrBlockOnClosedDay          model.Invalid  = "appointment_booking: the establishment is closed on that date"
+	ErrNoServiceConfig           model.Invalid  = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
+	ErrIncompleteSlot            model.Invalid  = "appointment_booking: a booking needs both a day and an hour"
+	ErrIdTaken                   model.Invalid  = "reservation id already used"
+	ErrImportStatus              model.Invalid  = "an imported reservation must be confirmed, cancelled, completed or no-show"
+	ErrOverbookNotAllowed        model.Invalid  = "overbooking not allowed for this professional and day"
+	ErrSlotNotInSchedule         model.Invalid  = "appointment_booking: slot is not within professional's scheduled blocks"
 	ErrClientNotFound            model.NotFound = "client not found"
 )
 
@@ -101,95 +101,17 @@ func (p *ScheduleChangedPayload) DecodeFields(r model.FieldReader) {
 	}
 }
 
-// StaffReader verifica que un miembro del staff existe y pertenece al tenant.
-type StaffReader interface {
-	StaffExists(tenantId, staffId string) (bool, error)
-	StaffCard(tenantId, staffId string) (name, specialty string, active bool, err error)
-}
-
-// CatalogReader verifica que un servicio existe y pertenece al tenant.
-type CatalogReader interface {
-	ServiceExists(tenantId, serviceId string) (bool, error)
-	ServiceCard(tenantId, serviceId string) (name string, price float64, currency string, active bool, err error)
-}
-
-// PaymentReader verifica un pago de payment_manager sin importarlo; lo
-// satisface *paymentmanager.Module estructuralmente.
-type PaymentReader interface {
-	PaidAmount(tenantId, paymentId, referenceModule, referenceId string) (amount int64, currency string, err error)
-}
-
-// DirectoryReader verifica que un cliente existe y pertenece al tenant.
-type DirectoryReader interface {
-	ClientExists(tenantId, clientId string) (bool, error)
-}
-
-// BoundsReader answers "which minutes of this date are usable at all".
-//
-// Declared here, not imported: a booking module must not depend on any
-// particular institutional calendar. Anything that can answer the question
-// satisfies it — veltylabs/business_calendar does, and so would a static
-// config or a different organisation's calendar.
-//
-// date is midnight UTC in seconds.
-type BoundsReader interface {
-	// GetDayBounds: which minutes of this concrete date are usable
-	// (holidays and closures applied). date is midnight UTC in seconds.
-	GetDayBounds(date tinytime.Unix) (tinytime.DayBounds, error)
-	// GetWeekdayBounds: the establishment's regular hours for a weekday
-	// (0 = Sunday … 6 = Saturday), without date exceptions. A weekly
-	// schedule is validated against this, never against one date.
-	GetWeekdayBounds(dayOfWeek int) (tinytime.DayBounds, error)
-}
-
-type SchedulingService interface {
-	// Configuración de servicio de empleado
-	CreateEmployeeServiceConfig(cfg EmployeeServiceConfig) (EmployeeServiceConfig, error)
-	GetEmployeeServiceConfig(id string) (EmployeeServiceConfig, error)
-	ListEmployeeServiceConfigByStaff(tenantId, staffId string) ([]EmployeeServiceConfig, error)
-	UpdateEmployeeServiceConfig(cfg EmployeeServiceConfig) error
-
-	// Gestión de calendario
-	GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error)
-	UpsertCalendarConfig(cfg WorkCalendarConfig) error
-	SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error
-	SaveDateBlocks(tenantId, staffId string, date int64, blocks []WorkCalendarBlock) error
-	MarkWorkingDays(tenantId, staffId string, dates []int64, startMin, endMin int) error
-	UnmarkWorkingDays(tenantId, staffId string, dates []int64) error
-	ListBlocks(tenantId, staffId string) ([]WorkCalendarBlock, error)
-	AddException(exc WorkCalendarException) error
-	RemoveException(tenantId, exceptionId string) error
-	ListExceptions(tenantId, staffId string, from, to tinytime.Unix) ([]WorkCalendarException, error)
-	GetDayBounds(date tinytime.Unix) (tinytime.DayBounds, error)
-
-	// Disponibilidad
-	ListAvailability(tenantId, staffId, configId string, from, to tinytime.Unix) ([]TimeSlot, error)
-
-	// Reservas
-	CreateReservation(cmd CreateReservationCmd) (Reservation, error)
-	CreateOverbooking(cmd CreateReservationCmd) (Reservation, error)
-	GetReservation(tenantId, id string) (Reservation, error)
-	ListReservationsByStaff(tenantId, staffId string, from, to tinytime.Unix) ([]Reservation, error)
-	ListReservationsByClient(tenantId, clientId string) ([]Reservation, error)
-	ChangeReservationStatus(cmd ChangeStatusCmd) error
-	ExpirePendingReservations(tenantId string, now tinytime.Unix) (int, error)
-
-	// Conflictos
-	ListConflictingReservations(tenantId, staffId string, from tinytime.Unix) ([]ConflictingReservation, error)
-	RecomputeConflicts(tenantId string, from, to tinytime.Unix) (int, error)
-}
-
 type CreateReservationCmd struct {
 	Id                      string
 	TenantId                string
 	ClientId                string
 	CreatorUserId           string
 	EmployeeServiceConfigId string
-	SlotStartUtc            tinytime.Unix
+	SlotStartUtc            time.Unix
 	Notes                   string
 	RescheduledFromId       string
 	Origin                  string
-	HoldUntil               tinytime.Unix
+	HoldUntil               time.Unix
 }
 
 type CreateOverbookingCmd = CreateReservationCmd
@@ -204,33 +126,46 @@ type ChangeStatusCmd struct {
 }
 
 type Module struct {
-	db        *orm.DB
-	repo      *Repository
-	ids       model.IDGenerator
-	staff     StaffReader
-	catalog   CatalogReader
-	directory DirectoryReader
-	pub       events.Publisher
-	bounds    BoundsReader
-	payments  PaymentReader
+	db       *orm.DB
+	repo     *Repository
+	ids      model.IDGenerator
+	staff    StaffReader
+	catalog  CatalogReader
+	patients PatientDirectory
+	pub      events.Publisher
+	hours    OpeningHours
+	payments PaymentGateway
+	zone     time.Zone
+	tenantID string
 }
 
 type Deps struct {
 	Staff     StaffReader
 	Catalog   CatalogReader
-	Directory DirectoryReader
+	Patients  PatientDirectory
+	Hours     OpeningHours // opcional: nil = time.Unlimited()
+	Payments  PaymentGateway
 	IDs       model.IDGenerator // requerido
 	Publisher events.Publisher  // opcional — nil desactiva
-	// Bounds constrains every block to the institution's usable window.
-	// OPTIONAL: nil means unbounded, which is correct for an app with no
-	// institution above the professional (a freelancer's booking page).
-	Bounds   BoundsReader
-	Payments PaymentReader
+	Zone      time.Zone         // obligatoria
+	TenantID  string
 }
 
 func New(db *orm.DB, deps Deps) (*Module, error) {
 	if deps.IDs == nil {
 		return nil, fmt.Err("appointment_booking: Deps.IDs is required")
+	}
+	if deps.Staff == nil {
+		return nil, fmt.Err("appointment_booking: Deps.Staff is required")
+	}
+	if deps.Catalog == nil {
+		return nil, fmt.Err("appointment_booking: Deps.Catalog is required")
+	}
+	if deps.Patients == nil {
+		return nil, fmt.Err("appointment_booking: Deps.Patients is required")
+	}
+	if deps.Zone.Name() == "" {
+		return nil, fmt.Err("appointment_booking: Deps.Zone is required")
 	}
 	repo, err := NewRepository(db, deps.IDs)
 	if err != nil {
@@ -238,16 +173,41 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 	}
 
 	return &Module{
-		db:        db,
-		repo:      repo,
-		ids:       deps.IDs,
-		staff:     deps.Staff,
-		catalog:   deps.Catalog,
-		directory: deps.Directory,
-		pub:       deps.Publisher,
-		bounds:    deps.Bounds,
-		payments:  deps.Payments,
+		db:       db,
+		repo:     repo,
+		ids:      deps.IDs,
+		staff:    deps.Staff,
+		catalog:  deps.Catalog,
+		patients: deps.Patients,
+		pub:      deps.Publisher,
+		hours:    deps.Hours,
+		payments: deps.Payments,
+		zone:     deps.Zone,
+		tenantID: deps.TenantID,
 	}, nil
+}
+
+func (m *Module) Zone() time.Zone { return m.zone }
+
+func (m *Module) dayKey(u time.Unix) time.Unix {
+	d, _ := time.ParseDateUTC(m.zone.Date(u))
+	return d
+}
+
+func dateOf(dayKey time.Unix) string {
+	y, mo, d, _, _, _ := time.CivilUTC(dayKey)
+	return fmt.Sprintf("%04d-%02d-%02d", y, mo, d)
+}
+
+func (m *Module) at(dayKey time.Unix, minutes int) time.Unix {
+	if minutes >= 1440 {
+		extraDays := minutes / 1440
+		remMin := minutes % 1440
+		u, _ := m.zone.At(dateOf(dayKey+time.Unix(extraDays*86400)), remMin)
+		return u
+	}
+	u, _ := m.zone.At(dateOf(dayKey), minutes)
+	return u
 }
 
 var _ SchedulingService = (*Module)(nil)
@@ -303,30 +263,30 @@ func (m *Module) requireCalendarConfig(tenantId, staffId string) (WorkCalendarCo
 	return cfg, nil
 }
 
-// boundsForDay es el ÚNICO punto del módulo que consulta BoundsReader para una
-// fecha concreta. Un solo nil-check de m.bounds en todo el módulo (regla §6.1):
-// nil = Unbounded, y casi todo el código que viene después ya siempre tiene bounds.
-func (m *Module) boundsForDay(d tinytime.Unix) (tinytime.DayBounds, error) {
-	if m.bounds == nil {
-		return tinytime.Unbounded(), nil
+// limitsForDay es el ÚNICO punto del módulo que consulta OpeningHours para una
+// fecha concreta. Un solo nil-check de m.hours en todo el módulo (regla §6.1):
+// nil = Unlimited, y casi todo el código que viene después ya siempre tiene limits.
+func (m *Module) limitsForDay(d time.Unix) (time.DayLimits, error) {
+	if m.hours == nil {
+		return time.Unlimited(), nil
 	}
-	return m.bounds.GetDayBounds(d)
+	return m.hours.DayLimits(d)
 }
 
-// boundsForWeekday es similar a boundsForDay pero consulta BoundsReader
+// limitsForWeekday es similar a limitsForDay pero consulta OpeningHours
 // por el horario regular de un día de la semana (0 = Sunday … 6 = Saturday),
 // ignorando excepciones por fecha.
-func (m *Module) boundsForWeekday(dow int) (tinytime.DayBounds, error) {
-	if m.bounds == nil {
-		return tinytime.Unbounded(), nil
+func (m *Module) limitsForWeekday(dow int) (time.DayLimits, error) {
+	if m.hours == nil {
+		return time.Unlimited(), nil
 	}
-	return m.bounds.GetWeekdayBounds(dow)
+	return m.hours.WeekdayLimits(dow)
 }
 
-// GetDayBounds proxies Deps.Bounds para que el editor acote sus propios controles
+// GetDayLimits proxies Deps.Hours para que el editor acote sus propios controles
 // llamando a este módulo, no al calendario institucional directamente (§6.2).
-func (m *Module) GetDayBounds(date tinytime.Unix) (tinytime.DayBounds, error) {
-	return m.boundsForDay(date)
+func (m *Module) GetDayLimits(date time.Unix) (time.DayLimits, error) {
+	return m.limitsForDay(date)
 }
 
 // validateBlocks aplica las constraints de rango y solapamiento a un conjunto de
@@ -353,7 +313,7 @@ func validateBlocks(blocks []WorkCalendarBlock) error {
 // día cerrado (ErrBlockOnClosedDay) o ventana fuera de las horas de apertura
 // (ErrBlockOutsideBusinessHours). La UI ya solo ofrece horas legales (CU-02),
 // pero las ops pasan por router y la UI no puede ser la única defensa (CU-07).
-func checkBlockAgainstBounds(bounds tinytime.DayBounds, b WorkCalendarBlock) error {
+func checkBlockAgainstBounds(bounds time.DayLimits, b WorkCalendarBlock) error {
 	if !bounds.Open {
 		return ErrBlockOnClosedDay
 	}
@@ -363,7 +323,7 @@ func checkBlockAgainstBounds(bounds tinytime.DayBounds, b WorkCalendarBlock) err
 	return nil
 }
 
-func validateBlockSet(bounds tinytime.DayBounds, blocks []WorkCalendarBlock) error {
+func validateBlockSet(bounds time.DayLimits, blocks []WorkCalendarBlock) error {
 	for i := range blocks {
 		if err := checkBlockAgainstBounds(bounds, blocks[i]); err != nil {
 			return err
@@ -392,17 +352,17 @@ func (m *Module) SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks [
 		blocks[i].SpecificDate = 0
 		blocks[i].IsActive = true
 	}
-	bounds, err := m.boundsForWeekday(dayOfWeek)
+	limits, err := m.limitsForWeekday(dayOfWeek)
 	if err != nil {
 		return err
 	}
-	if err := validateBlockSet(bounds, blocks); err != nil {
+	if err := validateBlockSet(limits, blocks); err != nil {
 		return err
 	}
 	if err := m.repo.ReplaceWeekdayBlocks(tenantId, staffId, dayOfWeek, blocks); err != nil {
 		return err
 	}
-	from := tinytime.MidnightUTC(tinytime.NowUnix())
+	from := time.MidnightUTC(time.NowUnix())
 	return m.recomputeAndPublish(tenantId, staffId, from, forwardHorizon(from))
 }
 
@@ -415,19 +375,19 @@ func (m *Module) SaveDateBlocks(tenantId, staffId string, date int64, blocks []W
 	if err := validateBlocks(blocks); err != nil {
 		return err
 	}
-	dUnix := tinytime.Unix(date)
+	dUnix := time.Unix(date)
 	for i := range blocks {
 		blocks[i].TenantId = tenantId
 		blocks[i].StaffId = staffId
-		blocks[i].DayOfWeek = int64(tinytime.Weekday(dUnix))
+		blocks[i].DayOfWeek = int64(time.WeekdayUTC(dUnix))
 		blocks[i].SpecificDate = dUnix
 		blocks[i].IsActive = true
 	}
-	bounds, err := m.boundsForDay(dUnix)
+	limits, err := m.limitsForDay(dUnix)
 	if err != nil {
 		return err
 	}
-	if err := validateBlockSet(bounds, blocks); err != nil {
+	if err := validateBlockSet(limits, blocks); err != nil {
 		return err
 	}
 	if err := m.repo.ReplaceDateBlocks(tenantId, staffId, date, blocks); err != nil {
@@ -459,24 +419,24 @@ func (m *Module) MarkWorkingDays(tenantId, staffId string, dates []int64, startM
 		return err
 	}
 	for _, d := range dates {
-		bounds, err := m.boundsForDay(tinytime.Unix(d))
+		limits, err := m.limitsForDay(time.Unix(d))
 		if err != nil {
 			return err
 		}
-		if err := checkBlockAgainstBounds(bounds, WorkCalendarBlock{StartMin: int64(startMin), EndMin: int64(endMin)}); err != nil {
+		if err := checkBlockAgainstBounds(limits, WorkCalendarBlock{StartMin: int64(startMin), EndMin: int64(endMin)}); err != nil {
 			return err
 		}
 	}
 	for _, d := range dates {
-		dUnix := tinytime.Unix(d)
+		dUnix := time.Unix(d)
 		if err := m.repo.ReplaceDateBlocks(tenantId, staffId, d, []WorkCalendarBlock{{
-			TenantId: tenantId, StaffId: staffId, DayOfWeek: int64(tinytime.Weekday(dUnix)),
+			TenantId: tenantId, StaffId: staffId, DayOfWeek: int64(time.WeekdayUTC(dUnix)),
 			SpecificDate: dUnix, StartMin: int64(startMin), EndMin: int64(endMin), IsActive: true,
 		}}); err != nil {
 			return err
 		}
 	}
-	return m.recomputeAndPublish(tenantId, staffId, tinytime.Unix(from), tinytime.Unix(to))
+	return m.recomputeAndPublish(tenantId, staffId, time.Unix(from), time.Unix(to))
 }
 
 // UnmarkWorkingDays deletes every dated block on those dates, returning the
@@ -502,14 +462,14 @@ func (m *Module) UnmarkWorkingDays(tenantId, staffId string, dates []int64) erro
 			return err
 		}
 	}
-	return m.recomputeAndPublish(tenantId, staffId, tinytime.Unix(from), tinytime.Unix(to))
+	return m.recomputeAndPublish(tenantId, staffId, time.Unix(from), time.Unix(to))
 }
 
 func (m *Module) ListBlocks(tenantId, staffId string) ([]WorkCalendarBlock, error) {
 	return m.repo.ListBlocks(tenantId, staffId)
 }
 
-func (m *Module) ListExceptions(tenantId, staffId string, from, to tinytime.Unix) ([]WorkCalendarException, error) {
+func (m *Module) ListExceptions(tenantId, staffId string, from, to time.Unix) ([]WorkCalendarException, error) {
 	return m.repo.ListExceptions(tenantId, staffId, from, to)
 }
 
@@ -517,7 +477,7 @@ func (m *Module) AddException(exc WorkCalendarException) error {
 	if err := m.repo.InsertException(exc); err != nil {
 		return err
 	}
-	from := tinytime.MidnightUTC(exc.SpecificDate)
+	from := time.MidnightUTC(exc.SpecificDate)
 	return m.recomputeAndPublish(exc.TenantId, exc.StaffId, from, from)
 }
 
@@ -529,25 +489,20 @@ func (m *Module) RemoveException(tenantId, exceptionId string) error {
 	if err := m.repo.DeleteException(tenantId, exceptionId); err != nil {
 		return err
 	}
-	from := tinytime.MidnightUTC(exc.SpecificDate)
+	from := time.MidnightUTC(exc.SpecificDate)
 	return m.recomputeAndPublish(tenantId, exc.StaffId, from, from)
-}
-
-// LocalIntToUnixUTC interpreta localInt como minutos desde la medianoche en la fecha dada (medianoche UTC) en la zona horaria (tz) especificada.
-func LocalIntToUnixUTC(date tinytime.Unix, localInt int, tz string) tinytime.Unix {
-	return tinytime.LocalMinutesToUnixUTC(date, localInt, tz)
 }
 
 // dayWindow es una ventana UTC reservable de un día.
 type dayWindow struct {
-	StartUtc tinytime.Unix
-	EndUtc   tinytime.Unix
+	StartUtc time.Unix
+	EndUtc   time.Unix
 }
 
 // blocksForDate — los bloques DATADOS de la fecha exacta. Un bloque datado ABRE
 // su día aunque el template semanal no lo cubra — es la inversión de la vieja
 // compuerta de días de ListAvailability (CU-10).
-func blocksForDate(blocks []WorkCalendarBlock, date tinytime.Unix) []WorkCalendarBlock {
+func blocksForDate(blocks []WorkCalendarBlock, date time.Unix) []WorkCalendarBlock {
 	var out []WorkCalendarBlock
 	for _, b := range blocks {
 		if b.SpecificDate == date {
@@ -569,7 +524,7 @@ func blocksForWeekday(blocks []WorkCalendarBlock, dow int) []WorkCalendarBlock {
 	return out
 }
 
-func dayExceptionsFor(exceptions []WorkCalendarException, d tinytime.Unix) []WorkCalendarException {
+func dayExceptionsFor(exceptions []WorkCalendarException, d time.Unix) []WorkCalendarException {
 	var out []WorkCalendarException
 	for _, e := range exceptions {
 		if e.SpecificDate == d {
@@ -581,7 +536,7 @@ func dayExceptionsFor(exceptions []WorkCalendarException, d tinytime.Unix) []Wor
 
 // subtractWindow recorta [s, e) de las ventanas — la operación con la que una
 // excepción BLOCKED deja agujeros en el día. Divide en dos la ventana solapada.
-func subtractWindow(windows []dayWindow, s, e tinytime.Unix) []dayWindow {
+func subtractWindow(windows []dayWindow, s, e time.Unix) []dayWindow {
 	var out []dayWindow
 	for _, w := range windows {
 		if e <= w.StartUtc || s >= w.EndUtc {
@@ -603,8 +558,8 @@ func subtractWindow(windows []dayWindow, s, e tinytime.Unix) []dayWindow {
 // HOLIDAY / SPECIAL_HOURS / BLOCKED. Es la ÚNICA regla "qué rango de minutos de
 // este día es reservable" — ListAvailability y la detección de conflictos la
 // comparten (anti-drifting, §8.1). bounds debe venir resuelta (nunca el zero
-// value): el caller usa boundsForDay.
-func (m *Module) availableRanges(d tinytime.Unix, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, bounds tinytime.DayBounds) []dayWindow {
+// value): el caller usa limitsForDay.
+func (m *Module) availableRanges(d time.Unix, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, bounds time.DayLimits) []dayWindow {
 	if !bounds.Open {
 		return nil
 	}
@@ -634,14 +589,14 @@ func (m *Module) availableRanges(d tinytime.Unix, blocks []WorkCalendarBlock, ex
 			return nil
 		}
 		return []dayWindow{{
-			StartUtc: LocalIntToUnixUTC(d, start, cfg.Timezone),
-			EndUtc:   LocalIntToUnixUTC(d, end, cfg.Timezone),
+			StartUtc: m.at(d, start),
+			EndUtc:   m.at(d, end),
 		}}
 	}
 
 	dayBlocks := blocksForDate(blocks, d)
 	if len(dayBlocks) == 0 {
-		dayBlocks = blocksForWeekday(blocks, tinytime.Weekday(d))
+		dayBlocks = blocksForWeekday(blocks, time.WeekdayUTC(d))
 	}
 	if len(dayBlocks) == 0 {
 		return nil
@@ -657,16 +612,16 @@ func (m *Module) availableRanges(d tinytime.Unix, blocks []WorkCalendarBlock, ex
 			continue
 		}
 		out = append(out, dayWindow{
-			StartUtc: LocalIntToUnixUTC(d, start, cfg.Timezone),
-			EndUtc:   LocalIntToUnixUTC(d, end, cfg.Timezone),
+			StartUtc: m.at(d, start),
+			EndUtc:   m.at(d, end),
 		})
 	}
 
 	// Restar excepciones BLOCKED del día.
 	for _, be := range blockedExcs {
 		out = subtractWindow(out,
-			LocalIntToUnixUTC(d, int(be.StartTime), cfg.Timezone),
-			LocalIntToUnixUTC(d, int(be.EndTime), cfg.Timezone),
+			m.at(d, int(be.StartTime)),
+			m.at(d, int(be.EndTime)),
 		)
 	}
 	return out
@@ -675,8 +630,8 @@ func (m *Module) availableRanges(d tinytime.Unix, blocks []WorkCalendarBlock, ex
 // fitsWindow reporta si un slot [startUtc, startUtc+span) cabe dentro de alguna
 // de las ventanas (half-open: end == window end cuenta como dentro).
 func fitsWindow(windows []dayWindow, startUtc, span int64) bool {
-	st := tinytime.Unix(startUtc)
-	end := tinytime.Unix(startUtc + span)
+	st := time.Unix(startUtc)
+	end := time.Unix(startUtc + span)
 	for _, w := range windows {
 		if w.StartUtc <= st && end <= w.EndUtc {
 			return true
@@ -685,7 +640,7 @@ func fitsWindow(windows []dayWindow, startUtc, span int64) bool {
 	return false
 }
 
-func (m *Module) scheduleSlots(from, to tinytime.Unix, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, empSvcCfg EmployeeServiceConfig, activeReservations []Reservation) ([]TimeSlot, error) {
+func (m *Module) scheduleSlots(from, to time.Unix, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, empSvcCfg EmployeeServiceConfig, activeReservations []Reservation) ([]TimeSlot, error) {
 	durationMin := int(empSvcCfg.DurationMin)
 	bufferMin := int(empSvcCfg.BufferMin)
 
@@ -695,8 +650,8 @@ func (m *Module) scheduleSlots(from, to tinytime.Unix, blocks []WorkCalendarBloc
 	// datados PRIMERO (abren su día aunque el template semanal no lo cubra),
 	// luego semanales; recortados a bounds; y generar slots dentro de cada
 	// ventana, saltando los huecos entre bloques.
-	for d := from; d <= to; d += tinytime.Day {
-		bounds, err := m.boundsForDay(d)
+	for d := from; d <= to; d += time.Day {
+		bounds, err := m.limitsForDay(d)
 		if err != nil {
 			return nil, err
 		}
@@ -707,18 +662,18 @@ func (m *Module) scheduleSlots(from, to tinytime.Unix, blocks []WorkCalendarBloc
 		for _, win := range ranges {
 			curr := win.StartUtc
 			for {
-				end := curr + tinytime.Unix(durationMin*60)
-				endWithBuffer := end + tinytime.Unix(bufferMin*60)
+				end := curr + time.Unix(durationMin*60)
+				endWithBuffer := end + time.Unix(bufferMin*60)
 				if endWithBuffer > win.EndUtc {
 					break
 				}
 
 				// Verificar reservas existentes
 				hasOverlap := false
-				var resEnd tinytime.Unix
+				var resEnd time.Unix
 				for _, res := range activeReservations {
-					rStart := tinytime.Unix(res.ReservationTime)
-					rEnd := rStart + tinytime.Unix(res.DurationMinSnapshot*60)
+					rStart := time.Unix(res.ReservationTime)
+					rEnd := rStart + time.Unix(res.DurationMinSnapshot*60)
 					if curr < rEnd && endWithBuffer > rStart {
 						hasOverlap = true
 						resEnd = rEnd
@@ -730,7 +685,7 @@ func (m *Module) scheduleSlots(from, to tinytime.Unix, blocks []WorkCalendarBloc
 					curr = resEnd
 				} else {
 					slots = append(slots, TimeSlot{StartUtc: curr, EndUtc: end})
-					curr += tinytime.Unix(durationMin * 60)
+					curr += time.Unix(durationMin * 60)
 				}
 			}
 		}
@@ -739,7 +694,7 @@ func (m *Module) scheduleSlots(from, to tinytime.Unix, blocks []WorkCalendarBloc
 	return slots, nil
 }
 
-func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to tinytime.Unix) ([]TimeSlot, error) {
+func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to time.Unix) ([]TimeSlot, error) {
 	cfg, err := m.requireCalendarConfig(tenantId, staffId)
 	if err != nil {
 		return nil, err
@@ -758,7 +713,9 @@ func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to t
 		return nil, err
 	}
 
-	reservations, err := m.repo.ListReservationsByStaff(tenantId, staffId, from, to)
+	fromUtc := m.at(from, 0)
+	_, toUtc, _ := m.zone.Day(dateOf(to))
+	reservations, err := m.repo.ListReservationsByStaff(tenantId, staffId, fromUtc, toUtc)
 	if err != nil {
 		return nil, err
 	}
@@ -781,7 +738,7 @@ func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to t
 }
 
 func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error) {
-	if cmd.Id == "" {
+	if cmd.Id == "" || cmd.ClientId == "" {
 		return Reservation{}, ErrMissingArgs
 	}
 	if cmd.Origin != OriginCounter && cmd.Origin != OriginOnline {
@@ -808,11 +765,11 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 	}
 
 	// 2. Validar cliente
-	clientExists, err := m.directory.ClientExists(cmd.TenantId, cmd.ClientId)
+	patientExists, err := m.patients.PatientExists(cmd.TenantId, cmd.ClientId)
 	if err != nil {
 		return Reservation{}, err
 	}
-	if !clientExists {
+	if !patientExists {
 		return Reservation{}, ErrClientNotFound
 	}
 
@@ -834,13 +791,10 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, fmt.Err("service", "not", "found")
 	}
 
-	// 5. Verificar disponibilidad
-	// Obtener disponibilidad para el día objetivo (medianoche UTC)
-	targetDay := tinytime.MidnightUTC(cmd.SlotStartUtc)
-
-	// Ampliar la búsqueda un día a cada lado para cubrir diferencias de límite de zona horaria
-	fromDay := targetDay - tinytime.Day
-	toDay := targetDay + tinytime.Day
+	// 4. Verificar disponibilidad
+	targetDay := m.dayKey(cmd.SlotStartUtc)
+	fromDay := targetDay - time.Day
+	toDay := targetDay + time.Day
 
 	slots, err := m.ListAvailability(cmd.TenantId, empSvcCfg.StaffId, empSvcCfg.Id, fromDay, toDay)
 	if err != nil {
@@ -866,7 +820,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 	var originalReservation *Reservation
 
 	err = m.db.Tx(func(tx *orm.DB) error {
-		now := tinytime.NowNano()
+		now := time.NowNano()
 
 		newReservation = Reservation{
 			Id:                      cmd.Id,
@@ -879,10 +833,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
 			PriceSnapshot:           price,
 			CurrencySnapshot:        currency, // default
-			ReservationDate:         targetDay,
 			ReservationTime:         int64(cmd.SlotStartUtc),
-			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc),
-			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc),
 			Status:                  StatusPending,
 			HoldUntil:               cmd.HoldUntil,
 			Origin:                  cmd.Origin,
@@ -936,7 +887,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 }
 
 func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error) {
-	if cmd.Id == "" {
+	if cmd.Id == "" || cmd.ClientId == "" {
 		return Reservation{}, ErrMissingArgs
 	}
 	if cmd.Origin != OriginCounter && cmd.Origin != OriginOnline {
@@ -963,11 +914,11 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 	}
 
 	// 2. Validar cliente
-	clientExists, err := m.directory.ClientExists(cmd.TenantId, cmd.ClientId)
+	patientExists, err := m.patients.PatientExists(cmd.TenantId, cmd.ClientId)
 	if err != nil {
 		return Reservation{}, err
 	}
-	if !clientExists {
+	if !patientExists {
 		return Reservation{}, ErrClientNotFound
 	}
 
@@ -989,10 +940,10 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, fmt.Err("service", "not", "found")
 	}
 
-	// 5. Verificar que la hora pedida coincide con el inicio de un slot habilitado del horario del día
-	targetDay := tinytime.MidnightUTC(cmd.SlotStartUtc)
-	fromDay := targetDay - tinytime.Day
-	toDay := targetDay + tinytime.Day
+	// 4. Verificar que la hora pedida coincide con el inicio de un slot habilitado del horario del día
+	targetDay := m.dayKey(cmd.SlotStartUtc)
+	fromDay := targetDay - time.Day
+	toDay := targetDay + time.Day
 
 	calCfg, err := m.requireCalendarConfig(cmd.TenantId, empSvcCfg.StaffId)
 	if err != nil {
@@ -1028,13 +979,15 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 		return Reservation{}, ErrSlotNotInSchedule
 	}
 
-	// 6. Validar tope de sobrecupo (cerrado si MaxOverbookPerDay == 0)
+	// 5. Validar tope de sobrecupo (cerrado si MaxOverbookPerDay == 0)
 	if calCfg.MaxOverbookPerDay == 0 {
 		return Reservation{}, ErrOverbookNotAllowed
 	}
 
 	// Contar sobrecupos activos en ese día
-	dayReservations, err := m.repo.ListReservationsByStaff(cmd.TenantId, empSvcCfg.StaffId, targetDay, targetDay)
+	fromUtc := m.at(targetDay, 0)
+	_, toUtc, _ := m.zone.Day(dateOf(targetDay))
+	dayReservations, err := m.repo.ListReservationsByStaff(cmd.TenantId, empSvcCfg.StaffId, fromUtc, toUtc)
 	if err != nil {
 		return Reservation{}, err
 	}
@@ -1056,7 +1009,7 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 	var originalReservation *Reservation
 
 	err = m.db.Tx(func(tx *orm.DB) error {
-		now := tinytime.NowNano()
+		now := time.NowNano()
 
 		newReservation = Reservation{
 			Id:                      cmd.Id,
@@ -1069,10 +1022,7 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 			DurationMinSnapshot:     empSvcCfg.DurationMin,
 			PriceSnapshot:           price,
 			CurrencySnapshot:        currency, // default
-			ReservationDate:         targetDay,
 			ReservationTime:         int64(cmd.SlotStartUtc),
-			LocalStringDate:         tinytime.FormatDate(cmd.SlotStartUtc),
-			LocalStringTime:         tinytime.FormatTime(cmd.SlotStartUtc),
 			Status:                  StatusPending,
 			HoldUntil:               cmd.HoldUntil,
 			Origin:                  cmd.Origin,
@@ -1135,8 +1085,10 @@ func (m *Module) GetReservation(tenantId, id string) (Reservation, error) {
 	return res, nil
 }
 
-func (m *Module) ListReservationsByStaff(tenantId, staffId string, from, to tinytime.Unix) ([]Reservation, error) {
-	return m.repo.ListReservationsByStaff(tenantId, staffId, from, to)
+func (m *Module) ListReservationsByStaff(tenantId, staffId string, from, to time.Unix) ([]Reservation, error) {
+	fromUtc := m.at(from, 0)
+	_, toUtc, _ := m.zone.Day(dateOf(to))
+	return m.repo.ListReservationsByStaff(tenantId, staffId, fromUtc, toUtc)
 }
 
 func (m *Module) ListReservationsByClient(tenantId, clientId string) ([]Reservation, error) {
@@ -1158,7 +1110,7 @@ func (m *Module) ChangeReservationStatus(cmd ChangeStatusCmd) error {
 	}
 
 	err = m.db.Tx(func(tx *orm.DB) error {
-		now := tinytime.NowNano()
+		now := time.NowNano()
 
 		if cmd.Event == EventConfirm && cmd.PaymentId != "" {
 			got := &Reservation{}
@@ -1218,13 +1170,13 @@ const ConflictHorizonDays = 370
 
 // forwardHorizon convierte un "from" (medianoche UTC) al borde superior del
 // horizonte del módulo.
-func forwardHorizon(from tinytime.Unix) tinytime.Unix {
-	return from + tinytime.Unix(ConflictHorizonDays*tinytime.Day)
+func forwardHorizon(from time.Unix) time.Unix {
+	return from + time.Unix(ConflictHorizonDays*time.Day)
 }
 
 // Motivos de ConflictingReservation.Reason — el vocabulario NEUTRO del módulo.
 // Concretamente NO arrastra la razón del establecimiento (por qué un día está
-// cerrado): time.DayBounds lo omite deliberadamente y este módulo lo respeta.
+// cerrado): time.DayLimits lo omite deliberadamente y este módulo lo respeta.
 const (
 	ConflictReasonOutsideBlocks        = "OUTSIDE_BLOCKS"
 	ConflictReasonDayClosed            = "DAY_CLOSED"
@@ -1245,13 +1197,13 @@ func conflictedCandidate(r Reservation) bool {
 //   - no cabe en los bloques del profesional (sin clamp) → OUTSIDE_BLOCKS
 //   - cabe en bloques pero no en las horas del establecimiento → OUTSIDE_BUSINESS_HOURS
 //   - cabe en todo                                            → (true, "")
-func (m *Module) checkReservation(r Reservation, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, bounds tinytime.DayBounds) (bool, string) {
-	d := r.ReservationDate
+func (m *Module) checkReservation(r Reservation, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, bounds time.DayLimits) (bool, string) {
+	d := m.dayKey(time.Unix(r.ReservationTime))
 	if !bounds.Open {
 		return false, ConflictReasonDayClosed
 	}
 	span := int64(r.DurationMinSnapshot * 60)
-	raw := m.availableRanges(d, blocks, exceptions, cfg, tinytime.Unbounded())
+	raw := m.availableRanges(d, blocks, exceptions, cfg, time.Unlimited())
 	if !fitsWindow(raw, r.ReservationTime, span) {
 		return false, ConflictReasonOutsideBlocks
 	}
@@ -1289,7 +1241,7 @@ type staffSchedule struct {
 	exceptions []WorkCalendarException
 }
 
-func (m *Module) loadSchedule(tenantId, staffId string, from, to tinytime.Unix) (staffSchedule, error) {
+func (m *Module) loadSchedule(tenantId, staffId string, from, to time.Unix) (staffSchedule, error) {
 	cfg, err := m.repo.GetCalendarConfig(tenantId, staffId)
 	if err != nil {
 		return staffSchedule{}, err
@@ -1311,11 +1263,13 @@ func (m *Module) loadSchedule(tenantId, staffId string, from, to tinytime.Unix) 
 // ediciones de su propia agenda); "" evalúa a todo el tenant (el caso del
 // establecimiento). Idempotente: llamarlo dos veces sin cambios intermedios no
 // cambia nada y no produce eventos (CU-19/CU-29).
-func (m *Module) recomputeConflictsFor(tenantId string, from, to tinytime.Unix, onlyStaff string) (recomputeResult, error) {
+func (m *Module) recomputeConflictsFor(tenantId string, from, to time.Unix, onlyStaff string) (recomputeResult, error) {
 	if to == 0 {
 		to = forwardHorizon(from)
 	}
-	rows, err := m.repo.ListReservationsByTenantRange(tenantId, from, to)
+	fromUtc := m.at(from, 0)
+	_, toUtc, _ := m.zone.Day(dateOf(to))
+	rows, err := m.repo.ListReservationsByTenantRange(tenantId, fromUtc, toUtc)
 	if err != nil {
 		return recomputeResult{}, err
 	}
@@ -1354,11 +1308,11 @@ func (m *Module) recomputeConflictsFor(tenantId string, from, to tinytime.Unix, 
 		var sc staffChangeCount
 		sc.staffId = g.staffId
 		for _, r := range g.rsv {
-			bounds, err := m.boundsForDay(r.ReservationDate)
+			limits, err := m.limitsForDay(m.dayKey(time.Unix(r.ReservationTime)))
 			if err != nil {
 				return recomputeResult{}, err
 			}
-			fits, _ := m.checkReservation(r, sched.blocks, sched.exceptions, sched.cfg, bounds)
+			fits, _ := m.checkReservation(r, sched.blocks, sched.exceptions, sched.cfg, limits)
 			if fits {
 				if r.Status == StatusConflicted {
 					if err := m.clearConflict(tenantId, r); err != nil {
@@ -1386,7 +1340,7 @@ func (m *Module) recomputeConflictsFor(tenantId string, from, to tinytime.Unix, 
 }
 
 func (m *Module) markConflict(tenantId string, r Reservation) error {
-	now := tinytime.NowNano()
+	now := time.NowNano()
 	return m.db.Tx(func(tx *orm.DB) error {
 		// StatusBeforeConflict recuerda de dónde venía: sin él, "des-conflictear"
 		// tendría que adivinar entre PENDING y CONFIRMED (§8.5).
@@ -1399,13 +1353,13 @@ func (m *Module) clearConflict(tenantId string, r Reservation) error {
 	if prev == "" || prev == StatusConflicted {
 		prev = StatusPending
 	}
-	now := tinytime.NowNano()
+	now := time.NowNano()
 	return m.db.Tx(func(tx *orm.DB) error {
 		return m.repo.UpdateReservationConflictTx(tx, r.Id, tenantId, prev, "", "system", now, r.Revision)
 	})
 }
 
-func (m *Module) publishScheduleChanged(tenantId, staffId string, from, to tinytime.Unix, conflictCount int) {
+func (m *Module) publishScheduleChanged(tenantId, staffId string, from, to time.Unix, conflictCount int) {
 	if m.pub == nil {
 		return
 	}
@@ -1422,7 +1376,7 @@ func (m *Module) publishScheduleChanged(tenantId, staffId string, from, to tinyt
 //   - EventReservationConflicted UNA vez por reserva que entró en conflicto
 //     (§8.6b): el count de una edición es pequeño y el notificador del paciente
 //     necesita el registro individual.
-func (m *Module) recomputeAndPublish(tenantId, staffId string, from, to tinytime.Unix) error {
+func (m *Module) recomputeAndPublish(tenantId, staffId string, from, to time.Unix) error {
 	result, err := m.recomputeConflictsFor(tenantId, from, to, staffId)
 	if err != nil {
 		return err
@@ -1446,9 +1400,11 @@ func (m *Module) recomputeAndPublish(tenantId, staffId string, from, to tinytime
 // agenda o del establecimiento dejó huérfanas — el worklist de CU-17.
 // Reported, never cancelled: cancelling on the patient's behalf is a decision
 // for a person.
-func (m *Module) ListConflictingReservations(tenantId, staffId string, from tinytime.Unix) ([]ConflictingReservation, error) {
+func (m *Module) ListConflictingReservations(tenantId, staffId string, from time.Unix) ([]ConflictingReservation, error) {
 	to := forwardHorizon(from)
-	rows, err := m.repo.ListReservationsByStaff(tenantId, staffId, from, to)
+	fromUtc := m.at(from, 0)
+	_, toUtc, _ := m.zone.Day(dateOf(to))
+	rows, err := m.repo.ListReservationsByStaff(tenantId, staffId, fromUtc, toUtc)
 	if err != nil {
 		return nil, err
 	}
@@ -1461,15 +1417,15 @@ func (m *Module) ListConflictingReservations(tenantId, staffId string, from tiny
 		if !conflictedCandidate(r) {
 			continue
 		}
-		bounds, err := m.boundsForDay(r.ReservationDate)
+		limits, err := m.limitsForDay(m.dayKey(time.Unix(r.ReservationTime)))
 		if err != nil {
 			return nil, err
 		}
-		fits, reason := m.checkReservation(r, sched.blocks, sched.exceptions, sched.cfg, bounds)
+		fits, reason := m.checkReservation(r, sched.blocks, sched.exceptions, sched.cfg, limits)
 		if !fits {
 			out = append(out, ConflictingReservation{
 				ReservationId: r.Id,
-				StartsAt:      tinytime.Unix(r.ReservationTime),
+				StartsAt:      time.Unix(r.ReservationTime),
 				ClientId:      r.ClientId,
 				Reason:        reason,
 			})
@@ -1492,7 +1448,7 @@ func (m *Module) ListConflictingReservations(tenantId, staffId string, from tiny
 // El disparador queda INVERTIDO (§8.4): no hay Subscriber aquí — la aplicación,
 // que legítimamente conoce ambos módulos, se suscribe al calendario del
 // establecimiento y llama a esto.
-func (m *Module) RecomputeConflicts(tenantId string, from, to tinytime.Unix) (int, error) {
+func (m *Module) RecomputeConflicts(tenantId string, from, to time.Unix) (int, error) {
 	result, err := m.recomputeConflictsFor(tenantId, from, to, "")
 	if err != nil {
 		return 0, err

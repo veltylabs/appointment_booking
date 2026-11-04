@@ -45,9 +45,9 @@ func jsonOf(t *testing.T, v model.Encodable) string {
 func TestOps_NewOpsRequires(t *testing.T) {
 	r := bookingRouter(newBookEnv(t))
 	want := []struct {
-		op  string
+		op       string
 		resource model.Resource
-		action       model.Action
+		action   model.Action
 	}{
 		{ab.OpListBookableServices, ab.ResourceBookingCatalog, model.Read},
 		{ab.OpListServiceAvailability, ab.ResourceBookingCatalog, model.Read},

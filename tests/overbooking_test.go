@@ -7,7 +7,7 @@ import (
 	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/router/mock"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 func TestCreateOverbooking_MissingId(t *testing.T) {
@@ -61,7 +61,6 @@ func TestCreateOverbooking_Idempotency(t *testing.T) {
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 1,
 	}); err != nil {
@@ -121,7 +120,6 @@ func TestCreateOverbooking_SameIdDifferentClient(t *testing.T) {
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 2,
 	}); err != nil {
@@ -206,7 +204,6 @@ func TestCreateOverbooking_MaxOverbookZero(t *testing.T) {
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 0,
 	}); err != nil {
@@ -235,12 +232,11 @@ func TestCreateOverbooking_MaxOverbookLimit(t *testing.T) {
 	slotC := Date(2025, 2, 4, 10, 0, 0, 0)
 
 	cfgID := setupReservable(t, m, repo, "t1", "s1", slotA)
-	seedWeekdayBlock(t, m, "t1", "s1", int(tinytime.Weekday(slotC)), defaultBlocks())
+	seedWeekdayBlock(t, m, "t1", "s1", int(time.WeekdayUTC(slotC)), defaultBlocks())
 
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 1,
 	}); err != nil {
@@ -315,7 +311,6 @@ func TestCreateOverbooking_SlotOutsideSchedule(t *testing.T) {
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 5,
 	}); err != nil {
@@ -348,7 +343,6 @@ func TestCreateOverbooking_CancelledNotCounted(t *testing.T) {
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 1,
 	}); err != nil {
@@ -403,7 +397,6 @@ func TestCreateOverbooking_RBAC(t *testing.T) {
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 1,
 	}); err != nil {
@@ -457,7 +450,6 @@ func TestCreateOverbooking_AvailabilityRegression(t *testing.T) {
 	if err := m.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId:          "t1",
 		StaffId:           "s1",
-		Timezone:          "UTC",
 		IsActive:          true,
 		MaxOverbookPerDay: 2,
 	}); err != nil {

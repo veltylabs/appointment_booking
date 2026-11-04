@@ -6,36 +6,37 @@ import (
 	. "webtyp.com/dom"
 	. "webtyp.com/html"
 
-	staffmanager "github.com/veltylabs/staff_manager"
+	ab "github.com/veltylabs/appointment_booking"
 )
 
 // staffPicker es el selector de profesional que Horario, Servicios y Reserva
 // Hora utilizan para cargar la lista de personal y mantener sus opciones.
 type staffPicker struct {
 	caller   router.Caller
+	tenantID string
 	sel      *SignalString
 	opts     *SignalNodes
-	staff    []staffmanager.StaffMember
-	FilterFn func(staffmanager.StaffMember) bool
+	staff    []ab.StaffOption
+	FilterFn func(ab.StaffOption) bool
 	onChange func(id string)
 }
 
 // newStaffPicker construye el picker. onChange, si no es nil, se ejecuta
 // después de que el usuario elige otra opción.
-func newStaffPicker(caller router.Caller, onChange func(id string)) *staffPicker {
-	return &staffPicker{caller: caller, sel: NewString(""), opts: NewNodes(), onChange: onChange}
+func newStaffPicker(caller router.Caller, tenantID string, onChange func(id string)) *staffPicker {
+	return &staffPicker{caller: caller, tenantID: tenantID, sel: NewString(""), opts: NewNodes(), onChange: onChange}
 }
 
-// load trae la lista completa de profesionales, construye las opciones y
+// load trae la lista completa de opciones de profesionales, construye las opciones y
 // selecciona la primera disponible si no había ninguna seleccionada.
 func (p *staffPicker) load(then func()) {
-	out := &staffmanager.StaffMemberList{}
-	p.caller.Call(staffmanager.ModelName+"."+staffmanager.OpListStaff, &staffmanager.ListStaffArgs{}, out,
+	out := &ab.StaffOptionList{}
+	p.caller.Call(ab.ModelName+"."+ab.OpListStaffOptions, &ab.ListStaffOptionsArgs{TenantId: p.tenantID}, out,
 		func(err error) {
 			if err != nil {
 				return
 			}
-			p.staff = make([]staffmanager.StaffMember, 0, len(*out))
+			p.staff = make([]ab.StaffOption, 0, len(*out))
 			for _, sm := range *out {
 				p.staff = append(p.staff, *sm)
 			}
@@ -51,11 +52,11 @@ func (p *staffPicker) load(then func()) {
 		})
 }
 
-func (p *staffPicker) visible() []staffmanager.StaffMember {
+func (p *staffPicker) visible() []ab.StaffOption {
 	if p.FilterFn == nil {
 		return p.staff
 	}
-	out := make([]staffmanager.StaffMember, 0, len(p.staff))
+	out := make([]ab.StaffOption, 0, len(p.staff))
 	for _, sm := range p.staff {
 		if p.FilterFn(sm) {
 			out = append(out, sm)
@@ -64,10 +65,10 @@ func (p *staffPicker) visible() []staffmanager.StaffMember {
 	return out
 }
 
-func (p *staffPicker) firstVisible() (staffmanager.StaffMember, bool) {
+func (p *staffPicker) firstVisible() (ab.StaffOption, bool) {
 	v := p.visible()
 	if len(v) == 0 {
-		return staffmanager.StaffMember{}, false
+		return ab.StaffOption{}, false
 	}
 	return v[0], true
 }

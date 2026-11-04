@@ -6,18 +6,18 @@ import (
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/events"
 	eventmock "webtyp.com/events/mock"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 // newConflictsHarness monta el módulo con un broker que captura payloads y un
-// fake BoundsReader (por defecto 08:00–20:00 abierto todos los días).
+// fake OpeningHours (por defecto 08:00–20:00 abierto todos los días).
 func newConflictsHarness(t *testing.T) (ab.SchedulingService, *ab.Repository, *MockBoundsReader, *eventmock.Broker) {
 	t.Helper()
 	bounds := openBounds()
 	broker := &eventmock.Broker{}
 	deps := SetupDependencies()
 	deps.Publisher = broker
-	deps.Bounds = bounds
+	deps.Hours = bounds
 	s, repo, _ := newTestModule(t, deps)
 	return s, repo, bounds, broker
 }
@@ -56,7 +56,7 @@ func TestReducingScheduleMarksAffectedReservationsAndPublishes(t *testing.T) {
 	schedCap := subscribeScheduleChanged(broker)
 	conflictCount := subscribeReservationConflicted(broker)
 
-	dow := int(tinytime.Weekday(d))
+	dow := int(time.WeekdayUTC(d))
 	if err := s.SaveDayBlocks("t1", "s1", dow, []ab.WorkCalendarBlock{
 		{StartMin: 540, EndMin: 780, IsActive: true}, // 09:00–13:00
 	}); err != nil {
@@ -105,7 +105,7 @@ func TestReducingScheduleWithNoAffectedReservationsIsSilent(t *testing.T) {
 	conflictCount := subscribeReservationConflicted(broker)
 
 	// Reducir de 09–17 a 09–13 deja 10:00–11:00 intacto.
-	dow := int(tinytime.Weekday(d))
+	dow := int(time.WeekdayUTC(d))
 	if err := s.SaveDayBlocks("t1", "s1", dow, []ab.WorkCalendarBlock{
 		{StartMin: 540, EndMin: 780, IsActive: true},
 	}); err != nil {
@@ -177,7 +177,7 @@ func TestDayBecomingHolidayConflictsItsReservations(t *testing.T) {
 		t.Fatalf("baseline recompute: %d, %v", pre, err)
 	}
 
-	bounds.Overrides = []DateBound{{Date: d, Bounds: tinytime.DayBounds{}}} // holiday
+	bounds.Overrides = []DateBound{{Date: d, Bounds: time.DayLimits{}}} // holiday
 
 	schedCap := subscribeScheduleChanged(broker)
 	n, err := s.RecomputeConflicts("t1", d, d)
@@ -215,7 +215,7 @@ func TestLocalClosureConflictsWithItsOwnReason(t *testing.T) {
 	cfgID := setupReservable(t, s, repo, "t1", "s1", d+12*3600)
 	createBooked(t, s, "t1", "s1", cfgID, d+12*3600)
 
-	bounds.Overrides = []DateBound{{Date: d, Bounds: tinytime.DayBounds{}}}
+	bounds.Overrides = []DateBound{{Date: d, Bounds: time.DayLimits{}}}
 	if _, err := s.RecomputeConflicts("t1", d, d); err != nil {
 		t.Fatalf("RecomputeConflicts: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestNarrowingBusinessHoursConflictsLateReservations(t *testing.T) {
 	cfgID := setupReservable(t, s, repo, "t1", "s1", d+16*3600) // 16:00 dentro de 09–17 y 08–20
 	createBooked(t, s, "t1", "s1", cfgID, d+16*3600)
 
-	bounds.Overrides = []DateBound{{Date: d, Bounds: tinytime.DayBounds{Open: true, OpenMin: 540, CloseMin: 780}}}
+	bounds.Overrides = []DateBound{{Date: d, Bounds: time.DayLimits{Open: true, OpenMin: 540, CloseMin: 780}}}
 	if _, err := s.RecomputeConflicts("t1", d, d); err != nil {
 		t.Fatalf("RecomputeConflicts: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestRemovingHolidayRestoresThePreviousStatus(t *testing.T) {
 	cfgID := setupReservable(t, s, repo, "t1", "s1", d+12*3600)
 	createBooked(t, s, "t1", "s1", cfgID, d+12*3600) // CONFIRMED
 
-	bounds.Overrides = []DateBound{{Date: d, Bounds: tinytime.DayBounds{}}}
+	bounds.Overrides = []DateBound{{Date: d, Bounds: time.DayLimits{}}}
 	if _, err := s.RecomputeConflicts("t1", d, d); err != nil {
 		t.Fatalf("mark: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestRemovingHolidayKeepsConflictWhenAlsoOutsideBlocks(t *testing.T) {
 	createBooked(t, s, "t1", "s1", cfgID, d+16*3600)            // CONFIRMED
 
 	// Causa 1: el feriado cae.
-	bounds.Overrides = []DateBound{{Date: d, Bounds: tinytime.DayBounds{}}}
+	bounds.Overrides = []DateBound{{Date: d, Bounds: time.DayLimits{}}}
 	if _, err := s.RecomputeConflicts("t1", d, d); err != nil {
 		t.Fatalf("holiday recompute: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestRemovingHolidayKeepsConflictWhenAlsoOutsideBlocks(t *testing.T) {
 	// Causa 2 va a persistir: el bloque del profesional se reduce a 09–13,
 	// así que 16:00 queda fuera aunque el feriado desaparezca.
 	bounds.Overrides = nil // el feriado se levanta
-	dow := int(tinytime.Weekday(d))
+	dow := int(time.WeekdayUTC(d))
 	if err := s.SaveDayBlocks("t1", "s1", dow, []ab.WorkCalendarBlock{
 		{StartMin: 540, EndMin: 780, IsActive: true},
 	}); err != nil {
@@ -344,7 +344,7 @@ func TestHolidayOnDayWithoutReservationsIsSilent(t *testing.T) {
 	d := Date(2027, 6, 14, 0, 0, 0, 0)
 	setupReservable(t, s, repo, "t1", "s1", d+10*3600) // staff con agenda, sin reservas
 
-	bounds.Overrides = []DateBound{{Date: d, Bounds: tinytime.DayBounds{}}}
+	bounds.Overrides = []DateBound{{Date: d, Bounds: time.DayLimits{}}}
 	schedCap := subscribeScheduleChanged(broker)
 
 	n, err := s.RecomputeConflicts("t1", d, d)
@@ -367,7 +367,7 @@ func TestOpeningTimeNeverConflictsAnything(t *testing.T) {
 	cfgID := setupReservable(t, s, repo, "t1", "s1", d+12*3600)
 	createBooked(t, s, "t1", "s1", cfgID, d+12*3600)
 
-	bounds.Default = tinytime.DayBounds{Open: true, OpenMin: 360, CloseMin: 1380} // abre 1h antes
+	bounds.Default = time.DayLimits{Open: true, OpenMin: 360, CloseMin: 1380} // abre 1h antes
 	schedCap := subscribeScheduleChanged(broker)
 
 	n, err := s.RecomputeConflicts("t1", d, d)

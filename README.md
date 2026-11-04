@@ -27,8 +27,8 @@ Sin claves foráneas (FK) físicas hacia otros módulos:
 - `employee_service_config.service_id` referencia a un ítem del módulo de Catálogo.
 - Los campos `staff_id` referencian al módulo de Personal (Staff).
 
-Las reglas de disponibilidad (bloques + excepciones + la ventana diaria del establecimiento, cruzadas como `DayBounds` de `webtyp.com/time`) se aplican en la capa de servicio, no a través de FKs entre módulos.
-`appointment_booking/go.mod` mantiene **cero dependencias de veltylabs** — el límite del establecimiento es un puerto declarado aquí (`BoundsReader`), satisfecho estructuralmente por `veltylabs/business_calendar`.
+Las reglas de disponibilidad (bloques + excepciones + la ventana diaria del establecimiento, cruzadas como `DayLimits` de `webtyp.com/time`) se aplican en la capa de servicio, no a través de FKs entre módulos.
+`appointment_booking/go.mod` mantiene **cero dependencias de veltylabs** — los contratos con otros módulos se declaran exclusivamente en `interfaces.go` (`StaffReader`, `CatalogReader`, `PatientDirectory`, `OpeningHours`, `PaymentGateway`).
 El estado de la reserva se controla mediante una FSM en código — sin tabla `reservation_status`.
 
 ## Reglas de desarrollo (SKILL)
@@ -37,12 +37,12 @@ El estado de la reserva se controla mediante una FSM en código — sin tabla `r
 
 - **Cambios de estado solo vía FSM:** `Reservation.Status` DEBE cambiar únicamente mediante `FSM.Transition(current, event)` — excepto al entrar o salir de `CONFLICTED`, que un recomputo escribe directamente y restaura a través de `StatusBeforeConflict`. Eventos válidos: `CONFIRM`, `CANCEL`, `COMPLETE`, `NO_SHOW_EVENT`, `EXPIRE`, `RESCHEDULE`, `CONFLICT`, `RESOLVE`.
 - **RESCHEDULED ≠ CANCELLED:** Cuando una reserva es reemplazada por una nueva, la original se marca como `RESCHEDULED` (no `CANCELLED`) para preservar la integridad de la traza de auditoría. Estos son estados terminales distintos. `CONFLICTED` **no** es terminal.
-- **La zona horaria está en WorkCalendarConfig:** `WorkCalendarBlock` y `WorkCalendarException` NO tienen campo de zona horaria. Siempre carga primero `WorkCalendarConfig` para obtener la zona horaria IANA. Las horas de los bloques son minutos locales desde la medianoche (p. ej., `540 = 09:00`), convertidos a UTC en tiempo de consulta mediante `LocalIntToUnixUTC`.
+- **La zona horaria es inyectada explícitamente:** Se recibe en `Deps.Zone` (`time.Zone`). Las horas de los bloques son minutos locales desde la medianoche (p. ej., `540 = 09:00`), convertidos al instante UTC mediante `m.zone.At(date, minutes)`.
 - **Instantáneas (Snapshotting):** Al crear una reserva, el precio, la moneda, la duración, el staffID y el serviceID se guardan en instantáneas. Nunca mutes los campos de instantánea después de la creación. `StaffIdsnapshot`/`ServiceIdsnapshot` usan los nombres de columna históricos `staff_idsnapshot`/`service_idsnapshot` — nunca renombrar.
 - **Un cambio de agenda reporta sus conflictos:** Cada edición profesional (`save_day_blocks`, `save_date_blocks`, `mark_working_days`, `unmark_working_days`, excepciones) recomputa las reservas futuras en el rango afectado y marca/limpia `CONFLICTED`. Los cambios a nivel de establecimiento van a través de `RecomputeConflicts`. Cuando nadie resulta afectado, **no se publica nada** (CU-19).
 - **Sin RBAC aquí:** Este módulo confía en `actorID` como una cadena ya autorizada. La autorización es aplicada por el gateway antes del servicio. Este módulo solo almacena `actorID` como campo de auditoría.
 - **La publicación de eventos es de tipo "dispara y olvida" (fire-and-forget)** a través del `events.Publisher` inyectado (`Deps.Publisher`). Un publisher `nil` es seguro.
-- **Sin importaciones entre módulos.** Las dependencias externas se acceden únicamente mediante interfaces inyectadas: `StaffReader`, `CatalogReader`, `DirectoryReader`, `BoundsReader`.
+- **Sin importaciones entre módulos.** Las dependencias externas se acceden únicamente mediante interfaces inyectadas en `interfaces.go`: `StaffReader`, `CatalogReader`, `PatientDirectory`, `OpeningHours`, `PaymentGateway`.
 
 ### Origen de una reserva (`Origin`)
 
@@ -64,12 +64,15 @@ El servicio mantiene `*orm.DB` directamente — sin interfaces de almacenamiento
 
 ```go
 type Deps struct {
-    Staff     StaffReader     // provisto por el módulo staff
-    Catalog   CatalogReader   // provisto por el módulo catalog
-    Directory DirectoryReader // provisto por el módulo directory
+    Staff     StaffReader      // provisto por staff_manager
+    Catalog   CatalogReader    // provisto por service_catalog
+    Patients  PatientDirectory // provisto por patient_directory
+    Hours     OpeningHours     // opcional: nil = time.Unlimited()
+    Payments  PaymentGateway   // provisto por payment_manager
     IDs       model.IDGenerator // requerido — nunca se construye dentro del módulo
     Publisher events.Publisher  // nil = eventos deshabilitados
-    Bounds    BoundsReader      // nil = sin límites (un profesional independiente sin establecimiento)
+    Zone      time.Zone        // obligatoria (ej: America/Santiago)
+    TenantID  string
 }
 
 func New(db *orm.DB, deps Deps) (*Module, error)
@@ -250,41 +253,42 @@ type SchedulingService interface {
     // Gestión de calendario
     UpsertCalendarConfig(cfg WorkCalendarConfig) error
     SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error
-    SaveDateBlocks(tenantId, staffId string, date int64, blocks []WorkCalendarBlock) error
+    SaveDateBlocks(tenantId, staffId string, date time.Unix, blocks []WorkCalendarBlock) error
     MarkWorkingDays(tenantId, staffId string, dates []int64, startMin, endMin int) error
     UnmarkWorkingDays(tenantId, staffId string, dates []int64) error
     ListBlocks(tenantId, staffId string) ([]WorkCalendarBlock, error)
     AddException(exc WorkCalendarException) error
     RemoveException(tenantId, exceptionId string) error
-    ListExceptions(tenantId, staffId string, from, to int64) ([]WorkCalendarException, error)
-    GetDayBounds(date int64) (tinytime.DayBounds, error)
+    ListExceptions(tenantId, staffId string, from, to time.Unix) ([]WorkCalendarException, error)
+    GetDayLimits(date time.Unix) (time.DayLimits, error)
 
     // Disponibilidad
-    ListAvailability(tenantId, staffId, configId string, from, to int64) ([]TimeSlot, error)
+    ListAvailability(tenantId, staffId, configId string, from, to time.Unix) ([]TimeSlot, error)
 
     // Reservas
     CreateReservation(cmd CreateReservationCmd) (Reservation, error)
     GetReservation(tenantId, id string) (Reservation, error)
-    ListReservationsByStaff(tenantId, staffId string, from, to int64) ([]Reservation, error)
+    ListReservationsByStaff(tenantId, staffId string, from, to time.Unix) ([]Reservation, error)
     ListReservationsByClient(tenantId, clientId string) ([]Reservation, error)
     ChangeReservationStatus(cmd ChangeStatusCmd) error
-    ExpirePendingReservations(tenantId string, before int64) (int, error)
+    ExpirePendingReservations(tenantId string, before time.Unix) (int, error)
 
     // Conflictos
-    ListConflictingReservations(tenantId, staffId string, from int64) ([]ConflictingReservation, error)
-    RecomputeConflicts(tenantId string, from, to int64) (int, error)
+    ListConflictingReservations(tenantId, staffId string, from time.Unix) ([]ConflictingReservation, error)
+    RecomputeConflicts(tenantId string, from, to time.Unix) (int, error)
 }
 ```
 
-Esta interfaz depende de los lectores inyectados:
-- `DirectoryReader` — valida la existencia del cliente
-- `StaffReader` — valida la existencia del personal
-- `CatalogReader` — valida la existencia del servicio
-- `BoundsReader` — responde "qué minutos de una fecha son utilizables" (opcional)
+Esta interfaz depende de los lectores inyectados en `interfaces.go`:
+- `PatientDirectory` — busca y registra pacientes
+- `StaffReader` — valida la existencia y ficha del personal
+- `CatalogReader` — valida la existencia y tarifas del servicio
+- `OpeningHours` — responde las ventanas horarias del establecimiento (opcional: `nil = time.Unlimited()`)
+- `PaymentGateway` — verifica y cobra reservas (opcional)
 
 ## View and demo
 
-This module ships its own user interface (`ui/`), demo data (`seed/`), and runnable client demo (`web/browser.go`).
+This module ships its own user interface (`ui/`), demo data (`seed/`), and runnable client demo (`web/browser/main.go`).
 
 ### `ui` package
 

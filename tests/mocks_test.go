@@ -5,7 +5,7 @@ import (
 	"webtyp.com/events"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 )
 
 type MockStaffReader struct {
@@ -23,6 +23,12 @@ func (m *MockStaffReader) StaffExists(tenantID, staffID string) (bool, error) {
 func (m *MockStaffReader) StaffCard(tenantId, staffId string) (name, specialty string, active bool, err error) {
 	return m.Name, m.Specialty, m.Active, m.Err
 }
+
+func (m *MockStaffReader) OccupantOptions(tenantID string) ([]fmt.KeyValue, error) {
+	return []fmt.KeyValue{{Key: "s1", Value: "Dr. Mock"}}, nil
+}
+
+var _ ab.StaffReader = (*MockStaffReader)(nil)
 
 type MockCatalogReader struct {
 	Exists   bool
@@ -42,14 +48,33 @@ func (m *MockCatalogReader) ServiceCard(tenantId, serviceId string) (name string
 	return m.Name, m.Price, m.Currency, m.Active, m.CardErr
 }
 
+var _ ab.CatalogReader = (*MockCatalogReader)(nil)
+
 type MockDirectoryReader struct {
 	Exists bool
 	Err    error
 }
 
+func (m *MockDirectoryReader) PatientExists(tenantID, patientID string) (bool, error) {
+	return m.Exists, m.Err
+}
+
 func (m *MockDirectoryReader) ClientExists(tenantID, clientID string) (bool, error) {
 	return m.Exists, m.Err
 }
+
+func (m *MockDirectoryReader) FindPatient(tenantID, documentNumber string) (id, name, phone, email string, err error) {
+	if !m.Exists {
+		return "", "", "", "", fmt.Err("patient not found")
+	}
+	return "pat-1", "Paciente Demo", "+56911223344", "demo@example.com", m.Err
+}
+
+func (m *MockDirectoryReader) RegisterPatient(tenantID, id, documentNumber, name, phone, email string) (patientID string, err error) {
+	return id, m.Err
+}
+
+var _ ab.PatientDirectory = (*MockDirectoryReader)(nil)
 
 type MockEventPublisher struct {
 	PublishedEvents []string
@@ -61,30 +86,27 @@ func (m *MockEventPublisher) Publish(e events.Event) {
 
 var _ events.Publisher = (*MockEventPublisher)(nil)
 
-// DateBound fija los bounds de una fecha puntual (para simular un feriado o un
-// cierre local). Slice de structs, no map — la regla "cero map" de AGENTS.md
-// llega también al código de test.
+// DateBound fija los limits de una fecha puntual.
 type DateBound struct {
-	Date   tinytime.Unix
-	Bounds tinytime.DayBounds
+	Date   time.Unix
+	Bounds time.DayLimits
 }
 
 type WeekdayBound struct {
 	DayOfWeek int
-	Bounds    tinytime.DayBounds
+	Bounds    time.DayLimits
 }
 
-// MockBoundsReader es el fake de ab.BoundsReader: bounds por fecha vía
-// Overrides (scan lineal) y un Default para el resto.
+// MockBoundsReader es el fake de ab.OpeningHours.
 type MockBoundsReader struct {
-	Default          tinytime.DayBounds
+	Default          time.DayLimits
 	Overrides        []DateBound
 	WeekdayOverrides []WeekdayBound
 }
 
-func (b *MockBoundsReader) GetDayBounds(date tinytime.Unix) (tinytime.DayBounds, error) {
+func (b *MockBoundsReader) DayLimits(date time.Unix) (time.DayLimits, error) {
 	if b == nil {
-		return tinytime.Unbounded(), nil
+		return time.Unlimited(), nil
 	}
 	for _, o := range b.Overrides {
 		if o.Date == date {
@@ -94,9 +116,9 @@ func (b *MockBoundsReader) GetDayBounds(date tinytime.Unix) (tinytime.DayBounds,
 	return b.Default, nil
 }
 
-func (b *MockBoundsReader) GetWeekdayBounds(dayOfWeek int) (tinytime.DayBounds, error) {
+func (b *MockBoundsReader) WeekdayLimits(dayOfWeek int) (time.DayLimits, error) {
 	if b == nil {
-		return tinytime.Unbounded(), nil
+		return time.Unlimited(), nil
 	}
 	for _, o := range b.WeekdayOverrides {
 		if o.DayOfWeek == dayOfWeek {
@@ -106,10 +128,14 @@ func (b *MockBoundsReader) GetWeekdayBounds(dayOfWeek int) (tinytime.DayBounds, 
 	return b.Default, nil
 }
 
-var _ ab.BoundsReader = (*MockBoundsReader)(nil)
+func (b *MockBoundsReader) ClosedDates(from, to time.Unix) (holidays, closures []string, err error) {
+	return nil, nil, nil
+}
+
+var _ ab.OpeningHours = (*MockBoundsReader)(nil)
 
 // OpenDayBounds es la ventana típica de un establecimiento: 08:00–20:00.
-var OpenDayBounds = tinytime.DayBounds{Open: true, OpenMin: 480, CloseMin: 1200}
+var OpenDayBounds = time.DayLimits{Open: true, OpenMin: 480, CloseMin: 1200}
 
 type fakeIDs struct{ n int }
 
@@ -120,18 +146,23 @@ func (f *fakeIDs) NewID() string {
 
 var _ model.IDGenerator = (*fakeIDs)(nil)
 
+var zoneSantiago, _ = time.LoadZone("America/Santiago")
+var zoneUTC, _ = time.LoadZone("UTC")
+
 func SetupDependencies() ab.Deps {
 	return ab.Deps{
 		Staff:     &MockStaffReader{Exists: true},
 		Catalog:   &MockCatalogReader{Exists: true},
-		Directory: &MockDirectoryReader{Exists: true},
+		Patients:  &MockDirectoryReader{Exists: true},
 		IDs:       &fakeIDs{},
 		Publisher: &MockEventPublisher{},
+		Zone:      zoneUTC,
+		TenantID:  "t1",
 	}
 }
 
-func SetupDependenciesWithBounds(bounds ab.BoundsReader) ab.Deps {
+func SetupDependenciesWithBounds(bounds ab.OpeningHours) ab.Deps {
 	deps := SetupDependencies()
-	deps.Bounds = bounds
+	deps.Hours = bounds
 	return deps
 }

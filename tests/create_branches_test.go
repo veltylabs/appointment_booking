@@ -28,7 +28,7 @@ var creators = []creator{
 		name: "CreateOverbooking",
 		call: func(e *bookEnv, c ab.CreateReservationCmd) (ab.Reservation, error) { return e.m.CreateOverbooking(c) },
 		prepare: func(t *testing.T, e *bookEnv, cfg string) {
-			if err := e.m.UpsertCalendarConfig(ab.WorkCalendarConfig{TenantId: bTenant, StaffId: "s1", Timezone: "UTC", IsActive: true, MaxOverbookPerDay: 1}); err != nil {
+			if err := e.m.UpsertCalendarConfig(ab.WorkCalendarConfig{TenantId: bTenant, StaffId: "s1", IsActive: true, MaxOverbookPerDay: 1}); err != nil {
 				t.Fatal(err)
 			}
 			e.reserve(t, "taken", cfg, "c0", 9, ab.OriginCounter)
@@ -162,7 +162,7 @@ func TestCreateOverbooking_ScheduleBranches(t *testing.T) {
 		want  error
 	}{
 		{"inactive calendar", func(t *testing.T, e *bookEnv) {
-			if err := e.m.UpsertCalendarConfig(ab.WorkCalendarConfig{TenantId: bTenant, StaffId: "s1", Timezone: "UTC", IsActive: false, MaxOverbookPerDay: 1}); err != nil {
+			if err := e.m.UpsertCalendarConfig(ab.WorkCalendarConfig{TenantId: bTenant, StaffId: "s1", IsActive: false, MaxOverbookPerDay: 1}); err != nil {
 				t.Fatal(err)
 			}
 		}, ab.ErrSlotNotInSchedule},

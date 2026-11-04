@@ -49,7 +49,6 @@ func TestService_Back(t *testing.T) {
 		s.UpsertCalendarConfig(ab.WorkCalendarConfig{
 			TenantId: "t99",
 			StaffId:  "s99",
-			Timezone: "UTC",
 			IsActive: true,
 		})
 		s.SaveDayBlocks("t99", "s99", 4, []ab.WorkCalendarBlock{

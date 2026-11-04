@@ -129,7 +129,15 @@ func TestConfirmPaid_WithoutPublisher(t *testing.T) {
 	e := newBookEnv(t)
 	cfg := e.config(t, "s1", 0, false)
 	e.reserve(t, "r1", cfg, "c1", 9, ab.OriginCounter)
-	quiet, err := ab.New(e.db, ab.Deps{Staff: e.staff, Catalog: e.catalog, Directory: &MockDirectoryReader{Exists: true}, IDs: &fakeIDs{}, Payments: e.pay})
+	quiet, err := ab.New(e.db, ab.Deps{
+		Staff:    e.staff,
+		Catalog:  e.catalog,
+		Patients: &MockDirectoryReader{Exists: true},
+		IDs:      &fakeIDs{},
+		Payments: e.pay,
+		Zone:     zoneSantiago,
+		TenantID: bTenant,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

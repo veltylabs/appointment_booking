@@ -1,24 +1,24 @@
 package appointmentbooking
 
 import (
-	"errors"
+	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/time"
 )
 
 // Errores sentinela a nivel de paquete
-var ErrPaymentsUnavailable = errors.New("payments are not configured")
+var ErrPaymentsUnavailable = fmt.Err("payments are not configured")
 
 const (
-	ErrCannotRead          model.Invalid = "appointment_booking: cannot read the request"
+	ErrCannotRead            model.Invalid  = "appointment_booking: cannot read the request"
 	ErrNotFound              model.NotFound = "record not found"
 	ErrConflict              model.Conflict = "optimistic concurrency conflict"
 	ErrTooManyHolds          model.Conflict = "too many online reservations awaiting payment"
-	ErrPaymentNotVerified    model.Invalid = "payment could not be verified for this reservation"
-	ErrAlreadyPaid           model.Invalid = "reservation already has a payment"
-	ErrReservationNotPayable model.Invalid = "reservation can no longer be paid"
-	ErrUnsupportedCurrency   model.Invalid = "unsupported currency"
+	ErrPaymentNotVerified    model.Invalid  = "payment could not be verified for this reservation"
+	ErrAlreadyPaid           model.Invalid  = "reservation already has a payment"
+	ErrReservationNotPayable model.Invalid  = "reservation can no longer be paid"
+	ErrUnsupportedCurrency   model.Invalid  = "unsupported currency"
 )
 
 // Repository provee operaciones CRUD para todas las tablas de appointment-booking.
@@ -71,13 +71,13 @@ func (r *Repository) GetReservationTx(tx *orm.DB, tenantId, id string) (Reservat
 	return *got, nil
 }
 
-func (r *Repository) ListReservationsByStaff(tenantId, staffId string, from, to time.Unix) ([]Reservation, error) {
+func (r *Repository) ListReservationsByStaff(tenantId, staffId string, fromUtc, toUtc time.Unix) ([]Reservation, error) {
 	proxy := &Reservation{}
 	qb := r.db.Query(proxy).
 		Where(Reservation_.TenantId).Eq(tenantId).
 		Where(Reservation_.StaffIdsnapshot).Eq(staffId).
-		Where(Reservation_.ReservationDate).Gte(int64(from)).
-		Where(Reservation_.ReservationDate).Lte(int64(to))
+		Where(Reservation_.ReservationTime).Gte(int64(fromUtc)).
+		Where(Reservation_.ReservationTime).Lt(int64(toUtc))
 	rows, err := ReadAllReservation(qb)
 	if err != nil {
 		return nil, err
@@ -92,12 +92,12 @@ func (r *Repository) ListReservationsByStaff(tenantId, staffId string, from, to 
 // ListReservationsByTenantRange lista las reservas de todo un tenant en un rango
 // de fechas — el alcance del recompute del establecimiento (un feriado golpea a
 // todos los profesionales a la vez).
-func (r *Repository) ListReservationsByTenantRange(tenantId string, from, to time.Unix) ([]Reservation, error) {
+func (r *Repository) ListReservationsByTenantRange(tenantId string, fromUtc, toUtc time.Unix) ([]Reservation, error) {
 	proxy := &Reservation{}
 	qb := r.db.Query(proxy).
 		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.ReservationDate).Gte(int64(from)).
-		Where(Reservation_.ReservationDate).Lte(int64(to))
+		Where(Reservation_.ReservationTime).Gte(int64(fromUtc)).
+		Where(Reservation_.ReservationTime).Lt(int64(toUtc))
 	rows, err := ReadAllReservation(qb)
 	if err != nil {
 		if orm.IsNotFound(err) {

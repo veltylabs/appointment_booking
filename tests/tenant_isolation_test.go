@@ -36,7 +36,6 @@ func TestTenantIsolation(t *testing.T) {
 	svc.UpsertCalendarConfig(ab.WorkCalendarConfig{
 		TenantId: "TA",
 		StaffId:  "staff_A",
-		Timezone: "UTC",
 		IsActive: true,
 	})
 	svc.SaveDayBlocks("TA", "staff_A", 1, []ab.WorkCalendarBlock{

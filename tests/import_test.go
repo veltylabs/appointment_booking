@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	tinytime "webtyp.com/time"
+	"webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
 )
@@ -13,7 +13,7 @@ func TestImportReservationPast(t *testing.T) {
 	// inactive config, time in 2019
 	cfg, _ := e.m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{TenantId: bTenant, StaffId: "s1", ServiceId: bService, DurationMin: 30, IsActive: false})
 
-	pastTime := tinytime.Date(2019, 10, 15, 14, 30, 0)
+	pastTime := time.DateUTC(2019, 10, 15, 14, 30, 0)
 
 	r := ab.Reservation{
 		Id: "imp1", TenantId: bTenant, ClientId: "c1",
@@ -29,8 +29,8 @@ func TestImportReservationPast(t *testing.T) {
 	if got.Status != ab.StatusCompleted {
 		t.Errorf("status = %s, want %s", got.Status, ab.StatusCompleted)
 	}
-	if got.LocalStringDate != "2019-10-15" {
-		t.Errorf("date = %s, want 2019-10-15", got.LocalStringDate)
+	if got.ReservationTime != int64(pastTime) {
+		t.Errorf("time = %d, want %d", got.ReservationTime, int64(pastTime))
 	}
 }
 
@@ -38,7 +38,7 @@ func TestImportReservationTwice(t *testing.T) {
 	e := newBookEnv(t)
 	cfg, _ := e.m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{TenantId: bTenant, StaffId: "s1", ServiceId: bService, DurationMin: 30, IsActive: true})
 
-	t1 := int64(tinytime.Date(2023, 1, 1, 10, 0, 0))
+	t1 := int64(time.DateUTC(2023, 1, 1, 10, 0, 0))
 	r1 := ab.Reservation{
 		Id: "imp2", TenantId: bTenant, ClientId: "c1",
 		EmployeeServiceConfigId: cfg.Id, ReservationTime: t1,
@@ -168,21 +168,27 @@ func TestImportReservationKeepsGivenDuration(t *testing.T) {
 	}
 }
 
-// La fecha y hora locales del sistema anterior se conservan tal cual: son la verdad para una reserva histórica.
-func TestImportReservationKeepsLocalStrings(t *testing.T) {
+// El instante UTC se conserva tal cual: es la verdad única de la reserva.
+func TestImportReservationKeepsInstant(t *testing.T) {
 	e := newBookEnv(t)
 	cfg, _ := e.m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{TenantId: bTenant, StaffId: "s1", ServiceId: bService, DurationMin: 30, IsActive: false})
+	wantTime := int64(time.DateUTC(2019, 7, 16, 1, 30, 0))
 	r := ab.Reservation{
 		Id: "imp-local", TenantId: bTenant, ClientId: "c1",
-		EmployeeServiceConfigId: cfg.Id, ReservationTime: int64(tinytime.Date(2019, 7, 16, 1, 30, 0)),
-		LocalStringDate: "2019-07-15", LocalStringTime: "21:30",
+		EmployeeServiceConfigId: cfg.Id, ReservationTime: wantTime,
 		Status: ab.StatusCompleted, Origin: ab.OriginCounter,
 	}
 	got, err := e.m.ImportReservation(r)
 	if err != nil {
 		t.Fatalf("ImportReservation: %v", err)
 	}
-	if got.LocalStringDate != "2019-07-15" || got.LocalStringTime != "21:30" {
-		t.Errorf("local = %s %s, want 2019-07-15 21:30", got.LocalStringDate, got.LocalStringTime)
+	if got.ReservationTime != wantTime {
+		t.Errorf("time = %d, want %d", got.ReservationTime, wantTime)
+	}
+	scl, _ := time.LoadZone("America/Santiago")
+	dateStr := scl.Date(time.Unix(got.ReservationTime))
+	clockStr := scl.Clock(time.Unix(got.ReservationTime))
+	if dateStr != "2019-07-15" || clockStr != "21:30" {
+		t.Errorf("derived local = %s %s, want 2019-07-15 21:30", dateStr, clockStr)
 	}
 }

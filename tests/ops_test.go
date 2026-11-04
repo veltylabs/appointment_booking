@@ -39,7 +39,6 @@ func TestMountOperations_CreateReservation_SlotTaken(t *testing.T) {
 		Id:       "wcc-1",
 		TenantId: "t1",
 		StaffId:  "s1",
-		Timezone: "UTC",
 		IsActive: true,
 	})
 
@@ -112,7 +111,7 @@ func TestMountOperations_RBAC_Deny(t *testing.T) {
 func TestMountOperations_CreateReservation_UnknownClient(t *testing.T) {
 	db := orm.New(mem.New())
 	deps := SetupDependencies()
-	deps.Directory = &MockDirectoryReader{Exists: false}
+	deps.Patients = &MockDirectoryReader{Exists: false}
 	m, err := ab.New(db, deps)
 	if err != nil {
 		t.Fatalf("ab.New: %v", err)
