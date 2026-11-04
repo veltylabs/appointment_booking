@@ -2,8 +2,10 @@
 PLAN: "feat!: PatientDirectory uses patient_directory's six-verb names (GetPatient, FindPatient, CreatePatient)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 8681623758950735825
+PR: https://github.com/veltylabs/appointment_booking/pull/25
+REVIEWED_COMMIT: a863ec3b020279124b7cae00d979028db46df6fd
 ---
 
 > Read AGENTS.md at the repo root before any change.
