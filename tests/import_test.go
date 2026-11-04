@@ -167,3 +167,22 @@ func TestImportReservationKeepsGivenDuration(t *testing.T) {
 		t.Errorf("duration = %d, want 45", got.DurationMinSnapshot)
 	}
 }
+
+// La fecha y hora locales del sistema anterior se conservan tal cual: son la verdad para una reserva histórica.
+func TestImportReservationKeepsLocalStrings(t *testing.T) {
+	e := newBookEnv(t)
+	cfg, _ := e.m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{TenantId: bTenant, StaffId: "s1", ServiceId: bService, DurationMin: 30, IsActive: false})
+	r := ab.Reservation{
+		Id: "imp-local", TenantId: bTenant, ClientId: "c1",
+		EmployeeServiceConfigId: cfg.Id, ReservationTime: int64(tinytime.Date(2019, 7, 16, 1, 30, 0)),
+		LocalStringDate: "2019-07-15", LocalStringTime: "21:30",
+		Status: ab.StatusCompleted, Origin: ab.OriginCounter,
+	}
+	got, err := e.m.ImportReservation(r)
+	if err != nil {
+		t.Fatalf("ImportReservation: %v", err)
+	}
+	if got.LocalStringDate != "2019-07-15" || got.LocalStringTime != "21:30" {
+		t.Errorf("local = %s %s, want 2019-07-15 21:30", got.LocalStringDate, got.LocalStringTime)
+	}
+}

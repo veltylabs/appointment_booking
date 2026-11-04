@@ -68,9 +68,15 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 
 	r.ReservationDate = tinytime.MidnightUTC(tinytime.Unix(r.ReservationTime))
 
-	// Same helpers as CreateReservation: the local date and time, never the UTC ones (21:30 in Santiago is the next day in UTC).
-	r.LocalStringDate = tinytime.FormatDate(tinytime.Unix(r.ReservationTime))
-	r.LocalStringTime = tinytime.FormatTime(tinytime.Unix(r.ReservationTime))
+	// La fecha y hora locales que trae el sistema anterior son la verdad (ver docs/TIEMPO.md): se conservan.
+	// Solo si vienen vacías se calculan, con el desfase fijo de webtyp/time (puede errar en 1 hora por el
+	// horario de verano, por eso no se usan cuando el dato original existe).
+	if r.LocalStringDate == "" {
+		r.LocalStringDate = tinytime.FormatDate(tinytime.Unix(r.ReservationTime))
+	}
+	if r.LocalStringTime == "" {
+		r.LocalStringTime = tinytime.FormatTime(tinytime.Unix(r.ReservationTime))
+	}
 
 	r.UpdatedAt = tinytime.NowNano()
 	r.UpdatedBy = r.CreatorUserId

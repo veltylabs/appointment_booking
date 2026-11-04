@@ -205,3 +205,5 @@ Ejemplo:
 r, err := booking.ImportReservation(Reservation{Id: "1650000000000000000", TenantId: t, ClientId: p,
 	EmployeeServiceConfigId: cfg, ReservationTime: int64(start), Status: StatusCompleted, Origin: OriginCounter})
 ```
+
+Cómo se guardan la fecha y la hora (UTC, textos locales, horario de verano): [TIEMPO.md](TIEMPO.md).
