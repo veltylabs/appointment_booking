@@ -3,7 +3,7 @@ module github.com/veltylabs/appointment_booking
 go 1.26.8
 
 require (
-	webtyp.com/appkit v0.2.8
+	webtyp.com/appkit v0.2.9
 	webtyp.com/components v0.8.64
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.39
