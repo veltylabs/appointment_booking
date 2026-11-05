@@ -7,10 +7,9 @@ import (
 	"webtyp.com/model"
 
 	ab "github.com/veltylabs/appointment_booking"
-	"github.com/veltylabs/appointment_booking/migrate"
 )
 
-var server = appkit.ModuleServer{Migrate: migrate.Migrate, Build: build}
+var server = appkit.ModuleServer{Build: build}
 var browser appkit.ModuleBrowser
 
 func build(d appkit.Deps) (model.ModuleNaming, error) {
@@ -42,4 +41,3 @@ func build(d appkit.Deps) (model.ModuleNaming, error) {
 		Payments:  payments,
 	})
 }
-

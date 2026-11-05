@@ -43,13 +43,11 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	howett.net/plist v1.0.0 // indirect
-	webtyp.com/access v0.0.41 // indirect
 	webtyp.com/auth v0.0.102 // indirect
 	webtyp.com/await v0.1.2 // indirect
 	webtyp.com/base64 v0.0.6 // indirect
 	webtyp.com/calendar v0.1.0 // indirect
 	webtyp.com/context v0.0.23 // indirect
-	webtyp.com/crypto v0.0.30 // indirect
 	webtyp.com/dbus v0.1.1 // indirect
 	webtyp.com/env v0.1.3 // indirect
 	webtyp.com/erd v0.0.16 // indirect
@@ -58,7 +56,6 @@ require (
 	webtyp.com/keyring v0.2.9 // indirect
 	webtyp.com/mcp v0.3.20 // indirect
 	webtyp.com/pwa v0.2.13 // indirect
-	webtyp.com/rbac v0.0.29 // indirect
 	webtyp.com/server v0.2.105 // indirect
 	webtyp.com/webauthn v0.1.16 // indirect
 )
@@ -73,3 +70,5 @@ require (
 	webtyp.com/msgtype v0.1.0 // indirect
 	webtyp.com/user v0.3.14 // indirect
 )
+
+replace webtyp.com/appkit => ../../../webtyp/appkit
