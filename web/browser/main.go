@@ -43,18 +43,18 @@ func (fakeCatalogReader) ServiceCard(tenantId, serviceId string) (string, float6
 
 type fakePatientDirectory struct{}
 
-func (fakePatientDirectory) PatientExists(tenantID, patientID string) (bool, error) {
-	return true, nil
+func (fakePatientDirectory) GetPatient(tenantID, id string) (string, string, string, string, bool, error) {
+	return "", "", "", "", true, nil
 }
 
-func (fakePatientDirectory) FindPatient(tenantID, documentNumber string) (string, string, string, string, error) {
+func (fakePatientDirectory) FindPatient(tenantID, documentNumber string) (string, string, string, string, bool, error) {
 	if documentNumber == "12.345.678-5" || documentNumber == "12345678-5" {
-		return "pat-1", "Juan Pérez", "+56911223344", "juan@example.com", nil
+		return "pat-1", "Juan Pérez", "+56911223344", "juan@example.com", true, nil
 	}
-	return "", "", "", "", fmt.Err("patient not found")
+	return "", "", "", "", false, nil
 }
 
-func (fakePatientDirectory) RegisterPatient(tenantID, id, documentNumber, name, phone, email string) (string, error) {
+func (fakePatientDirectory) CreatePatient(tenantID, id, documentNumber, name, phone, email string) (string, error) {
 	return id, nil
 }
 

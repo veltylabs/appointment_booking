@@ -40,7 +40,7 @@ Decisiones clave:
 ## 4. Patrones Arquitectónicos
 
 1. **Inyección de Dependencias:** el módulo recibe contratos externos (`StaffReader`,
-   `CatalogReader`, `PatientDirectory`), un `OpeningHours` opcional (la ventana diaria utilizable del establecimiento; nil = `time.Unlimited()`, correcto para una aplicación sin institución por encima del profesional), `PaymentGateway` opcional
+   `CatalogReader`, `PatientDirectory{GetPatient, FindPatient, CreatePatient}`), un `OpeningHours` opcional (la ventana diaria utilizable del establecimiento; nil = `time.Unlimited()`, correcto para una aplicación sin institución por encima del profesional), `PaymentGateway` opcional
    y un `events.Publisher` a través de `Deps` en la construcción (`New(db, deps)`). Sin estado global, sin importaciones directas de otros módulos.
 
 2. **Acceso directo a ORM (sin interfaces de almacenamiento):** el módulo mantiene `*orm.DB` directamente (a través de un

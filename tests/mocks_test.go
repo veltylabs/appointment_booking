@@ -55,22 +55,18 @@ type MockDirectoryReader struct {
 	Err    error
 }
 
-func (m *MockDirectoryReader) PatientExists(tenantID, patientID string) (bool, error) {
-	return m.Exists, m.Err
+func (m *MockDirectoryReader) GetPatient(tenantID, id string) (name, documentNumber, phone, email string, found bool, err error) {
+	return "", "", "", "", m.Exists, m.Err
 }
 
-func (m *MockDirectoryReader) ClientExists(tenantID, clientID string) (bool, error) {
-	return m.Exists, m.Err
-}
-
-func (m *MockDirectoryReader) FindPatient(tenantID, documentNumber string) (id, name, phone, email string, err error) {
+func (m *MockDirectoryReader) FindPatient(tenantID, documentNumber string) (id, name, phone, email string, found bool, err error) {
 	if !m.Exists {
-		return "", "", "", "", fmt.Err("patient not found")
+		return "", "", "", "", false, nil
 	}
-	return "pat-1", "Paciente Demo", "+56911223344", "demo@example.com", m.Err
+	return "pat-1", "Juan Pérez", "+56911223344", "juan@example.com", true, m.Err
 }
 
-func (m *MockDirectoryReader) RegisterPatient(tenantID, id, documentNumber, name, phone, email string) (patientID string, err error) {
+func (m *MockDirectoryReader) CreatePatient(tenantID, id, documentNumber, name, phone, email string) (patientID string, err error) {
 	return id, m.Err
 }
 

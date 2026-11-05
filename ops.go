@@ -723,9 +723,13 @@ func (m *Module) opFindBookingPatient(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
-	id, name, phone, email, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
+	id, name, phone, email, found, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
 	if err != nil {
 		rpc.WriteError(ctx, err)
+		return
+	}
+	if !found {
+		rpc.WriteError(ctx, ErrClientNotFound)
 		return
 	}
 	res := BookingPatient{
@@ -751,7 +755,7 @@ func (m *Module) opRegisterBookingPatient(ctx router.Context) {
 	if id == "" {
 		id = m.ids.NewID()
 	}
-	patientID, err := m.patients.RegisterPatient(args.TenantId, id, args.DocumentNumber, args.Name, args.Phone, args.Email)
+	patientID, err := m.patients.CreatePatient(args.TenantId, id, args.DocumentNumber, args.Name, args.Phone, args.Email)
 	if err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -775,50 +779,23 @@ func (m *Module) opResolveOnlinePatient(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
-	id, name, phone, email, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
-	if err == nil && id != "" {
-		res := BookingPatient{
-			Id:             id,
-			TenantId:       args.TenantId,
-			DocumentNumber: args.DocumentNumber,
-			Name:           name,
-			Phone:          phone,
-			Email:          email,
-		}
-		if err := ctx.Encode(&res); err != nil {
-			rpc.WriteError(ctx, err)
-		}
-		return
-	}
-	newID := args.Id
-	if newID == "" {
-		newID = m.ids.NewID()
-	}
-	regID, err := m.patients.RegisterPatient(args.TenantId, newID, args.DocumentNumber, args.Name, args.Phone, args.Email)
+	id, name, phone, email, found, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
 	if err != nil {
-		if id2, name2, phone2, email2, err2 := m.patients.FindPatient(args.TenantId, args.DocumentNumber); err2 == nil && id2 != "" {
-			res := BookingPatient{
-				Id:             id2,
-				TenantId:       args.TenantId,
-				DocumentNumber: args.DocumentNumber,
-				Name:           name2,
-				Phone:          phone2,
-				Email:          email2,
-			}
-			_ = ctx.Encode(&res)
-			return
-		}
 		rpc.WriteError(ctx, err)
 		return
 	}
-	res := BookingPatient{
-		Id:             regID,
-		TenantId:       args.TenantId,
-		DocumentNumber: args.DocumentNumber,
-		Name:           args.Name,
-		Phone:          args.Phone,
-		Email:          args.Email,
+	if !found {
+		id = args.Id
+		if id == "" {
+			id = m.ids.NewID()
+		}
+		if id, err = m.patients.CreatePatient(args.TenantId, id, args.DocumentNumber, args.Name, args.Phone, args.Email); err != nil {
+			rpc.WriteError(ctx, err)
+			return
+		}
+		name, phone, email = args.Name, args.Phone, args.Email
 	}
+	res := BookingPatient{Id: id, TenantId: args.TenantId, DocumentNumber: args.DocumentNumber, Name: name, Phone: phone, Email: email}
 	if err := ctx.Encode(&res); err != nil {
 		rpc.WriteError(ctx, err)
 	}

@@ -765,7 +765,7 @@ func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error
 	}
 
 	// 2. Validar cliente
-	patientExists, err := m.patients.PatientExists(cmd.TenantId, cmd.ClientId)
+	_, _, _, _, patientExists, err := m.patients.GetPatient(cmd.TenantId, cmd.ClientId)
 	if err != nil {
 		return Reservation{}, err
 	}
@@ -914,7 +914,7 @@ func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error
 	}
 
 	// 2. Validar cliente
-	patientExists, err := m.patients.PatientExists(cmd.TenantId, cmd.ClientId)
+	_, _, _, _, patientExists, err := m.patients.GetPatient(cmd.TenantId, cmd.ClientId)
 	if err != nil {
 		return Reservation{}, err
 	}
