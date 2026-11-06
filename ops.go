@@ -149,6 +149,7 @@ func (m *Module) opCreateReservation(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	// Doctrina fail-closed: decode → validate → servicio. Validate ejecuta las constraints
 	// declaradas en la Definition (método generado por ormc — nunca re-implementado a mano).
 	if err := args.Validate(model.ActionCreate); err != nil {
@@ -182,6 +183,7 @@ func (m *Module) opCreateOverbooking(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := args.Validate(model.ActionCreate); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -213,6 +215,7 @@ func (m *Module) opGetReservation(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	res, err := m.GetReservation(args.TenantId, args.Id)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -229,6 +232,7 @@ func (m *Module) opListReservationsByStaff(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	res, err := m.ListReservationsByStaff(args.TenantId, args.StaffId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -249,6 +253,7 @@ func (m *Module) opListReservationsByClient(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	res, err := m.ListReservationsByClient(args.TenantId, args.ClientId)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -269,6 +274,7 @@ func (m *Module) opChangeReservationStatus(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	cmd := ChangeStatusCmd{
 		TenantId:  args.TenantId,
 		Id:        args.Id,
@@ -290,6 +296,7 @@ func (m *Module) opExpirePendingReservations(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	count, err := m.ExpirePendingReservations(args.TenantId, time.Unix(args.Before))
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -304,6 +311,7 @@ func (m *Module) opCreateEmployeeServiceConfig(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	cfg, err := m.CreateEmployeeServiceConfig(EmployeeServiceConfig{
 		TenantId: args.TenantId, StaffId: args.StaffId, ServiceId: args.ServiceId,
 		DurationMin: args.DurationMin, BufferMin: args.BufferMin,
@@ -340,6 +348,7 @@ func (m *Module) opListEmployeeServiceConfigsByStaff(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	rows, err := m.ListEmployeeServiceConfigByStaff(args.TenantId, args.StaffId)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -360,6 +369,7 @@ func (m *Module) opUpdateEmployeeServiceConfig(ctx router.Context) {
 		rpc.WriteError(ctx, &model.FieldError{Field: "request", Err: err})
 		return
 	}
+	cfg.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := m.UpdateEmployeeServiceConfig(cfg); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -375,6 +385,7 @@ func (m *Module) opGetCalendarConfig(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	cfg, err := m.GetCalendarConfig(args.TenantId, args.StaffId)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -391,6 +402,7 @@ func (m *Module) opUpsertCalendarConfig(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	cfg := WorkCalendarConfig{
 		TenantId:          args.TenantId,
 		StaffId:           args.StaffId,
@@ -410,6 +422,7 @@ func (m *Module) opSaveDayBlocks(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := m.SaveDayBlocks(args.TenantId, args.StaffId, int(args.DayOfWeek), args.Blocks); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -423,6 +436,7 @@ func (m *Module) opSaveDateBlocks(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := m.SaveDateBlocks(args.TenantId, args.StaffId, args.SpecificDate, args.Blocks); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -436,6 +450,7 @@ func (m *Module) opMarkWorkingDays(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	dates := make([]int64, len(args.Dates))
 	for i, d := range args.Dates {
 		dates[i] = int64(d)
@@ -453,6 +468,7 @@ func (m *Module) opUnmarkWorkingDays(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	dates := make([]int64, len(args.Dates))
 	for i, d := range args.Dates {
 		dates[i] = int64(d)
@@ -470,6 +486,7 @@ func (m *Module) opListBlocks(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	rows, err := m.ListBlocks(args.TenantId, args.StaffId)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -490,6 +507,7 @@ func (m *Module) opGetDayLimits(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	lim, err := m.GetDayLimits(time.Unix(args.Date))
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -507,6 +525,7 @@ func (m *Module) opAddCalendarException(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	exc := WorkCalendarException{
 		TenantId: args.TenantId, StaffId: args.StaffId, SpecificDate: time.Unix(args.SpecificDate),
 		ExceptionType: args.ExceptionType, StartTime: args.StartTime, EndTime: args.EndTime,
@@ -525,6 +544,7 @@ func (m *Module) opRemoveCalendarException(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := m.RemoveException(args.TenantId, args.ExceptionId); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -538,6 +558,7 @@ func (m *Module) opListAvailability(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	slots, err := m.ListAvailability(args.TenantId, args.StaffId, args.ConfigId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -558,6 +579,7 @@ func (m *Module) opListExceptions(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	rows, err := m.ListExceptions(args.TenantId, args.StaffId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -578,6 +600,7 @@ func (m *Module) opListConflictingReservations(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	rows, err := m.ListConflictingReservations(args.TenantId, args.StaffId, time.Unix(args.From))
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -598,6 +621,7 @@ func (m *Module) opRecomputeConflicts(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	count, err := m.RecomputeConflicts(args.TenantId, time.Unix(args.From), time.Unix(args.To))
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -611,6 +635,7 @@ func (m *Module) opListBookableServices(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := args.Validate(model.ActionRead); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -633,6 +658,7 @@ func (m *Module) opListServiceAvailability(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := args.Validate(model.ActionRead); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -655,6 +681,7 @@ func (m *Module) opCreateOnlineReservation(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if err := args.Validate(model.ActionCreate); err != nil {
 		rpc.WriteError(ctx, err)
 		return
@@ -675,6 +702,7 @@ func (m *Module) opListStaffOptions(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	opts, err := m.staff.OccupantOptions(args.TenantId)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -695,6 +723,7 @@ func (m *Module) opListCalendarClosures(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if m.hours == nil {
 		list := CalendarClosureList{}
 		_ = ctx.Encode(&list)
@@ -723,6 +752,7 @@ func (m *Module) opFindBookingPatient(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	id, name, phone, email, found, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -751,6 +781,7 @@ func (m *Module) opRegisterBookingPatient(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	id := args.Id
 	if id == "" {
 		id = m.ids.NewID()
@@ -779,6 +810,7 @@ func (m *Module) opResolveOnlinePatient(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	id, name, phone, email, found, err := m.patients.FindPatient(args.TenantId, args.DocumentNumber)
 	if err != nil {
 		rpc.WriteError(ctx, err)
@@ -807,6 +839,7 @@ func (m *Module) opGetBookingCharge(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if m.payments == nil {
 		res := BookingChargeResult{Payable: false}
 		_ = ctx.Encode(&res)
@@ -834,6 +867,7 @@ func (m *Module) opCreateBookingCounterPayment(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if m.payments == nil {
 		rpc.WriteError(ctx, fmt.Err("payments not configured"))
 		return
@@ -859,6 +893,7 @@ func (m *Module) opStartBookingTerminalPayment(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if m.payments == nil {
 		rpc.WriteError(ctx, fmt.Err("payments not configured"))
 		return
@@ -884,6 +919,7 @@ func (m *Module) opRefreshBookingTerminalPayment(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if m.payments == nil {
 		rpc.WriteError(ctx, fmt.Err("payments not configured"))
 		return
@@ -905,6 +941,7 @@ func (m *Module) opStartBookingOnlinePayment(ctx router.Context) {
 		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
+	args.TenantId = m.tenantID // el tenant es de la instalación, nunca del cliente
 	if m.payments == nil {
 		rpc.WriteError(ctx, fmt.Err("payments not configured"))
 		return

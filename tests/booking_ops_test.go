@@ -91,6 +91,9 @@ func TestOps_NewOpsBadInput(t *testing.T) {
 		if st, _ := invoke(r, op, `{`); st != 400 {
 			t.Errorf("%s broken body: %d", op, st)
 		}
+		if op == ab.OpListBookableServices {
+			continue // sin argumentos obligatorios: el tenant lo pone el servidor
+		}
 		if st, _ := invoke(r, op, `{}`); st != 400 {
 			t.Errorf("%s missing args: %d", op, st)
 		}
@@ -128,6 +131,20 @@ func TestOps_NewErrorsStatus(t *testing.T) {
 		args := &ab.CreateOnlineReservationArgs{TenantId: bTenant, Id: "x", ClientId: "c1", EmployeeServiceConfigId: cfg, SlotStartUtc: bookDay + 9*3600}
 		if st, _ := invoke(bookingRouter(c.env), ab.OpCreateOnlineReservation, jsonOf(t, args)); st != c.code {
 			t.Errorf("%s: %d, want %d", c.name, st, c.code)
+		}
+	}
+}
+
+// El navegador no conoce el tenant (appkit.BrowserDeps no lo trae): lo pone el servidor
+// con el de la instalación, y un tenant ajeno enviado por el cliente se ignora.
+func TestOps_TenantFromInstallation(t *testing.T) {
+	e := newBookEnv(t)
+	e.config(t, "s1", 0, false)
+	r := bookingRouter(e)
+	for _, sent := range []string{"", "otro-tenant"} {
+		st, body := invoke(r, ab.OpListBookableServices, jsonOf(t, &ab.ListBookableServicesArgs{TenantId: sent}))
+		if st != 200 || !wfmt.Contains(body, "Dra. Ana") {
+			t.Errorf("list_bookable_services con tenant %q: %d %s", sent, st, body)
 		}
 	}
 }
