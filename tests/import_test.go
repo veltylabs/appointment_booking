@@ -192,3 +192,38 @@ func TestImportReservationKeepsInstant(t *testing.T) {
 		t.Errorf("derived local = %s %s, want 2019-07-15 21:30", dateStr, clockStr)
 	}
 }
+
+// A schedule from the previous system is kept as it was, also when it falls outside today's opening hours
+// (Pa100T: Saturdays until 18:00, the clinic now closes at 12:30). The importer reports it as a notice for the front
+// desk to adjust later; nothing is trimmed or dropped. Availability still offers only the opening hours.
+func TestImportDayBlocksKeepsBlocksOutsideOpeningHours(t *testing.T) {
+	deps := SetupDependenciesWithBounds(&MockBoundsReader{
+		Default: time.DayLimits{Open: true, OpenMin: 540, CloseMin: 780}, // 09:00–13:00
+	})
+	s, _ := newTestModuleService(t, deps)
+	ensureCalendarConfig(t, s, "t1", "s1")
+	blocks := []ab.WorkCalendarBlock{{StartMin: 540, EndMin: 780}, {StartMin: 840, EndMin: 1080}} // 09–13 y 14–18
+
+	if err := s.SaveDayBlocks("t1", "s1", 6, append([]ab.WorkCalendarBlock(nil), blocks...)); err == nil {
+		t.Fatal("SaveDayBlocks (the screen) must still refuse a block outside opening hours")
+	}
+	if err := s.ImportDayBlocks("t1", "s1", 6, append([]ab.WorkCalendarBlock(nil), blocks...)); err != nil {
+		t.Fatalf("ImportDayBlocks: %v", err)
+	}
+	got, err := s.ListBlocks("t1", "s1")
+	if err != nil {
+		t.Fatalf("ListBlocks: %v", err)
+	}
+	if len(got) != 2 || got[1].StartMin != 840 || got[1].EndMin != 1080 || got[1].DayOfWeek != 6 {
+		t.Fatalf("expected both blocks kept as given, got %+v", got)
+	}
+	if err := s.ImportDayBlocks("t1", "s1", 6, append([]ab.WorkCalendarBlock(nil), blocks...)); err != nil {
+		t.Fatalf("ImportDayBlocks twice: %v", err)
+	}
+	if again, _ := s.ListBlocks("t1", "s1"); len(again) != 2 {
+		t.Fatalf("importing twice must leave the same 2 blocks, got %d", len(again))
+	}
+	if err := s.ImportDayBlocks("t1", "s1", 6, []ab.WorkCalendarBlock{{StartMin: 600, EndMin: 540}}); err == nil {
+		t.Fatal("a block that ends before it starts is still invalid")
+	}
+}

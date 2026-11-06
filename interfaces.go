@@ -59,6 +59,7 @@ type SchedulingService interface {
 	GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error)
 	UpsertCalendarConfig(cfg WorkCalendarConfig) error
 	SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error
+	ImportDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error
 	SaveDateBlocks(tenantId, staffId string, date int64, blocks []WorkCalendarBlock) error
 	MarkWorkingDays(tenantId, staffId string, dates []int64, startMin, endMin int) error
 	UnmarkWorkingDays(tenantId, staffId string, dates []int64) error

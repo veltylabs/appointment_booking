@@ -92,3 +92,30 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 
 	return r, nil
 }
+
+// ImportDayBlocks stores the weekly blocks of one weekday from a previous system as they were: it replaces that
+// day's blocks (importing twice leaves the same rows) and checks what SaveDayBlocks checks about the data — the
+// calendar config exists, each block is a valid [start, end) inside the day — but not the establishment's opening
+// hours, a rule of today: a block outside them is kept, so the importer reports it and the front desk adjusts it
+// later (availability offers only the opening hours anyway). No event and no recompute: nothing is booked yet.
+//
+// Example: err := booking.ImportDayBlocks(t, staffID, 6, []WorkCalendarBlock{{StartMin: 840, EndMin: 1080}})
+func (m *Module) ImportDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error {
+	if dayOfWeek < 0 || dayOfWeek > 6 {
+		return ErrInvalidBlock
+	}
+	if _, err := m.requireCalendarConfig(tenantId, staffId); err != nil {
+		return err
+	}
+	if err := validateBlocks(blocks); err != nil {
+		return err
+	}
+	for i := range blocks {
+		blocks[i].TenantId = tenantId
+		blocks[i].StaffId = staffId
+		blocks[i].DayOfWeek = int64(dayOfWeek)
+		blocks[i].SpecificDate = 0
+		blocks[i].IsActive = true
+	}
+	return m.repo.ReplaceWeekdayBlocks(tenantId, staffId, dayOfWeek, blocks)
+}
