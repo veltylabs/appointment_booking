@@ -11,14 +11,14 @@
   ],
   "keys": {
     "Any available professional": [
+      "Cualquier profesional disponible",
       "",
-      "Any available professional 中文",
-      "Any available professional हिंदी",
-      "Any available professional عربي",
-      "Any available professional português",
-      "Any available professional français",
-      "Any available professional deutsch",
-      "Any available professional русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "Appointment booking": [
       "Reserva de hora",
@@ -281,14 +281,14 @@
       "Оплата и подтверждение"
     ],
     "Payment registered; confirming…": [
+      "Pago registrado; confirmando…",
       "",
-      "Payment registered; confirming… 中文",
-      "Payment registered; confirming… हिंदी",
-      "Payment registered; confirming… عربي",
-      "Payment registered; confirming… português",
-      "Payment registered; confirming… français",
-      "Payment registered; confirming… deutsch",
-      "Payment registered; confirming… русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "Phone number": [
       "Número de teléfono",
@@ -391,14 +391,14 @@
       "Услуги"
     ],
     "Servicios": [
+      "Servicios",
       "",
-      "Servicios 中文",
-      "Servicios हिंदी",
-      "Servicios عربي",
-      "Servicios português",
-      "Servicios français",
-      "Servicios deutsch",
-      "Servicios русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "Specialty and service": [
       "Especialidad y servicio",
@@ -441,24 +441,24 @@
       "Резюме"
     ],
     "That time was just taken": [
+      "Ese horario acaba de ser tomado",
       "",
-      "That time was just taken 中文",
-      "That time was just taken हिंदी",
-      "That time was just taken عربي",
-      "That time was just taken português",
-      "That time was just taken français",
-      "That time was just taken deutsch",
-      "That time was just taken русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "You already have bookings awaiting payment": [
+      "Ya tienes reservas pendientes de pago",
       "",
-      "You already have bookings awaiting payment 中文",
-      "You already have bookings awaiting payment हिंदी",
-      "You already have bookings awaiting payment عربي",
-      "You already have bookings awaiting payment português",
-      "You already have bookings awaiting payment français",
-      "You already have bookings awaiting payment deutsch",
-      "You already have bookings awaiting payment русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "absolute at": [
       "absoluto en",
@@ -781,14 +781,14 @@
       "время окончания"
     ],
     "end utc": [
-      "fin utc_0",
-      "结束utc_1",
-      "अंत utc_2",
-      "نهاية utc_3",
-      "fim utc_4",
-      "fin utc_5",
-      "Ende utc_6",
-      "конец utc_7"
+      "fin UTC",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "event": [
       "evento",
@@ -911,14 +911,14 @@
       "IP-адрес"
     ],
     "is open": [
+      "está abierto",
       "",
-      "is open 中文",
-      "is open हिंदी",
-      "is open عربي",
-      "is open português",
-      "is open français",
-      "is open deutsch",
-      "is open русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "last used at": [
       "Último uso el",
@@ -1051,14 +1051,14 @@
       "происхождение"
     ],
     "overbooked": [
+      "sobrecupo",
       "",
-      "overbooked 中文",
-      "overbooked हिंदी",
-      "overbooked عربي",
-      "overbooked português",
-      "overbooked français",
-      "overbooked deutsch",
-      "overbooked русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "paid at": [
       "pagado el",
@@ -1311,14 +1311,14 @@
       "вернуться к"
     ],
     "rut": [
+      "RUT",
       "",
-      "rut 中文",
-      "rut हिंदी",
-      "rut عربي",
-      "rut português",
-      "rut français",
-      "rut deutsch",
-      "rut русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "service": [
       "servicio",
@@ -1371,24 +1371,24 @@
       "Количество подписей"
     ],
     "sku": [
+      "código SKU",
       "",
-      "sku 中文",
-      "sku हिंदी",
-      "sku عربي",
-      "sku português",
-      "sku français",
-      "sku deutsch",
-      "sku русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "slot start utc": [
-      "inicio utc_0",
-      "插槽开始 utc_1",
-      "स्लॉट प्रारंभ utc_2",
-      "بداية الفتحة utc_3",
-      "início do slot utc_4",
-      "début de créneau utc_5",
-      "Slot-Start-UTC_6",
-      "начало слота utc_7"
+      "inicio de bloque UTC",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "specialty": [
       "especialidad",
@@ -1471,14 +1471,14 @@
       "время начала"
     ],
     "start utc": [
-      "inicio utc_0",
-      "开始 utc_1",
-      "प्रारंभ utc_2",
-      "بداية utc_3",
-      "início utc_4",
-      "début utc_5",
-      "Start utc_6",
-      "начало utc_7"
+      "inicio UTC",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "starts at": [
       "comienza a las",
@@ -1541,14 +1541,14 @@
       "часовой пояс"
     ],
     "token": [
+      "token de pago",
       "",
-      "token 中文",
-      "token हिंदी",
-      "token عربي",
-      "token português",
-      "token français",
-      "token deutsch",
-      "token русский"
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ],
     "updated by": [
       "actualizado por",
@@ -1569,6 +1569,86 @@
       "Agent utilisateur",
       "User-Agent",
       "Пользовательский агент"
+    ],
+    "Crédito": [
+      "Crédito",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "Débito": [
+      "Débito",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "Efectivo": [
+      "Efectivo",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "Transferencia": [
+      "Transferencia",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "document number": [
+      "número de documento",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "is holiday": [
+      "es feriado",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "terminal": [
+      "terminal de pago",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "token field": [
+      "campo de token",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
     ]
   }
 }
