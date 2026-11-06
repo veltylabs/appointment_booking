@@ -1,7 +1,6 @@
 package appointmentbooking
 
 import (
-	"webtyp.com/fmt"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 	"webtyp.com/time"
@@ -52,15 +51,16 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 		return Reservation{}, err
 	}
 	if !staffExists {
-		return Reservation{}, fmt.Err("staff", "not", "found")
+		return Reservation{}, ErrStaffNotFound
 	}
 
-	serviceExists, err := m.catalog.ServiceExists(r.TenantId, cfg.ServiceId)
-	if err != nil {
+	// La reserva es historia: basta con que el servicio exista, activo o no (ServiceExists exige activo, y el
+	// catálogo deja inactivo un servicio sin precio).
+	if _, _, _, _, err := m.catalog.ServiceCard(r.TenantId, cfg.ServiceId); err != nil {
+		if model.KindOf(err) == model.ErrorNotFound {
+			return Reservation{}, ErrServiceNotFound
+		}
 		return Reservation{}, err
-	}
-	if !serviceExists {
-		return Reservation{}, fmt.Err("service", "not", "found")
 	}
 
 	r.StaffIdsnapshot = cfg.StaffId

@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	"webtyp.com/model"
 	"webtyp.com/time"
 
 	ab "github.com/veltylabs/appointment_booking"
@@ -225,5 +226,25 @@ func TestImportDayBlocksKeepsBlocksOutsideOpeningHours(t *testing.T) {
 	}
 	if err := s.ImportDayBlocks("t1", "s1", 6, []ab.WorkCalendarBlock{{StartMin: 600, EndMin: 540}}); err == nil {
 		t.Fatal("a block that ends before it starts is still invalid")
+	}
+}
+
+// A booking from the previous system is history: it imports although its service is inactive today (the importer
+// leaves a service without a price inactive until someone sets it). A service that does not exist at all is a
+// typed not-found, never an untyped error the importer would take for a database failure.
+func TestImportReservationInactiveService(t *testing.T) {
+	e := newBookEnv(t)
+	e.catalog.items = append(e.catalog.items, serviceItem{"svc-off", "Consulta sin precio", pmCurrencyCLP, 0, false})
+	cfg, _ := e.m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{TenantId: bTenant, StaffId: "s1", ServiceId: "svc-off", DurationMin: 20, IsActive: true})
+	r := ab.Reservation{Id: "imp-off", TenantId: bTenant, ClientId: "c1", EmployeeServiceConfigId: cfg.Id,
+		ReservationTime: int64(time.DateUTC(2022, 3, 21, 10, 0, 0)), Status: ab.StatusCompleted, Origin: ab.OriginCounter}
+	if _, err := e.m.ImportReservation(r); err != nil {
+		t.Fatalf("ImportReservation with an inactive service: %v", err)
+	}
+
+	gone, _ := e.m.CreateEmployeeServiceConfig(ab.EmployeeServiceConfig{TenantId: bTenant, StaffId: "s1", ServiceId: "svc-gone", DurationMin: 20})
+	r.Id, r.EmployeeServiceConfigId = "imp-gone", gone.Id
+	if _, err := e.m.ImportReservation(r); model.KindOf(err) != model.ErrorNotFound {
+		t.Errorf("ImportReservation with a service that does not exist: want a not-found error, got %v", err)
 	}
 }

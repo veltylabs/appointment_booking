@@ -28,6 +28,8 @@ const (
 	ErrOverbookNotAllowed        model.Invalid  = "overbooking not allowed for this professional and day"
 	ErrSlotNotInSchedule         model.Invalid  = "appointment_booking: slot is not within professional's scheduled blocks"
 	ErrClientNotFound            model.NotFound = "client not found"
+	ErrStaffNotFound             model.NotFound = "staff not found"
+	ErrServiceNotFound           model.NotFound = "service not found"
 )
 
 // Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).

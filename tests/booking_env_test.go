@@ -90,8 +90,8 @@ func (f *fakeCatalog) ServiceExists(tenantId, serviceId string) (bool, error) {
 	if f.existsErr != nil {
 		return false, f.existsErr
 	}
-	_, ok := f.find(serviceId)
-	return ok, nil
+	it, ok := f.find(serviceId) // como service_catalog: existe = existe Y está activo
+	return ok && it.active, nil
 }
 
 func (f *fakeCatalog) ServiceCard(tenantId, serviceId string) (string, float64, string, bool, error) {
@@ -100,7 +100,7 @@ func (f *fakeCatalog) ServiceCard(tenantId, serviceId string) (string, float64, 
 	}
 	it, ok := f.find(serviceId)
 	if !ok {
-		return "", 0, "", false, wfmt.Err("item not found")
+		return "", 0, "", false, model.NotFound("item not found") // como service_catalog: ErrNotFound con tipo
 	}
 	return it.name, it.price, it.currency, it.active, nil
 }
