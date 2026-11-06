@@ -43,7 +43,7 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	howett.net/plist v1.0.0 // indirect
-	webtyp.com/auth v0.0.102 // indirect
+	webtyp.com/auth v0.0.109 // indirect
 	webtyp.com/await v0.1.2 // indirect
 	webtyp.com/base64 v0.0.6 // indirect
 	webtyp.com/calendar v0.1.0 // indirect
