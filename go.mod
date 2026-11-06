@@ -56,7 +56,7 @@ require (
 	webtyp.com/keyring v0.2.9 // indirect
 	webtyp.com/mcp v0.3.20 // indirect
 	webtyp.com/pwa v0.2.13 // indirect
-	webtyp.com/server v0.2.112 // indirect
+	webtyp.com/server v0.2.113 // indirect
 	webtyp.com/webauthn v0.1.16 // indirect
 )
 
