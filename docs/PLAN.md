@@ -2,8 +2,10 @@
 PLAN: "feat!: paged lists searched on the server (view v0.6.64)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 2059531493205034249
+PR: https://github.com/veltylabs/appointment_booking/pull/26
+REVIEWED_COMMIT: bd008a1a12641b6e208269b47088a1a775c3de18
 ---
 
 > Read AGENTS.md at the repo root before any change.
@@ -168,3 +170,10 @@ grep -rn "List(done func" --include=*.go .     # → empty
 A PR that does not compile, or whose tests could not run, is a failed delivery. Never edit a generated file
 (`model_orm.go`). Commit after every stage; never run `git reset`, `git restore`, `git checkout -- <file>` or
 `git stash` on your own work. Stuck for 30 minutes: open the PR anyway listing what fails.
+
+## Executor notes
+- Added `Page() view.Page` returning `view.Page{First: view.All}` for `reservationLister`, `reservationFormStore` and `employeeServiceConfigLister`.
+- Updated `List` methods on the Listers to accept `args view.ListArgs`.
+- Ignored `args` in the handwritten `List` as the `Page` is `All` for all these listers.
+- There were no `Presenter.Filter` calls to replace.
+- There were no missing translations in English in the modified `lister.go` file.
