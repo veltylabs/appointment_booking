@@ -2,8 +2,10 @@
 PLAN: "feat!: paged lists searched on the server (view v0.6.64)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 2059531493205034249
+PR: https://github.com/veltylabs/appointment_booking/pull/26
+REVIEWED_COMMIT: bd008a1a12641b6e208269b47088a1a775c3de18
 ---
 
 > Read AGENTS.md at the repo root before any change.
