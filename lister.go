@@ -29,7 +29,9 @@ func (l *reservationLister) Records() *view.Records {
 	return l.records
 }
 
-func (l *reservationLister) List(done func([]view.Record, error)) {
+func (l *reservationLister) Page() view.Page { return view.Page{First: view.All} }
+
+func (l *reservationLister) List(args view.ListArgs, done func([]view.Record, error)) {
 	out := &ReservationList{}
 	l.caller.Call(
 		qualifiedOp(OpListReservationsByStaff),
@@ -64,7 +66,9 @@ func (s *reservationFormStore) Records() *view.Records {
 	return s.records
 }
 
-func (s *reservationFormStore) List(done func([]view.Record, error)) {
+func (s *reservationFormStore) Page() view.Page { return view.Page{First: view.All} }
+
+func (s *reservationFormStore) List(args view.ListArgs, done func([]view.Record, error)) {
 	if s.cfg.StaffId == "" {
 		done(nil, nil)
 		return
@@ -198,7 +202,9 @@ func (l *employeeServiceConfigLister) Records() *view.Records {
 	return l.records
 }
 
-func (l *employeeServiceConfigLister) List(done func([]view.Record, error)) {
+func (l *employeeServiceConfigLister) Page() view.Page { return view.Page{First: view.All} }
+
+func (l *employeeServiceConfigLister) List(args view.ListArgs, done func([]view.Record, error)) {
 	out := &EmployeeServiceConfigList{}
 	l.caller.Call(
 		qualifiedOp(OpListEmployeeServiceConfigsByStaff),
