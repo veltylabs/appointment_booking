@@ -2,7 +2,8 @@
 PLAN: "refactor!: appointment_booking on the closed crud contract — server tenant, caller user id, transactional batch, single declarative validation, seed.Demo"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: dispatch
+STATUS: running
+SESSION: 5077271452224787563
 ---
 
 > Read AGENTS.md at the repo root before any change.
