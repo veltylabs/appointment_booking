@@ -1,9 +1,11 @@
+# AGENTS.md
+
 <!-- webtyp:base — copied from devskills skill agents-md; do not edit here -->
 ## Ecosystem rules — read before any change
 
 `docs/PLAN.md` is the spec: no design judgment; anything unclear is a question in the PR, not a guess.
 
-- Public API: typed (no `any`/`interface{}`), explicit, minimal; never export a symbol only a test uses.
+- Public API: typed (no `any`/`interface{}`), explicit, sequential, minimal; no generics (`[T any]`) or `reflect` without benchmarked allocation/performance justification and owner approval; never export a symbol only a test uses.
 - One intent, one path: the old path is deleted in the same change. No silent fallback, `TODO`, commented code or stub.
 - Fail at compile time, else a loud diagnostic — never silently. Zero values deny.
 - A defect in a dependency is reported, never wrapped or patched here.
@@ -19,8 +21,35 @@
 - Before the PR: `git diff --stat main` lists every file of the plan's stages, and nothing the plan did not order is deleted.
 <!-- /webtyp:base -->
 
-## This repo
+## This repo — a veltylabs domain module
 
-- **Zero cross-module imports in any package** (root, `migrate/`, `ui/`, `seed/`, `web/`, `module/`, `tests/`). All contracts required from other modules live in `interfaces.go` at the root of the module using plain types and `webtyp.com/time`.
+A domain module: business rules for one concern, published as its own Go library and assembled by an app under a
+transport, a database and a renderer it never names. These rules apply to every `veltylabs/modules/*` repo.
+
+- **Tables:** each table's `model.Definition` declares `Allow` (`model.Create | model.Read | …`; zero = not offered).
+  `definitionc` generates `Mount<Entity>(reg, store, <Entity>Rules{…})`; `ops.go` calls it once per offered table. The module
+  never writes persistence: id, `tenant_id`, timestamps, the transaction, partial update by `fields`, «not found», paging
+  and schema checks are done by `crud` with the store (`orm.TenantStore(db, tenantID, ids)`, or `orm.GlobalStore` for a
+  table without `tenant_id`). Domain rules live in `rules.go` as per-record hooks (`Create`, `Update(old, next, fields)`,
+  `Delete`, `Search` with AND-only conditions, `Committed` for events after commit).
+- **A resource that lives in another service** (not a table of this module) gets the same `Mount<Entity>` with a
+  `crud.Store` the module writes over that service's API (Repository).
+- **An action with its own permission** (approve, settle, receive stock) is a record **created** in its own table, or a
+  **read model** (no `DB:` marks, `Allow: model.Read`) mounted with `crud.Registry.Read` — never a named operation.
+- **Imports:** webtyp contracts only (`model`, `crud`, `orm`, `storage`, `ddl`, `view`, `events`, `fmt`, `time`, `form/input`,
+  and the pure packages the plan names, e.g. `stock`, `money`, `network`). Never a concrete backend, transport, id
+  generator, encoder or renderer (`webtyp.com/layout`), in any file, tests included.
+- **Modules never import each other.** What a module needs from another it declares as a narrow interface with plain
+  types in its own package; the app wires the real module, tests and the demo wire a fake. Readers other modules call
+  keep their signatures and read through the module's store.
+- **Layout of the repo:** `migrate/` (`Migrate(conn ddl.Execer, c ddl.Compiler) error`, run by the app, never at start);
+  `ui/` (`Screens(...) []view.Screen`, contracts from `view` only); `seed/` (`Load(...)` through the module's own methods,
+  and `Demo() (view.Demo, error)` in `seed/demo.go` with `//go:build wasm` — the webtyp daemon draws it; there is no `web/`).
+- **Tests:** `tests/` (external package), `orm.New(mem.New())`, operations through `crud.LoopbackActingAs("u1", mod)`;
+  a tenant-scoped module carries tenant-isolation tests.
+
+### Domain notes of this module
+
+- **Zero cross-module imports in any package** (root, `migrate/`, `ui/`, `seed/`, `module/`, `tests/`). All contracts required from other modules live in `interfaces.go` at the root of the module using plain types and `webtyp.com/time`.
 - **`webtyp.com/time` is imported without alias (`time`)**: never `tinytime` or `tintime`.
 - **`docs/PLAN_BOOKING_FORMS.md` is a separate parked plan**: ignore it, do not edit or delete it.
