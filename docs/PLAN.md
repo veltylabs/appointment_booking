@@ -2,8 +2,6 @@
 PLAN: "refactor!: appointment_booking on the crud-by-declaration framework — Allow, Rules and ExternalCalls in definition.go, persistence by crud, only domain rules in rule files"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
-SESSION: 5475129104589719818
 ---
 
 > Read AGENTS.md at the repo root before any change.
@@ -12,6 +10,7 @@ SESSION: 5475129104589719818
 > Never run `git reset`, `git restore`, `git checkout -- <file>` or `git stash` on your own work.
 > **Publishing:** you publish only by OPENING THE PULL REQUEST (a `git push` from your sandbox does not reach GitHub). Open it after Stage 3 with whatever compiles and keep committing to it.
 > **Never ask a yes/no question about progress**; ask only when a signature in this plan is wrong, and name the symbol.
+> **Before you submit:** `git status` must be clean and `git diff --stat main` must list the stage files (definition.go, rule_*.go, call_*.go, store.go, module.go, tests, docs). A pull request that carries only go.mod, go.sum or docs/PLAN.md is a failed delivery: if that is what your submit shows, `git add -A`, commit and submit again.
 > Never edit `definition_gen.go`: a build error there means `definition.go`, a rule file or a call file is wrong; fix that and run `definitionc` again.
 
 # Plan: `appointment_booking` on the crud-by-declaration framework
@@ -125,6 +124,13 @@ A read model is a `model.Definition` **without** `DB:` marks, with `Allow: model
 | `list_calendar_closures` | read model `ClosureOption` |
 | `find_booking_patient, register_booking_patient` | **deleted** — the app's screen uses `patient_directory` (D26) |
 | `get_booking_charge, create_booking_counter_payment, start_booking_terminal_payment, refresh_booking_terminal_payment` | **deleted** — the app's screen uses `payment_manager` (D26) |
+
+## Rules learned from the failed sessions of this wave (read before starting)
+
+1. **Do not write, summarize or iterate on a plan.** This index and the stage files are the finished spec. Start Stage 1 now.
+2. **Read files by ranges** (`sed -n 1,80p file`, then `sed -n 81,160p file`); never one huge `cat`: its output is cut.
+3. **A field a rule uses is the one in `definition_gen.go`:** `grep -n "type <Entity> struct" -A25 definition_gen.go`. `ServerOnly` only blocks the CLIENT: a rule may set any field of its receiver and of rows it creates with `tx.Create`. A field that does not exist is a question for the PR (name it), never an invention.
+4. **No python or regex over the source:** edit file by file; `gotest` after each stage.
 
 ## Stages (do them in order; commit after each)
 
