@@ -2,20 +2,18 @@
 PLAN: "refactor!: appointment_booking on the crud-by-declaration framework — Allow, Rules and ExternalCalls in definition.go, persistence by crud, only domain rules in rule files"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
-SESSION: 9181190666820851646
 ---
 
 > Read AGENTS.md at the repo root before any change.
 > **Finish by yourself:** when the delivery check passes, commit, push and open the pull request. Never ask whether to
 > proceed or finalize — nobody answers, and a session that waits ends without your work. Commit after every stage.
 > Never run `git reset`, `git restore`, `git checkout -- <file>` or `git stash` on your own work.
-> **Publishing:** you publish only by OPENING THE PULL REQUEST (a `git push` from your sandbox does not reach GitHub). Open it after Stage 3 with whatever compiles and keep committing to it until Stage 5.
+> **Publishing:** you publish only by OPENING THE PULL REQUEST (a `git push` from your sandbox does not reach GitHub). Open it after Stage 3 with whatever compiles.
 > **Never ask a yes/no question about progress**; ask only when a signature in this plan is wrong, and name the symbol.
 > **Before you submit:** `git status` must be clean and `git diff --stat main` must list the stage files (definition.go, rule_*.go, call_*.go, store.go, module.go, tests, docs). A pull request that carries only go.mod, go.sum or docs/PLAN.md is a failed delivery: if that is what your submit shows, `git add -A`, commit and submit again.
 > Never edit `definition_gen.go`: a build error there means `definition.go`, a rule file or a call file is wrong; fix that and run `definitionc` again.
 
-# Plan: `appointment_booking` on the crud-by-declaration framework
+# Plan (part 1 of 3, Stages 1–3 only): `appointment_booking` on the crud-by-declaration framework
 
 Today 38 operations. D26: the 8 that only forward to `patient_directory` and `payment_manager` are deleted (the app's booking screen uses those modules' tables); the visitor's online flow is one public record, `online_reservation` orchestrated with `ExternalCalls` (D36, D58, D60). Actions with their own permission or that work in batch become records (D18): overbooking, expiring pending reservations, recomputing conflicts. `ReservationForm` is a screen form (not migrated): remove its `DB:` marks; the screen converts it to `Reservation`. The client never sends `creator_user_id` (D9): it is `a.UserID`.
 
@@ -141,9 +139,7 @@ A read model is a `model.Definition` **without** `DB:` marks, with `Allow: model
 | 1 — `definition.go` | [PLAN_STAGE_1_definition_go.md](PLAN_STAGE_1_definition_go.md) |
 | 2 — `module.go` | [PLAN_STAGE_2_module_go.md](PLAN_STAGE_2_module_go.md) |
 | 3 — generate, then write the rules & external calls | [PLAN_STAGE_3_generate_then_write_the_rule.md](PLAN_STAGE_3_generate_then_write_the_rule.md) |
-| 4 — readers used by other modules | [PLAN_STAGE_4_readers_used_by_other_module.md](PLAN_STAGE_4_readers_used_by_other_module.md) |
-| 5 — browser side (D15, D16) | [PLAN_STAGE_5_browser_side.md](PLAN_STAGE_5_browser_side.md) |
 
-## Delivery check (part 1 of 2)
+## Delivery check (part 1 of 3)
 
-This plan is only Stages 1–5; the files `PLAN_STAGE_6_*.md` and later belong to the NEXT plan: ignore them. In this part you ALSO delete every test in `tests/` that calls a method or constant this migration removes (`go vet ./tests/` lists them) together with its row in `docs/TESTS.md`; the new tests are written in part 2. `gotest` passes on every destination (it builds, vets, races and runs every destination) — the root module must compile with no test of the removed code left. A tree that does not compile is a failed delivery. Submit as soon as it is green (git add -A; `git diff --stat main` lists the stage files).
+This plan is only Stages 1–3; `PLAN_STAGE_4_*.md` and later belong to the next plans: ignore them. In this part you ALSO delete every test in `tests/` that calls a method or constant this migration removes (`go vet ./tests/` lists them) together with its row in `docs/TESTS.md`, and the old `ops.go`; the new tests are written in part 3. `ReservationFormModel` is a form projection (no table, no `DB:` marks): keep it OUT of `Definition.Entities`. `gotest` passes on every destination (it builds, vets, races and runs every destination). A tree that does not compile is a failed delivery. Submit the PR as soon as it is green and keep committing (git add -A; `git diff --stat main` lists the stage files).

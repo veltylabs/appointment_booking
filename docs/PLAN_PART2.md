@@ -2,20 +2,18 @@
 PLAN: "refactor!: appointment_booking on the crud-by-declaration framework — Allow, Rules and ExternalCalls in definition.go, persistence by crud, only domain rules in rule files"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
-SESSION: 17191307685571959111
 ---
 
 > Read AGENTS.md at the repo root before any change.
 > **Finish by yourself:** when the delivery check passes, commit, push and open the pull request. Never ask whether to
 > proceed or finalize — nobody answers, and a session that waits ends without your work. Commit after every stage.
 > Never run `git reset`, `git restore`, `git checkout -- <file>` or `git stash` on your own work.
-> **Publishing:** you publish only by OPENING THE PULL REQUEST (a `git push` from your sandbox does not reach GitHub). Open it after Stage 3 with whatever compiles and keep committing to it.
+> **Publishing:** you publish only by OPENING THE PULL REQUEST (a `git push` from your sandbox does not reach GitHub). Open it after Stage 4 with whatever compiles.
 > **Never ask a yes/no question about progress**; ask only when a signature in this plan is wrong, and name the symbol.
 > **Before you submit:** `git status` must be clean and `git diff --stat main` must list the stage files (definition.go, rule_*.go, call_*.go, store.go, module.go, tests, docs). A pull request that carries only go.mod, go.sum or docs/PLAN.md is a failed delivery: if that is what your submit shows, `git add -A`, commit and submit again.
 > Never edit `definition_gen.go`: a build error there means `definition.go`, a rule file or a call file is wrong; fix that and run `definitionc` again.
 
-# Plan (part 2 of 2): `appointment_booking` on the crud-by-declaration framework — tests and documentation
+# Plan (part 2 of 3, Stages 4–5): `appointment_booking` on the crud-by-declaration framework
 
 Today 38 operations. D26: the 8 that only forward to `patient_directory` and `payment_manager` are deleted (the app's booking screen uses those modules' tables); the visitor's online flow is one public record, `online_reservation` orchestrated with `ExternalCalls` (D36, D58, D60). Actions with their own permission or that work in batch become records (D18): overbooking, expiring pending reservations, recomputing conflicts. `ReservationForm` is a screen form (not migrated): remove its `DB:` marks; the screen converts it to `Reservation`. The client never sends `creator_user_id` (D9): it is `a.UserID`.
 
@@ -138,9 +136,9 @@ A read model is a `model.Definition` **without** `DB:` marks, with `Allow: model
 
 | Stage | File |
 |---|---|
-| 6 — tests (`tests/`, through `crud.LoopbackActingAsWithQueue(nil, "u1", &callQueue{}, mod)`; rows in `docs/TESTS.md`) | [PLAN_STAGE_6_tests.md](PLAN_STAGE_6_tests.md) |
-| 7 — translations and documentation (Spanish, veltylabs) | [PLAN_STAGE_7_translations_and_documentati.md](PLAN_STAGE_7_translations_and_documentati.md) |
+| 4 — readers used by other modules | [PLAN_STAGE_4_readers_used_by_other_module.md](PLAN_STAGE_4_readers_used_by_other_module.md) |
+| 5 — browser side (D15, D16) | [PLAN_STAGE_5_browser_side.md](PLAN_STAGE_5_browser_side.md) |
 
-## Delivery check (part 2 of 2)
+## Delivery check (part 2 of 3)
 
-Part 1 is already merged: `git pull` first. Stages 1–5 are DONE; do only the stages of this plan's table. `gotest` passes on every destination, `langc sync .` is clean, every test row exists in `docs/TESTS.md`. Submit as soon as it is green (git add -A; `git diff --stat main` lists the stage files).
+Part 1 is merged: `git pull` first. Stages 1–3 are DONE (definition.go, module.go, rules and calls exist and compile). Do only Stages 4–5 (readers other modules use; browser side: `view.go`, `ui/`, demo `seed/demo.go` with `func Demo() view.Demo` copying `../clinical_encounter/seed/demo.go` and `../clinical_encounter/ui/browser.go`; the seed creates rows through `crud.LoopbackActingAs(nil, "seed", m)`; no `web/browser/main.go` in this wave). `gotest` passes on every destination (it builds, vets, races and runs every destination). A tree that does not compile is a failed delivery. Submit the PR as soon as it is green and keep committing (git add -A; `git diff --stat main` lists the stage files).
