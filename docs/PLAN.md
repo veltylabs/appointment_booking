@@ -2,6 +2,8 @@
 PLAN: "refactor!: appointment_booking on the crud-by-declaration framework — Allow, Rules and ExternalCalls in definition.go, persistence by crud, only domain rules in rule files"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 17191307685571959111
 ---
 
 > Read AGENTS.md at the repo root before any change.
