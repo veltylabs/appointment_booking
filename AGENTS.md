@@ -26,16 +26,9 @@
 A domain module: business rules for one concern, published as its own Go library and assembled by an app under a
 transport, a database and a renderer it never names. These rules apply to every `veltylabs/modules/*` repo.
 
-- **Tables:** each table's `model.Definition` declares `Allow` (`model.Create | model.Read | …`; zero = not offered).
-  `definitionc` generates `Mount<Entity>(reg, store, <Entity>Rules{…})`; `ops.go` calls it once per offered table. The module
-  never writes persistence: id, `tenant_id`, timestamps, the transaction, partial update by `fields`, «not found», paging
-  and schema checks are done by `crud` with the store (`orm.TenantStore(db, tenantID, ids)`, or `orm.GlobalStore` for a
-  table without `tenant_id`). Domain rules live in `rules.go` as per-record hooks (`Create`, `Update(old, next, fields)`,
-  `Delete`, `Search` with AND-only conditions, `Committed` for events after commit).
-- **A resource that lives in another service** (not a table of this module) gets the same `Mount<Entity>` with a
-  `crud.Store` the module writes over that service's API (Repository).
-- **An action with its own permission** (approve, settle, receive stock) is a record **created** in its own table, or a
-  **read model** (no `DB:` marks, `Allow: model.Read`) mounted with `crud.Registry.Read` — never a named operation.
+- **Tables:** each table's `model.Definition` declares `Allow` (`model.Create | model.Read | …`; zero = not offered) and `Rules` (`model.AddMyBusinessRule` or `model.HaveNoBusinessRule` per action). `definitionc` writes `definition_gen.go` with `MountOperations(reg crud.Registry)` and, once, one skeleton `rule_<entity>_<verb>.go` per rule (and `call_<entity>_<call>.go` per external call); there is no `ops.go`. The module never writes persistence: id, `tenant_id`, timestamps, the transaction, partial update by `fields`, «not found», paging and schema checks are done by `crud` with the store (`orm.TenantStore(db, tenantID, ids)`, or `orm.GlobalStore`). A rule ends with `return crud.ApplyAndPublish(), nil`; there is no `Committed` hook.
+- **A resource that lives in another service** (not a table of this module) gets a `crud.Store` the module writes over that service's API (Repository), declared in `Definition` like any table.
+- **An action with its own permission** (approve, settle, receive stock) is a record **created** in its own table, or a **read model** (no `DB:` marks, `Allow: model.Read`, `Rules.Read: model.AddMyBusinessRule`) — never a named operation.
 - **Imports:** webtyp contracts only (`model`, `crud`, `orm`, `storage`, `ddl`, `view`, `events`, `fmt`, `time`, `form/input`,
   and the pure packages the plan names, e.g. `stock`, `money`, `network`). Never a concrete backend, transport, id
   generator, encoder or renderer (`webtyp.com/layout`), in any file, tests included.
@@ -45,7 +38,7 @@ transport, a database and a renderer it never names. These rules apply to every 
 - **Layout of the repo:** `migrate/` (`Migrate(conn ddl.Execer, c ddl.Compiler) error`, run by the app, never at start);
   `ui/` (`Screens(...) []view.Screen`, contracts from `view` only); `seed/` (`Load(...)` through the module's own methods,
   and `Demo() (view.Demo, error)` in `seed/demo.go` with `//go:build wasm` — the webtyp daemon draws it; there is no `web/`).
-- **Tests:** `tests/` (external package), `orm.New(mem.New())`, operations through `crud.LoopbackActingAs("u1", mod)`;
+- **Tests:** `tests/` (external package), `orm.New(mem.New())`, operations through `crud.LoopbackActingAs(nil, "u1", mod)` (`LoopbackActingAsWithQueue` when the module declares external calls);
   a tenant-scoped module carries tenant-isolation tests.
 
 ### Domain notes of this module
