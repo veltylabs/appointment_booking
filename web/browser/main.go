@@ -6,7 +6,7 @@ import (
 	"webtyp.com/fmt"
 	"webtyp.com/layout/platformd"
 	"webtyp.com/orm"
-	"webtyp.com/router/loopback"
+	"webtyp.com/router/mock"
 	"webtyp.com/storage/mem"
 	"webtyp.com/time"
 	"webtyp.com/unixid"
@@ -126,7 +126,7 @@ func main() {
 		PatientIDs: []string{"pat-1", "pat-2"},
 	})
 
-	caller := loopback.WithTenant(demoTenantID, abMod)
+	caller := crud.LoopbackActingAsWithQueue(demoTenantID, abMod)
 	screens := ui.Screens(caller, zone, ids, demoTenantID)
 
 	p := &platformd.Platform{

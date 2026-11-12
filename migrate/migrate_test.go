@@ -5,6 +5,7 @@ import (
 
 	"webtyp.com/ddl"
 	"webtyp.com/model"
+	"webtyp.com/storage"
 
 	appointmentbooking "github.com/veltylabs/appointment_booking"
 	"github.com/veltylabs/appointment_booking/migrate"
@@ -12,9 +13,9 @@ import (
 
 type dummyExecer struct{ calls []string }
 
-func (d *dummyExecer) Exec(query string, args ...any) error {
+func (d *dummyExecer) Exec(query string, args ...any) (storage.Result, error) {
 	d.calls = append(d.calls, query)
-	return nil
+	return nil, nil
 }
 
 type dummyCompiler struct{}
