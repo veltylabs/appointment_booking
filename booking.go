@@ -250,7 +250,7 @@ func (m *Module) ConfirmPaidReservation(tenantId, reservationId, paymentId strin
 	if err != nil {
 		return err
 	}
-	paid, currency, err := m.payments.PaidAmount(tenantId, paymentId, ModelName, reservationId)
+	paid, currency, err := m.payments.PaidAmount(tenantId, paymentId, "appointment_booking", reservationId)
 	if err != nil || currency != res.CurrencySnapshot || paid < price { // F4
 		return ErrPaymentNotVerified
 	}
