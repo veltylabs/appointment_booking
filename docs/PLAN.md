@@ -2,8 +2,10 @@
 PLAN: "refactor!: appointment_booking on the crud-by-declaration framework — Allow, Rules and ExternalCalls in definition.go, persistence by crud, only domain rules in rule files"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 14359532018638684185
+PR: https://github.com/veltylabs/appointment_booking/pull/27
+REVIEWED_COMMIT: 81e5e5188e583440bec97258e64284d2d00fa2a4
 ---
 
 > Read AGENTS.md at the repo root before any change.
