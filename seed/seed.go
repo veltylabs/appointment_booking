@@ -144,7 +144,7 @@ func Load(m *ab.Module, tenantID string, up LoadOptions) (Data, error) {
 			TenantId:                tenantID,
 			ClientId:                patient1ID,
 			EmployeeServiceConfigId: data.ServiceConfigs[0].Id,
-			SlotStartUtc:            slotStartUtc,
+			SlotTimeUtc:            slotStartUtc,
 			Origin:                  ab.OriginCounter,
 		})
 		if lastErr == nil {
@@ -178,7 +178,7 @@ func Load(m *ab.Module, tenantID string, up LoadOptions) (Data, error) {
 		TenantId:                tenantID,
 		ClientId:                patient2ID,
 		EmployeeServiceConfigId: data.ServiceConfigs[0].Id,
-		SlotStartUtc:            slotStartUtc2,
+		SlotTimeUtc:            slotStartUtc2,
 		Origin:                  ab.OriginCounter,
 	})
 	if err != nil {

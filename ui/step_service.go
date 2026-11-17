@@ -45,8 +45,7 @@ func (s *stepServicePicker) load() {
 	s.errMsg.Set("")
 	s.body.Set(nil)
 	list := ab.BookableServiceList{}
-	s.f.caller.Call(ab.ModelName+"."+ab.OpListBookableServices,
-		&ab.ListBookableServicesArgs{TenantId: s.f.tenantID}, &list,
+	readFiltered(s.f.caller, &ab.BookableService{}, &ab.BookableService{}, &list,
 		func(err error) {
 			if err != nil { // U1-sí
 				s.errMsg.Set(err.Error())

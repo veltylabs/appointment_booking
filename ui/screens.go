@@ -4,8 +4,6 @@ import (
 	ab "github.com/veltylabs/appointment_booking"
 	"webtyp.com/lang"
 	"webtyp.com/model"
-	"webtyp.com/router"
-	"webtyp.com/time"
 	"webtyp.com/view"
 )
 
@@ -23,14 +21,20 @@ const (
 	descServicesConfig lang.Text = "Configuración de servicios, duración y precios por profesional."
 )
 
-// Screens declara las pantallas que este módulo ofrece al menú de la app.
-func Screens(caller router.Caller, zone time.Zone, ids model.IDGenerator, tenantID string) []view.Screen {
+// Screens declara las pantallas que este módulo ofrece al menú de la app. El tenant lo pone el servidor en cada
+// operación: las pantallas no lo envían. Los pasos «paciente» y «cobro» de la reserva de mesón son de otros módulos:
+// la app los arma y los pasa en steps (los dos son obligatorios).
+func Screens(d view.BrowserDeps, steps Steps) []view.Screen {
+	if steps.Patient == nil || steps.Payment == nil {
+		panic("appointment_booking/ui: Screens: Steps.Patient and Steps.Payment are required — the app builds them from patient_directory/ui and payment_manager/ui")
+	}
+	caller, zone, ids := d.Caller, d.Zone, d.IDs
 	scheduleScreen := view.Screen{
 		ID:         PersonalID + "." + tabSchedule,
 		Label:      lang.Text(labelSchedule),
 		Icon:       PersonalID,
 		Permission: model.ResourceOf(&ab.WorkCalendarConfigModel),
-		Component:  NewScheduleView(caller, zone, tenantID),
+		Component:  NewScheduleView(caller, zone, ids),
 		Help:       descSchedule,
 	}
 
@@ -39,7 +43,7 @@ func Screens(caller router.Caller, zone time.Zone, ids model.IDGenerator, tenant
 		Label:      lang.Text(labelServices),
 		Icon:       PersonalID,
 		Permission: model.ResourceOf(&ab.EmployeeServiceConfigModel),
-		Component:  NewServiceConfigView(caller, tenantID),
+		Component:  NewServiceConfigView(caller),
 		Help:       descServicesConfig,
 	}
 
@@ -56,7 +60,7 @@ func Screens(caller router.Caller, zone time.Zone, ids model.IDGenerator, tenant
 		Label:      lang.Text(NavLabel),
 		Icon:       ID,
 		Permission: model.ResourceOf(&ab.ReservationModel),
-		Component:  NewBookingView(caller, zone, ids, tenantID),
+		Component:  NewBookingView(caller, zone, ids, steps),
 		Help:       descBooking,
 	}
 
@@ -64,8 +68,8 @@ func Screens(caller router.Caller, zone time.Zone, ids model.IDGenerator, tenant
 		ID:         OnlineID,
 		Label:      lang.Text(OnlineLabel),
 		Icon:       ID,
-		Permission: ab.ResourceReservationOnline,
-		Component:  newBookingFlow(caller, zone, ids, tenantID, true),
+		Permission: model.ResourceOf(&ab.OnlineReservationModel),
+		Component:  newBookingFlow(caller, zone, ids, Steps{}, true),
 		Help:       descOnline,
 	}
 

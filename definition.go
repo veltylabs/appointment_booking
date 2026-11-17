@@ -20,24 +20,33 @@ const (
 	MaxOnlineHolds                 = 2   // retenciones online activas por paciente
 )
 
-var (
-	ResourceBookingCatalog    = model.FeatureResource("booking_catalog")    // lecturas del flujo online
-	ResourceReservationOnline = model.FeatureResource("reservation_online") // crear reserva online
-	ResourceOverbooking       = model.FeatureResource("overbooking")
+// Estados de una reserva online (OnlineReservation.Status).
+const (
+	OnlinePending = "pending" // la hora está retenida; falta resolver al paciente y el cobro
+	OnlineDone    = "done"    // paciente resuelto y, si hay pasarela, el cobro iniciado
 )
 
+// Definition es lo que el módulo declara: sus tablas y modelos de lectura. La app lo lista en App.Modules.
+var Definition = model.ModuleDefinition{
+	Name: "appointment_booking",
+	Entities: []model.Definition{
+		EmployeeServiceConfigModel, WorkCalendarConfigModel, WorkCalendarBlockModel, WorkCalendarExceptionModel,
+		ReservationModel, ReservationOverbookingModel, OnlineReservationModel, ReservationExpiryModel, ConflictRecomputeModel,
+		BookableServiceModel, BookableSlotModel, TimeSlotModel, DayLimitsModel, ConflictingReservationModel,
+		StaffOptionModel, ClosureOptionModel,
+	},
+}
+
 // EmployeeServiceConfigModel: que servicios realiza un profesional, durante cuanto
-// tiempo y a que precio. La política de widgets es POR ROL, la misma regla que cada
-// modelo de transporte a continuación: input.X() en cada campo que edita una persona.
-// A diferencia de Reservation, esta tabla NO lleva campos solo de auditoría para proteger de
-// convertirse en editable en un formulario — cada columna excepto id/tenant_id es legítimamente
-// orientada al usuario, por lo que los widgets van directamente en el modelo persistido; no hay
-// proyección de formulario separada.
+// tiempo y a que precio. Cada columna excepto id/tenant_id es legítimamente
+// orientada al usuario, por lo que los widgets van directamente en el modelo persistido.
 var EmployeeServiceConfigModel = model.Definition{
-	Name: "employee_service_config",
+	Name:  "employee_service_config",
+	Allow: model.Create | model.Read | model.Update,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.AddMyBusinessRule, Update: model.AddMyBusinessRule},
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "staff_id", Type: input.Text(), NotNull: true, Item: model.ItemDescription},
 		{Name: "service_id", Type: input.Text(), NotNull: true, Item: model.ItemLabel},
 		{Name: "duration_min", Type: input.Number()},
@@ -49,13 +58,15 @@ var EmployeeServiceConfigModel = model.Definition{
 }
 
 var WorkCalendarConfigModel = model.Definition{
-	Name: "work_calendar_config",
+	Name:  "work_calendar_config",
+	Allow: model.Create | model.Read | model.Update,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.AddMyBusinessRule, Update: model.AddMyBusinessRule},
 	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
 		{Name: "is_active", Type: model.Bool()},
-		{Name: "max_overbook_per_day", Type: model.Int(), NotNull: true},
+		{Name: "max_overbook_per_day", Type: model.Int(), OmitEmpty: true},
 	},
 }
 
@@ -74,24 +85,28 @@ var WorkCalendarConfigModel = model.Definition{
 // weekday. That is what lets an irregular professional mark the days they
 // work with no weekly template at all.
 var WorkCalendarBlockModel = model.Definition{
-	Name: "work_calendar_block",
+	Name:  "work_calendar_block",
+	Allow: model.Create | model.Read | model.Update | model.Delete,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.AddMyBusinessRule, Update: model.AddMyBusinessRule, Delete: model.AddMyBusinessRule},
 	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
-		{Name: "day_of_week", Type: model.Int(), NotNull: true},        // 0..6, meaningful when specific_date == 0
-		{Name: "specific_date", Type: model.UnixTime(), NotNull: true}, // 0 = weekly; else midnight UTC seconds
-		{Name: "start_min", Type: model.Int(), NotNull: true},          // minutes from midnight
+		{Name: "day_of_week", Type: model.Int(), OmitEmpty: true},     // 0..6, meaningful when specific_date == 0
+		{Name: "specific_date", Type: model.UnixTime(), OmitEmpty: true}, // 0 = weekly; else midnight UTC seconds
+		{Name: "start_min", Type: model.Int(), OmitEmpty: true},        // minutes from midnight
 		{Name: "end_min", Type: model.Int(), NotNull: true},
-		{Name: "is_active", Type: model.Bool(), NotNull: true},
+		{Name: "is_active", Type: model.Bool(), OmitEmpty: true},
 	},
 }
 
 var WorkCalendarExceptionModel = model.Definition{
-	Name: "work_calendar_exception",
+	Name:  "work_calendar_exception",
+	Allow: model.Create | model.Read | model.Delete,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.AddMyBusinessRule, Delete: model.AddMyBusinessRule},
 	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "staff_id", Type: model.Text(), NotNull: true},
 		{Name: "specific_date", Type: model.UnixTime()},
 		{Name: "exception_type", Type: model.Text()},
@@ -104,59 +119,53 @@ var WorkCalendarExceptionModel = model.Definition{
 // NOTA: "staff_idsnapshot" / "service_idsnapshot" preservan EXACTAMENTE el nombre de columna
 // actual (irregularidad histórica, sin guión bajo) — NO renombrar la columna, la tabla ya existe
 // con ese nombre en producción.
+//
+// La persona que reserva envía el cliente, el servicio, la hora y las notas; todo lo demás lo pone
+// el servidor (ServerOnly): quién la creó, las instantáneas de precio y duración, el estado antes
+// de un conflicto y las marcas de auditoría. El estado solo cambia por la máquina de estados (Update).
 var ReservationModel = model.Definition{
-	Name: "reservation",
+	Name:  "reservation",
+	Allow: model.Create | model.Read | model.Update,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.HaveNoBusinessRule, Update: model.AddMyBusinessRule},
 	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}},
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "client_id", Type: model.Text(), NotNull: true, Item: model.ItemLabel},
-		{Name: "creator_user_id", Type: model.Text()},
+		{Name: "creator_user_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
 		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true, Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
-		{Name: "staff_idsnapshot", Type: model.Text()},
-		{Name: "service_idsnapshot", Type: model.Text()},
-		{Name: "duration_min_snapshot", Type: model.Int()},
-		{Name: "price_snapshot", Type: model.Float()},
-		{Name: "currency_snapshot", Type: model.Text()},
+		{Name: "staff_idsnapshot", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "service_idsnapshot", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "duration_min_snapshot", Type: model.Int(), OmitEmpty: true, ServerOnly: true},
+		{Name: "price_snapshot", Type: model.Float(), OmitEmpty: true, ServerOnly: true},
+		{Name: "currency_snapshot", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
 		{Name: "reservation_time", Type: model.Int(), Item: model.ItemBadge},
-		// status: valores válidos = las constantes FSM exportadas de fsm.go/service.go — los
+		// status: valores válidos = las constantes FSM exportadas de fsm.go — los
 		// literales viven SOLO en esas constantes (regla anti magic-string, ver service_catalog).
-		{Name: "status", Type: model.Text(), NotNull: true},
-		{Name: "origin", Type: model.Text(), NotNull: true},
-		{Name: "rescheduled_from_id", Type: model.Text(), DB: &model.FieldDB{RefColumn: "id"}},
+		// En Create la regla lo fija (PENDING o CONFIRMED); en Update es el único campo que cambia.
+		{Name: "status", Type: model.Text(), OmitEmpty: true},
+		{Name: "origin", Type: model.Text(), OmitEmpty: true},
+		{Name: "rescheduled_from_id", Type: model.Text(), OmitEmpty: true, DB: &model.FieldDB{RefColumn: "id"}},
 		// status_before_conflict: el estado anterior cuando Status == CONFLICTED —
-		// es la columna del campo StatusBeforeConflict del struct generado: se
-		// escribe al entrar en conflicto y se limpia al salir. Sin él,
+		// se escribe al entrar en conflicto y se limpia al salir. Sin él,
 		// "des-conflictear" tendría que adivinar entre PENDING y CONFIRMED, y
 		// adivinar convierte una reserva confirmada en pendiente a espaldas del
-		// paciente (ver PLAN §8.5).
-		{Name: "status_before_conflict", Type: model.Text()},
-		{Name: "payment_id", Type: model.Text()},
-		{Name: "hold_until", Type: model.UnixTime(), OmitEmpty: true},
-		{Name: "notes", Type: model.Text()},
-		{Name: "overbooked", Type: model.Bool(), NotNull: true},
-		{Name: "updated_at", Type: model.NanoTime()},
-		{Name: "updated_by", Type: model.Text()},
-		{Name: "revision", Type: model.Int()},
+		// paciente.
+		{Name: "status_before_conflict", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "payment_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "hold_until", Type: model.UnixTime(), OmitEmpty: true, ServerOnly: true},
+		{Name: "notes", Type: model.Text(), OmitEmpty: true},
+		{Name: "overbooked", Type: model.Bool(), ServerOnly: true},
+		{Name: "updated_at", Type: model.NanoTime(), OmitEmpty: true, ServerOnly: true},
+		{Name: "updated_by", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "revision", Type: model.Int(), OmitEmpty: true},
 	},
 }
 
-// ReservationFormModel es la PROYECCIÓN DE FORMULARIO de una reserva: los seis
-// valores que una persona realmente completa o lee al reservar en un mostrador.
-// NO es una tabla — nunca se pasa a migrate.Migrate, y `migrate/migrate.go` crea
-// exactamente cinco tablas, ninguna de ellas esta.
-//
-// Existe porque los campos de ReservationModel usan tipos base (model.Text() y
-// similares) a propósito: es una fila de BD, y webtyp/form omite cualquier campo
-// cuyo Type no sea input.Input. Un formulario construido sobre Reservation no
-// renderizaría nada. Los dos tipos se mantienen separados en lugar de fusionarse
-// para que los campos de auditoría de una reserva (instantáneas, revisión,
-// status_before_conflict, rescheduled_from_id) nunca emerjan como entradas editables.
-//
-// La política de widgets es POR ROL, la misma regla que siguen los modelos de transporte:
-// input.X() solo en lo que una persona edita; un tipo base en lo que se muestra y
-// nunca se escribe. Por lo tanto, status es model.Text(): se muestra en la lista
-// y no es accesible desde el formulario, porque status solo cambia a través del FSM
-// (ChangeReservationStatus).
+// ReservationFormModel es la PROYECCIÓN DE FORMULARIO de una reserva: los valores que una persona
+// completa o lee al reservar en un mostrador. No es tabla ni se lista en Entities: la pantalla la
+// convierte a Reservation. Existe porque los campos de ReservationModel usan tipos base
+// (model.Text()) a propósito —es una fila de BD— y webtyp/form omite cualquier campo que no sea
+// input.Input. Se mantiene separada para que los campos de auditoría nunca salgan como entradas editables.
 var ReservationFormModel = model.Definition{
 	Name: "reservation_form",
 	Fields: model.Fields{
@@ -171,433 +180,197 @@ var ReservationFormModel = model.Definition{
 	},
 }
 
-// Las 12 Definitions de abajo son transport-only. Política de widgets POR ROL (no "lo que el
-// model_orm.go viejo tuviera" — ese archivo ponía widget en todo campo transport, un defecto que
-// esta migración corrige): input.X() SOLO en campos que un usuario edita en un form; kinds base
-// (model.X()) en campos machine-supplied (tenant_id) y en modelos de SALIDA (TimeSlot es
-// resultado de list_availability — nunca se renderiza como form editable). No dejes caer un
-// widget de un campo genuinamente editable: form.New() saldría vacío en silencio.
-
-var TimeSlotModel = model.Definition{
-	Name: "time_slot",
+// ReservationOverbookingModel es el sobrecupo: una reserva sobre un horario ya ocupado. Tiene su
+// propio permiso (antes ResourceOverbooking): quien puede reservar no puede sobrecupar por eso.
+// Crearlo escribe la Reservation y guarda su id en reservation_id.
+var ReservationOverbookingModel = model.Definition{
+	Name:  "reservation_overbooking",
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.HaveNoBusinessRule},
 	Fields: model.Fields{
-		{Name: "start_utc", Type: model.UnixTime()},
-		{Name: "end_utc", Type: model.UnixTime()},
-	},
-}
-
-var CreateReservationArgsModel = model.Definition{
-	Name: "create_reservation_args",
-	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "client_id", Type: model.Text()},
-		{Name: "creator_user_id", Type: model.Text()},
-		{Name: "employee_service_config_id", Type: model.Text(), Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
-		{Name: "slot_start_utc", Type: model.UnixTime()},
-		{Name: "notes", Type: model.Text()},
-		{Name: "rescheduled_from_id", Type: model.Text(), DB: &model.FieldDB{RefColumn: "id"}},
-		{Name: "origin", Type: model.Text()},
-	},
-}
-
-var CreateOverbookingArgsModel = model.Definition{
-	Name: "create_overbooking_args",
-	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "client_id", Type: model.Text()},
-		{Name: "creator_user_id", Type: model.Text()},
-		{Name: "employee_service_config_id", Type: model.Text(), Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
-		{Name: "slot_start_utc", Type: model.UnixTime()},
-		{Name: "notes", Type: model.Text()},
-		{Name: "rescheduled_from_id", Type: model.Text(), DB: &model.FieldDB{RefColumn: "id"}},
-		{Name: "origin", Type: model.Text()},
-	},
-}
-
-var GetReservationArgsModel = model.Definition{
-	Name: "get_reservation_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "id", Type: input.Text()},
-	},
-}
-
-var ListReservationsByStaffArgsModel = model.Definition{
-	Name: "list_reservations_by_staff_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "from", Type: input.Number()},
-		{Name: "to", Type: input.Number()},
-	},
-}
-
-var CreateEmployeeServiceConfigArgsModel = model.Definition{
-	Name: "create_employee_service_config_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "service_id", Type: input.Text()},
-		{Name: "duration_min", Type: input.Number()},
-		{Name: "buffer_min", Type: input.Number()},
-		{Name: "price_override", Type: input.Decimal()},
-		{Name: "payment_required", Type: input.Checkbox()},
-	},
-}
-
-var GetEmployeeServiceConfigArgsModel = model.Definition{
-	Name: "get_employee_service_config_args",
-	Fields: model.Fields{
-		{Name: "id", Type: model.Text()}, // machine-supplied — never a form input
-	},
-}
-
-var ListEmployeeServiceConfigsByStaffArgsModel = model.Definition{
-	Name: "list_employee_service_configs_by_staff_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-	},
-}
-
-var ListReservationsByClientArgsModel = model.Definition{
-	Name: "list_reservations_by_client_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "client_id", Type: input.Text()},
-	},
-}
-
-var ChangeReservationStatusArgsModel = model.Definition{
-	Name: "change_reservation_status_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "id", Type: input.Text()},
-		{Name: "event", Type: input.Text()},
-		{Name: "actor_id", Type: input.Text()},
-		{Name: "payment_id", Type: input.Text()},
-		{Name: "revision", Type: input.Number()},
-	},
-}
-
-var ExpirePendingReservationsArgsModel = model.Definition{
-	Name: "expire_pending_reservations_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "before", Type: input.Number()},
-	},
-}
-
-var UpsertCalendarConfigArgsModel = model.Definition{
-	Name: "upsert_calendar_config_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "is_active", Type: input.Checkbox()},
-		{Name: "max_overbook_per_day", Type: input.Number()},
-	},
-}
-
-var GetCalendarConfigArgsModel = model.Definition{
-	Name: "get_calendar_config_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-	},
-}
-
-var SaveDayBlocksArgsModel = model.Definition{
-	Name: "save_day_blocks_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "day_of_week", Type: input.Number()},
-		{Name: "blocks", Type: model.StructSlice(&WorkCalendarBlockModel)},
-	},
-}
-
-var SaveDateBlocksArgsModel = model.Definition{
-	Name: "save_date_blocks_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "specific_date", Type: input.Number()},
-		{Name: "blocks", Type: model.StructSlice(&WorkCalendarBlockModel)},
-	},
-}
-
-var MarkWorkingDaysArgsModel = model.Definition{
-	Name: "mark_working_days_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "dates", Type: model.IntSlice()}, // midnight UTC seconds
-		{Name: "start_min", Type: input.Number()},
-		{Name: "end_min", Type: input.Number()},
-	},
-}
-
-var UnmarkWorkingDaysArgsModel = model.Definition{
-	Name: "unmark_working_days_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "dates", Type: model.IntSlice()}, // midnight UTC seconds
-	},
-}
-
-var ListBlocksArgsModel = model.Definition{
-	Name: "list_blocks_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-	},
-}
-
-var GetDayLimitsArgsModel = model.Definition{
-	Name: "get_day_limits_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "date", Type: input.Number()},    // midnight UTC seconds
-	},
-}
-
-var ListConflictingReservationsArgsModel = model.Definition{
-	Name: "list_conflicting_reservations_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "from", Type: input.Number()},
-	},
-}
-
-var RecomputeConflictsArgsModel = model.Definition{
-	Name: "recompute_conflicts_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "from", Type: input.Number()},
-		{Name: "to", Type: input.Number()}, // 0 = módulo completo (el propio forward horizon)
-	},
-}
-
-// ConflictingReservationModel es transport-only (salida de
-// list_conflicting_reservations / recompute_conflicts) — nunca se renderiza
-// como form editable.
-var ConflictingReservationModel = model.Definition{
-	Name: "conflicting_reservation",
-	Fields: model.Fields{
-		{Name: "reservation_id", Type: model.Text()},
-		{Name: "starts_at", Type: model.UnixTime()},
-		{Name: "client_id", Type: model.Text()},
-		{Name: "reason", Type: model.Text()}, // "OUTSIDE_BLOCKS" | "DAY_CLOSED" | "OUTSIDE_BUSINESS_HOURS"
-	},
-}
-
-// DayLimitsResultModel es transport-only (salida de get_day_limits) — la
-// proyección encodable de time.DayLimits para que el editor acote sus controles
-// (§6.2). time.DayLimits NO es model.Encodable, así que se cruza por esta
-// forma.
-var DayLimitsResultModel = model.Definition{
-	Name: "day_limits_result",
-	Fields: model.Fields{
-		{Name: "open", Type: model.Bool()},
-		{Name: "open_min", Type: model.Int()},
-		{Name: "close_min", Type: model.Int()},
-	},
-}
-
-var AddCalendarExceptionArgsModel = model.Definition{
-	Name: "add_calendar_exception_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "specific_date", Type: input.Number()},
-		{Name: "exception_type", Type: input.Text()},
-		{Name: "start_time", Type: input.Number()},
-		{Name: "end_time", Type: input.Number()},
-		{Name: "notes", Type: input.Text()},
-	},
-}
-
-var RemoveCalendarExceptionArgsModel = model.Definition{
-	Name: "remove_calendar_exception_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "exception_id", Type: input.Text()},
-	},
-}
-
-var ListAvailabilityArgsModel = model.Definition{
-	Name: "list_availability_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "config_id", Type: input.Text()},
-		{Name: "from", Type: input.Number()},
-		{Name: "to", Type: input.Number()},
-	},
-}
-
-var ListExceptionsArgsModel = model.Definition{
-	Name: "list_exceptions_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()}, // machine-supplied — never a form input
-		{Name: "staff_id", Type: input.Text()},
-		{Name: "from", Type: input.Number()},
-		{Name: "to", Type: input.Number()},
-	},
-}
-
-var ListBookableServicesArgsModel = model.Definition{
-	Name: "list_bookable_services_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "specialty", Type: model.Text()},
-	},
-}
-
-var BookableServiceModel = model.Definition{
-	Name: "bookable_service",
-	Fields: model.Fields{
-		{Name: "config_id", Type: model.Text()},
-		{Name: "staff_id", Type: model.Text()},
-		{Name: "staff_name", Type: model.Text()},
-		{Name: "specialty", Type: model.Text()},
-		{Name: "service_id", Type: model.Text()},
-		{Name: "service_name", Type: model.Text()},
-		{Name: "duration_min", Type: model.Int()},
-		{Name: "price", Type: model.Float()},
-		{Name: "currency", Type: model.Text()},
-		{Name: "payment_required", Type: model.Bool()},
-	},
-}
-
-var ListServiceAvailabilityArgsModel = model.Definition{
-	Name: "list_service_availability_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "service_id", Type: model.Text(), NotNull: true},
-		{Name: "staff_id", Type: model.Text()},
-		{Name: "from", Type: model.Int(), NotNull: true},
-		{Name: "to", Type: model.Int(), NotNull: true},
-		{Name: "include_taken", Type: model.Bool()},
-	},
-}
-
-var BookableSlotModel = model.Definition{
-	Name: "bookable_slot",
-	Fields: model.Fields{
-		{Name: "start_utc", Type: model.UnixTime()},
-		{Name: "end_utc", Type: model.UnixTime()},
-		{Name: "staff_id", Type: model.Text()},
-		{Name: "config_id", Type: model.Text()},
-		{Name: "taken", Type: model.Bool()},
-	},
-}
-
-var CreateOnlineReservationArgsModel = model.Definition{
-	Name: "create_online_reservation_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "client_id", Type: model.Text(), NotNull: true},
 		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true, Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
-		{Name: "slot_start_utc", Type: model.UnixTime(), NotNull: true},
-		{Name: "notes", Type: model.Text()},
+		{Name: "slot_time_utc", Type: model.UnixTime(), NotNull: true},
+		{Name: "notes", Type: model.Text(), OmitEmpty: true},
+		{Name: "reservation_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "actor_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "created_at", Type: model.NanoTime(), OmitEmpty: true, ServerOnly: true},
 	},
 }
 
-var ListStaffOptionsArgsModel = model.Definition{
-	Name: "list_staff_options_args",
+// OnlineReservationModel es el pedido del visitante: es público (la app lo abre en Backend.Public con
+// Create y Read). Crearlo retiene la hora; la llamada externa Process resuelve al paciente por su
+// documento y empieza el cobro, todo en la misma petición.
+var OnlineReservationModel = model.Definition{
+	Name:  "online_reservation",
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.HaveNoBusinessRule},
 	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()},
-	},
-}
-
-var StaffOptionModel = model.Definition{
-	Name: "staff_option",
-	Fields: model.Fields{
-		{Name: "id", Type: model.Text()},
-		{Name: "name", Type: model.Text()},
-	},
-}
-
-var ListCalendarClosuresArgsModel = model.Definition{
-	Name: "list_calendar_closures_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()},
-		{Name: "from", Type: model.Int()},
-		{Name: "to", Type: model.Int()},
-	},
-}
-
-var CalendarClosureModel = model.Definition{
-	Name: "calendar_closure",
-	Fields: model.Fields{
-		{Name: "date", Type: model.Text()},
-		{Name: "is_holiday", Type: model.Bool()},
-	},
-}
-
-var FindBookingPatientArgsModel = model.Definition{
-	Name: "find_booking_patient_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()},
-		{Name: "document_number", Type: model.Text(), NotNull: true},
-	},
-}
-
-var BookingPatientModel = model.Definition{
-	Name: "booking_patient",
-	Fields: model.Fields{
-		{Name: "id", Type: model.Text()},
-		{Name: "tenant_id", Type: model.Text()},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
+		{Name: "employee_service_config_id", Type: model.Text(), NotNull: true, Ref: &EmployeeServiceConfigModel, DB: &model.FieldDB{RefColumn: "id"}},
+		{Name: "slot_time_utc", Type: model.UnixTime(), NotNull: true},
 		{Name: "document_number", Type: model.Text(), NotNull: true},
 		{Name: "name", Type: model.Text(), NotNull: true},
-		{Name: "phone", Type: model.Text()},
-		{Name: "email", Type: model.Text()},
+		{Name: "phone", Type: model.Text(), OmitEmpty: true},
+		{Name: "email", Type: model.Text(), OmitEmpty: true},
+		{Name: "notes", Type: model.Text(), OmitEmpty: true},
+		{Name: "return_to", Type: model.Text(), OmitEmpty: true},
+		{Name: "reservation_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "patient_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "payment_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "payment_url", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "pay_field", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "pay_token", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "status", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "failure", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "created_at", Type: model.NanoTime(), OmitEmpty: true, ServerOnly: true},
+	},
+	ExternalCalls: []model.ExternalCallDefinition{
+		{Name: "Process", Mode: model.WaitForReply, MaxWaitSeconds: 10},
 	},
 }
 
-var BookingChargeArgsModel = model.Definition{
-	Name: "booking_charge_args",
+// ReservationExpiryModel es la orden de «vencer las reservas pendientes que pasaron su plazo»: crearla
+// las vence y guarda cuántas fueron.
+var ReservationExpiryModel = model.Definition{
+	Name:  "reservation_expiry",
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.HaveNoBusinessRule},
 	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()},
-		{Name: "reservation_id", Type: model.Text()},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
+		{Name: "expired", Type: model.Int(), OmitEmpty: true, ServerOnly: true},
+		{Name: "actor_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "created_at", Type: model.NanoTime(), OmitEmpty: true, ServerOnly: true},
 	},
 }
 
-var BookingChargeResultModel = model.Definition{
-	Name: "booking_charge_result",
+// ConflictRecomputeModel es la orden de «revisar qué reservas dejaron de caber en la agenda»: crearla
+// recalcula los conflictos entre from y to (to = 0 es todo el horizonte) y guarda cuántas reservas quedaron en conflicto.
+// Es manual: nada la corre sola al guardar un bloque o una excepción.
+var ConflictRecomputeModel = model.Definition{
+	Name:  "conflict_recompute",
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{Create: model.AddMyBusinessRule, Read: model.HaveNoBusinessRule},
 	Fields: model.Fields{
-		{Name: "payable", Type: model.Bool()},
-		{Name: "terminal", Type: model.Bool()},
-		{Name: "amount", Type: model.Int()},
-		{Name: "currency", Type: model.Text()},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
+		{Name: "from", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "to", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "recomputed", Type: model.Int(), OmitEmpty: true, ServerOnly: true},
+		{Name: "actor_id", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "created_at", Type: model.NanoTime(), OmitEmpty: true, ServerOnly: true},
 	},
 }
 
-var BookingPaymentArgsModel = model.Definition{
-	Name: "booking_payment_args",
+// Los modelos de abajo no tienen tabla: son lecturas (D18). Cada uno es su propio filtro (D52): los
+// campos que la persona envía (OmitEmpty) acotan la lectura y los demás son la respuesta.
+
+// TimeSlotModel: los horarios libres de un profesional; filtra por staff_id, config_id, from y to.
+var TimeSlotModel = model.Definition{
+	Name:  "time_slot",
+	Allow: model.Read,
+	Rules: model.Rules{Read: model.AddMyBusinessRule},
 	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text()},
-		{Name: "id", Type: model.Text()},
-		{Name: "reservation_id", Type: model.Text()},
-		{Name: "method", Type: model.Text()},
-		{Name: "return_to", Type: model.Text()},
+		{Name: "start_utc", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "end_utc", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "staff_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "offer_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "from", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "to", Type: model.UnixTime(), OmitEmpty: true},
 	},
 }
 
-var BookingPaymentResultModel = model.Definition{
-	Name: "booking_payment_result",
+// DayLimitsModel: el horario del establecimiento en un día; filtra por date (medianoche UTC) para que el
+// editor de bloques acote sus controles.
+var DayLimitsModel = model.Definition{
+	Name:  "day_limits",
+	Allow: model.Read,
+	Rules: model.Rules{Read: model.AddMyBusinessRule},
 	Fields: model.Fields{
-		{Name: "payment_id", Type: model.Text()},
-		{Name: "status", Type: model.Text()},
-		{Name: "redirect_url", Type: model.Text()},
-		{Name: "token_field", Type: model.Text()},
-		{Name: "token", Type: model.Text()},
+		{Name: "date", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "open", Type: model.Bool(), OmitEmpty: true},
+		{Name: "open_min", Type: model.Int(), OmitEmpty: true},
+		{Name: "close_min", Type: model.Int(), OmitEmpty: true},
+	},
+}
+
+// ConflictingReservationModel: las reservas que la agenda actual ya no cubre; filtra por staff_id y from.
+var ConflictingReservationModel = model.Definition{
+	Name:  "conflicting_reservation",
+	Allow: model.Read,
+	Rules: model.Rules{Read: model.AddMyBusinessRule},
+	Fields: model.Fields{
+		{Name: "reservation_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "starts_at", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "client_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "reason", Type: model.Text(), OmitEmpty: true}, // "OUTSIDE_BLOCKS" | "DAY_CLOSED" | "OUTSIDE_BUSINESS_HOURS"
+		{Name: "staff_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "from", Type: model.UnixTime(), OmitEmpty: true},
+	},
+}
+
+// BookableServiceModel: los servicios que un visitante puede reservar (público); filtra por specialty.
+var BookableServiceModel = model.Definition{
+	Name:  "bookable_service",
+	Allow: model.Read,
+	Rules: model.Rules{Read: model.AddMyBusinessRule},
+	Fields: model.Fields{
+		{Name: "offer_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "staff_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "staff_name", Type: model.Text(), OmitEmpty: true},
+		{Name: "specialty", Type: model.Text(), OmitEmpty: true},
+		{Name: "service_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "service_name", Type: model.Text(), OmitEmpty: true},
+		{Name: "duration_min", Type: model.Int(), OmitEmpty: true},
+		{Name: "price", Type: model.Float(), OmitEmpty: true},
+		{Name: "currency", Type: model.Text(), OmitEmpty: true},
+		{Name: "payment_required", Type: model.Bool(), OmitEmpty: true},
+	},
+}
+
+// BookableSlotModel: las horas de un servicio (público); filtra por service_id, staff_id, from, to e include_taken.
+var BookableSlotModel = model.Definition{
+	Name:  "bookable_slot",
+	Allow: model.Read,
+	Rules: model.Rules{Read: model.AddMyBusinessRule},
+	Fields: model.Fields{
+		{Name: "start_utc", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "end_utc", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "staff_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "offer_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "taken", Type: model.Bool(), OmitEmpty: true},
+		{Name: "service_id", Type: model.Text(), OmitEmpty: true},
+		{Name: "from", Type: model.Int(), OmitEmpty: true},
+		{Name: "to", Type: model.Int(), OmitEmpty: true},
+		{Name: "include_taken", Type: model.Bool(), OmitEmpty: true},
+	},
+}
+
+// StaffOptionModel: los profesionales para elegir en una lista.
+var StaffOptionModel = model.Definition{
+	Name:  "staff_option",
+	Allow: model.Read,
+	Rules: model.Rules{Read: model.AddMyBusinessRule},
+	Fields: model.Fields{
+		{Name: "id", Type: model.Text(), OmitEmpty: true},
+		{Name: "name", Type: model.Text(), OmitEmpty: true},
+	},
+}
+
+// ClosureOptionModel: los días cerrados del establecimiento entre from y to (feriados y cierres).
+var ClosureOptionModel = model.Definition{
+	Name:  "closure_option",
+	Allow: model.Read,
+	Rules: model.Rules{Read: model.AddMyBusinessRule},
+	Fields: model.Fields{
+		{Name: "date", Type: model.Text(), OmitEmpty: true},
+		{Name: "is_holiday", Type: model.Bool(), OmitEmpty: true},
+		{Name: "from", Type: model.Int(), OmitEmpty: true},
+		{Name: "to", Type: model.Int(), OmitEmpty: true},
 	},
 }
 

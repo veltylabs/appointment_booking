@@ -60,30 +60,31 @@ func (s *stepSummaryCard) confirm() {
 	c.notes = fmt.Convert(s.notes.Get()).TrimSpace().String()
 	s.errMsg.Set("")
 	id := s.f.ids.NewID()
-	cfg := s.f.offer().ConfigId
-	var op string
-	var args model.Encodable
+	cfg := s.f.offer().OfferId
+	var in model.Model
+	var out model.Decodable
+	var reservationID func() string
 	switch {
 	case s.f.online:
-		op = ab.OpCreateOnlineReservation
-		args = &ab.CreateOnlineReservationArgs{TenantId: s.f.tenantID, Id: id, ClientId: c.patientID,
-			EmployeeServiceConfigId: cfg, SlotStartUtc: c.slot.StartUtc, Notes: c.notes}
+		g := c.guest
+		rec, saved := &ab.OnlineReservation{Id: id, EmployeeServiceConfigId: cfg, SlotTimeUtc: c.slot.StartUtc,
+			DocumentNumber: g.document, Name: g.name, Phone: g.phone, Email: g.email, Notes: c.notes, ReturnTo: OnlineID}, &ab.OnlineReservation{}
+		in, out, reservationID = rec, saved, func() string { c.online = *saved; return saved.ReservationId }
 	case c.overbook: // M3-sí
-		op = ab.OpCreateOverbooking
-		args = &ab.CreateOverbookingArgs{TenantId: s.f.tenantID, Id: id, ClientId: c.patientID,
-			EmployeeServiceConfigId: cfg, SlotStartUtc: c.slot.StartUtc, Notes: c.notes, Origin: ab.OriginCounter}
+		rec, saved := &ab.ReservationOverbooking{Id: id, ClientId: c.patientID, EmployeeServiceConfigId: cfg,
+			SlotTimeUtc: c.slot.StartUtc, Notes: c.notes}, &ab.ReservationOverbooking{}
+		in, out, reservationID = rec, saved, func() string { return saved.ReservationId }
 	default: // M3-no
-		op = ab.OpCreateReservation
-		args = &ab.CreateReservationArgs{TenantId: s.f.tenantID, Id: id, ClientId: c.patientID,
-			EmployeeServiceConfigId: cfg, SlotStartUtc: c.slot.StartUtc, Notes: c.notes, Origin: ab.OriginCounter}
+		rec, saved := &ab.Reservation{Id: id, ClientId: c.patientID, EmployeeServiceConfigId: cfg,
+			ReservationTime: int64(c.slot.StartUtc), Notes: c.notes}, &ab.Reservation{}
+		in, out, reservationID = rec, saved, func() string { return saved.Id }
 	}
 	s.busy.Set(true)
-	res := &ab.Reservation{}
-	s.f.caller.Call(ab.ModelName+"."+op, args, res, func(err error) {
+	createOne(s.f.caller, in, out, func(err error) {
 		s.busy.Set(false)
 		switch {
 		case err == nil:
-			c.reservation = *res
+			c.reservation = ab.Reservation{Id: reservationID()}
 			o := s.f.offer()
 			s.f.next(priceLabel(o.Price, o.Currency))
 		case err.Error() == ab.ErrSlotTaken.Error(): // M4 / N3 hora tomada

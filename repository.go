@@ -1,9 +1,10 @@
 package appointmentbooking
 
 import (
+	"webtyp.com/crud"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
-	"webtyp.com/orm"
+	"webtyp.com/storage"
 	"webtyp.com/time"
 )
 
@@ -21,368 +22,235 @@ const (
 	ErrUnsupportedCurrency   model.Invalid  = "unsupported currency"
 )
 
-// Repository provee operaciones CRUD para todas las tablas de appointment-booking.
+// Repository lee y escribe las tablas del módulo a través de un crud.Tx: el Store del módulo (una operación suelta)
+// o la transacción de una regla (varias escrituras que se confirman juntas). El Store ya acota todo al tenant del
+// módulo, así que ninguna consulta repite tenant_id.
 type Repository struct {
-	db  *orm.DB
+	tx  crud.Tx
 	ids model.IDGenerator
 }
 
-// NewRepository crea un nuevo Repository sobre un *orm.DB ya conectado; el
-// esquema se asume existente — ver el subpaquete migrate.
-func NewRepository(db *orm.DB, ids model.IDGenerator) (*Repository, error) {
-	return &Repository{db: db, ids: ids}, nil
-}
+// repoOn devuelve el Repository que trabaja dentro de tx.
+func (m *Module) repoOn(tx crud.Tx) *Repository { return &Repository{tx: tx, ids: m.ids} }
+
+func isNotFound(err error) bool { return model.KindOf(err) == model.ErrorNotFound }
 
 // ----------------------------------------------------------------------------
 // Reservation
 // ----------------------------------------------------------------------------
 
-func (r *Repository) InsertReservation(res *Reservation) error {
-	if res.Id == "" {
-		res.Id = r.ids.NewID()
-	}
-	res.Revision = 0
-	return r.db.Create(res)
+func (r *Repository) reservations(conds ...storage.Condition) ([]Reservation, error) {
+	var out []Reservation
+	err := r.tx.ReadAll(func() model.Model { return &Reservation{} }, crud.Query{Conditions: conds}, func(row model.Model) {
+		out = append(out, *row.(*Reservation))
+	})
+	return out, err
 }
 
 func (r *Repository) GetReservation(id string) (Reservation, error) {
-	m := &Reservation{}
-	qb := r.db.Query(m).Where(Reservation_.Id).Eq(id)
-	got, err := ReadOneReservation(qb, m)
-	if orm.IsNotFound(err) {
-		return Reservation{}, ErrNotFound
-	}
-	if err != nil {
-		return Reservation{}, err
-	}
-	return *got, nil
-}
-
-func (r *Repository) GetReservationTx(tx *orm.DB, tenantId, id string) (Reservation, error) {
-	m := &Reservation{}
-	qb := tx.Query(m).Where(Reservation_.Id).Eq(id).Where(Reservation_.TenantId).Eq(tenantId)
-	got, err := ReadOneReservation(qb, m)
-	if orm.IsNotFound(err) {
-		return Reservation{}, ErrNotFound
-	}
-	if err != nil {
-		return Reservation{}, err
-	}
-	return *got, nil
-}
-
-func (r *Repository) ListReservationsByStaff(tenantId, staffId string, fromUtc, toUtc time.Unix) ([]Reservation, error) {
-	proxy := &Reservation{}
-	qb := r.db.Query(proxy).
-		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.StaffIdsnapshot).Eq(staffId).
-		Where(Reservation_.ReservationTime).Gte(int64(fromUtc)).
-		Where(Reservation_.ReservationTime).Lt(int64(toUtc))
-	rows, err := ReadAllReservation(qb)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Reservation, len(rows))
-	for i, row := range rows {
-		out[i] = *row
-	}
-	return out, nil
-}
-
-// ListReservationsByTenantRange lista las reservas de todo un tenant en un rango
-// de fechas — el alcance del recompute del establecimiento (un feriado golpea a
-// todos los profesionales a la vez).
-func (r *Repository) ListReservationsByTenantRange(tenantId string, fromUtc, toUtc time.Unix) ([]Reservation, error) {
-	proxy := &Reservation{}
-	qb := r.db.Query(proxy).
-		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.ReservationTime).Gte(int64(fromUtc)).
-		Where(Reservation_.ReservationTime).Lt(int64(toUtc))
-	rows, err := ReadAllReservation(qb)
-	if err != nil {
-		if orm.IsNotFound(err) {
-			return nil, nil
+	var res Reservation
+	if err := r.tx.ReadOne(&res, id); err != nil {
+		if isNotFound(err) {
+			return Reservation{}, ErrNotFound
 		}
-		return nil, err
+		return Reservation{}, err
 	}
-	out := make([]Reservation, len(rows))
-	for i, row := range rows {
-		out[i] = *row
-	}
-	return out, nil
+	return res, nil
 }
 
-func (r *Repository) ListReservationsByClient(tenantId, clientId string) ([]Reservation, error) {
-	proxy := &Reservation{}
-	qb := r.db.Query(proxy).
-		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.ClientId).Eq(clientId)
-	rows, err := ReadAllReservation(qb)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Reservation, len(rows))
-	for i, row := range rows {
-		out[i] = *row
-	}
-	return out, nil
+func (r *Repository) ListReservationsByStaff(staffId string, fromUtc, toUtc time.Unix) ([]Reservation, error) {
+	return r.reservations(
+		storage.Eq(Reservation_.StaffIdsnapshot, staffId),
+		storage.Gte(Reservation_.ReservationTime, int64(fromUtc)),
+		storage.Lt(Reservation_.ReservationTime, int64(toUtc)))
 }
 
+// ListReservationsByTenantRange lista las reservas de todo el tenant en un rango de fechas — el alcance del
+// recompute del establecimiento (un feriado golpea a todos los profesionales a la vez).
+func (r *Repository) ListReservationsByTenantRange(fromUtc, toUtc time.Unix) ([]Reservation, error) {
+	return r.reservations(
+		storage.Gte(Reservation_.ReservationTime, int64(fromUtc)),
+		storage.Lt(Reservation_.ReservationTime, int64(toUtc)))
+}
+
+func (r *Repository) ListReservationsByClient(clientId string) ([]Reservation, error) {
+	return r.reservations(storage.Eq(Reservation_.ClientId, clientId))
+}
+
+func (r *Repository) ListReservationsByStatus(status string) ([]Reservation, error) {
+	return r.reservations(storage.Eq(Reservation_.Status, status))
+}
+
+// UpdateReservationStatus cambia el estado con optimismo: si la revisión guardada no es la esperada, ErrConflict.
 func (r *Repository) UpdateReservationStatus(id, status, updatedBy string, updatedAt time.Nano, expectedRevision int64) error {
-	return r.db.Tx(func(tx *orm.DB) error {
-		return r.UpdateReservationStatusTx(tx, id, status, updatedBy, updatedAt, expectedRevision)
-	})
-}
-
-func (r *Repository) UpdateReservationStatusTx(tx *orm.DB, id, status, updatedBy string, updatedAt time.Nano, expectedRevision int64) error {
-	current := &Reservation{}
-	qb := tx.Query(current).Where(Reservation_.Id).Eq(id)
-	got, err := ReadOneReservation(qb, current)
-	if orm.IsNotFound(err) {
-		return ErrNotFound
-	}
+	got, err := r.GetReservation(id)
 	if err != nil {
 		return err
 	}
 	if got.Revision != expectedRevision {
 		return ErrConflict
 	}
-	got.Status = status
-	got.UpdatedBy = updatedBy
-	got.UpdatedAt = updatedAt
+	got.Status, got.UpdatedBy, got.UpdatedAt = status, updatedBy, updatedAt
 	got.Revision++
-	return tx.Update(got, orm.Eq(Reservation_.Id, id), orm.Eq(Reservation_.TenantId, got.TenantId))
+	return r.tx.UpdateFields(&got, id, []string{Reservation_.Status, Reservation_.UpdatedBy, Reservation_.UpdatedAt, Reservation_.Revision})
 }
 
-// UpdateReservationConflictTx escribe el estado CONFLICTED (o su restauración)
-// con optimismo: WHERE revision = N y tenant scope en ambas ramas. statusBefore
-// queda grabado al entrar en conflicto y "" al salir (fuente única de
-// restauración, §8.5).
-func (r *Repository) UpdateReservationConflictTx(tx *orm.DB, id, tenantId, status, statusBefore, updatedBy string, updatedAt time.Nano, expectedRevision int64) error {
-	current := &Reservation{}
-	qb := tx.Query(current).Where(Reservation_.Id).Eq(id).Where(Reservation_.TenantId).Eq(tenantId)
-	got, err := ReadOneReservation(qb, current)
-	if orm.IsNotFound(err) {
-		return ErrNotFound
-	}
+// UpdateReservationConflict escribe el estado CONFLICTED (o su restauración) con optimismo. statusBefore queda
+// grabado al entrar en conflicto y "" al salir (fuente única de restauración, §8.5).
+func (r *Repository) UpdateReservationConflict(id, status, statusBefore, updatedBy string, updatedAt time.Nano, expectedRevision int64) error {
+	got, err := r.GetReservation(id)
 	if err != nil {
 		return err
 	}
 	if got.Revision != expectedRevision {
 		return ErrConflict
 	}
-	got.Status = status
-	got.StatusBeforeConflict = statusBefore
-	got.UpdatedBy = updatedBy
-	got.UpdatedAt = updatedAt
+	got.Status, got.StatusBeforeConflict, got.UpdatedBy, got.UpdatedAt = status, statusBefore, updatedBy, updatedAt
 	got.Revision++
-	return tx.Update(got, orm.Eq(Reservation_.Id, id), orm.Eq(Reservation_.TenantId, tenantId))
+	return r.tx.UpdateFields(&got, id, []string{Reservation_.Status, Reservation_.StatusBeforeConflict, Reservation_.UpdatedBy, Reservation_.UpdatedAt, Reservation_.Revision})
 }
 
 // ----------------------------------------------------------------------------
 // WorkCalendarException
 // ----------------------------------------------------------------------------
 
-func (r *Repository) InsertException(exc WorkCalendarException) error {
-	if exc.Id == "" {
-		exc.Id = r.ids.NewID()
-	}
-	return r.db.Create(&exc)
+func (r *Repository) ListExceptions(staffId string, from, to time.Unix) ([]WorkCalendarException, error) {
+	var out []WorkCalendarException
+	err := r.tx.ReadAll(func() model.Model { return &WorkCalendarException{} }, crud.Query{Conditions: []storage.Condition{
+		storage.Eq(WorkCalendarException_.StaffId, staffId),
+		storage.Gte(WorkCalendarException_.SpecificDate, int64(from)),
+		storage.Lte(WorkCalendarException_.SpecificDate, int64(to)),
+	}}, func(row model.Model) { out = append(out, *row.(*WorkCalendarException)) })
+	return out, err
 }
 
-func (r *Repository) ListExceptions(tenantId, staffId string, from, to time.Unix) ([]WorkCalendarException, error) {
-	proxy := &WorkCalendarException{}
-	qb := r.db.Query(proxy).
-		Where(WorkCalendarException_.TenantId).Eq(tenantId).
-		Where(WorkCalendarException_.StaffId).Eq(staffId).
-		Where(WorkCalendarException_.SpecificDate).Gte(int64(from)).
-		Where(WorkCalendarException_.SpecificDate).Lte(int64(to))
-	rows, err := ReadAllWorkCalendarException(qb)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]WorkCalendarException, len(rows))
-	for i, row := range rows {
-		out[i] = *row
-	}
-	return out, nil
-}
-
-func (r *Repository) DeleteException(tenantId, id string) error {
-	return r.db.Delete(&WorkCalendarException{}, orm.Eq(WorkCalendarException_.Id, id), orm.Eq(WorkCalendarException_.TenantId, tenantId))
-}
-
-func (r *Repository) GetException(tenantId, id string) (WorkCalendarException, error) {
-	m := &WorkCalendarException{}
-	qb := r.db.Query(m).
-		Where(WorkCalendarException_.Id).Eq(id).
-		Where(WorkCalendarException_.TenantId).Eq(tenantId)
-	got, err := ReadOneWorkCalendarException(qb, m)
-	if orm.IsNotFound(err) {
-		return WorkCalendarException{}, ErrNotFound
-	}
-	if err != nil {
+func (r *Repository) GetException(id string) (WorkCalendarException, error) {
+	var e WorkCalendarException
+	if err := r.tx.ReadOne(&e, id); err != nil {
+		if isNotFound(err) {
+			return WorkCalendarException{}, ErrNotFound
+		}
 		return WorkCalendarException{}, err
 	}
-	return *got, nil
+	return e, nil
 }
 
 // ----------------------------------------------------------------------------
 // EmployeeServiceConfig
 // ----------------------------------------------------------------------------
 
-func (r *Repository) InsertEmployeeServiceConfig(cfg EmployeeServiceConfig) error {
-	if cfg.Id == "" {
-		cfg.Id = r.ids.NewID()
-	}
-	return r.db.Create(&cfg)
-}
-
 func (r *Repository) GetEmployeeServiceConfig(id string) (EmployeeServiceConfig, error) {
-	m := &EmployeeServiceConfig{}
-	qb := r.db.Query(m).Where(EmployeeServiceConfig_.Id).Eq(id)
-	got, err := ReadOneEmployeeServiceConfig(qb, m)
-	if orm.IsNotFound(err) {
-		return EmployeeServiceConfig{}, ErrNotFound
-	}
-	if err != nil {
+	var c EmployeeServiceConfig
+	if err := r.tx.ReadOne(&c, id); err != nil {
+		if isNotFound(err) {
+			return EmployeeServiceConfig{}, ErrNotFound
+		}
 		return EmployeeServiceConfig{}, err
 	}
-	return *got, nil
+	return c, nil
 }
 
-func (r *Repository) ListEmployeeServiceConfigByStaff(tenantId, staffId string) ([]EmployeeServiceConfig, error) {
-	proxy := &EmployeeServiceConfig{}
-	qb := r.db.Query(proxy).
-		Where(EmployeeServiceConfig_.TenantId).Eq(tenantId).
-		Where(EmployeeServiceConfig_.StaffId).Eq(staffId)
-	rows, err := ReadAllEmployeeServiceConfig(qb)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]EmployeeServiceConfig, len(rows))
-	for i, row := range rows {
-		out[i] = *row
-	}
-	return out, nil
+func (r *Repository) ListEmployeeServiceConfigs(conds ...storage.Condition) ([]EmployeeServiceConfig, error) {
+	var out []EmployeeServiceConfig
+	err := r.tx.ReadAll(func() model.Model { return &EmployeeServiceConfig{} }, crud.Query{Conditions: conds}, func(row model.Model) {
+		out = append(out, *row.(*EmployeeServiceConfig))
+	})
+	return out, err
 }
 
-func (r *Repository) UpdateEmployeeServiceConfig(cfg EmployeeServiceConfig) error {
-	return r.db.Update(&cfg, orm.Eq(EmployeeServiceConfig_.Id, cfg.Id), orm.Eq(EmployeeServiceConfig_.TenantId, cfg.TenantId))
+func (r *Repository) ListEmployeeServiceConfigByStaff(staffId string) ([]EmployeeServiceConfig, error) {
+	return r.ListEmployeeServiceConfigs(storage.Eq(EmployeeServiceConfig_.StaffId, staffId))
 }
 
 // ----------------------------------------------------------------------------
 // WorkCalendarConfig
 // ----------------------------------------------------------------------------
 
-func (r *Repository) UpsertCalendarConfig(cfg WorkCalendarConfig) error {
-	// Intenta encontrar un registro existente para este (tenantId, staffId)
-	existing := &WorkCalendarConfig{}
-	qb := r.db.Query(existing).
-		Where(WorkCalendarConfig_.TenantId).Eq(cfg.TenantId).
-		Where(WorkCalendarConfig_.StaffId).Eq(cfg.StaffId)
-	got, err := ReadOneWorkCalendarConfig(qb, existing)
-	if err != nil && !orm.IsNotFound(err) {
-		return err
-	}
-	if orm.IsNotFound(err) {
-		// No existe — crear
-		cfg.Id = r.ids.NewID()
-		return r.db.Create(&cfg)
-	}
-	// Existe — actualizar en el lugar (preservando el ID original)
-	cfg.Id = got.Id
-	return r.db.Update(&cfg, orm.Eq(WorkCalendarConfig_.Id, cfg.Id), orm.Eq(WorkCalendarConfig_.TenantId, cfg.TenantId))
-}
-
-func (r *Repository) GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error) {
-	m := &WorkCalendarConfig{}
-	qb := r.db.Query(m).
-		Where(WorkCalendarConfig_.TenantId).Eq(tenantId).
-		Where(WorkCalendarConfig_.StaffId).Eq(staffId)
-	got, err := ReadOneWorkCalendarConfig(qb, m)
-	if orm.IsNotFound(err) {
-		return WorkCalendarConfig{}, ErrNotFound
-	}
+func (r *Repository) GetCalendarConfig(staffId string) (WorkCalendarConfig, error) {
+	var found WorkCalendarConfig
+	var has bool
+	err := r.tx.ReadAll(func() model.Model { return &WorkCalendarConfig{} }, crud.Query{Conditions: []storage.Condition{
+		storage.Eq(WorkCalendarConfig_.StaffId, staffId),
+	}}, func(row model.Model) {
+		if !has {
+			found, has = *row.(*WorkCalendarConfig), true
+		}
+	})
 	if err != nil {
 		return WorkCalendarConfig{}, err
 	}
-	return *got, nil
+	if !has {
+		return WorkCalendarConfig{}, ErrNotFound
+	}
+	return found, nil
 }
 
 // ----------------------------------------------------------------------------
 // WorkCalendarBlock
 // ----------------------------------------------------------------------------
 
-// ListBlocks devuelve todos los bloques de un staff — semanales y datados
-// mezclados; ListAvailability los separa por fecha/weekday con las helpers del
-// servicio.
-func (r *Repository) ListBlocks(tenantId, staffId string) ([]WorkCalendarBlock, error) {
-	proxy := &WorkCalendarBlock{}
-	qb := r.db.Query(proxy).
-		Where(WorkCalendarBlock_.TenantId).Eq(tenantId).
-		Where(WorkCalendarBlock_.StaffId).Eq(staffId)
-	rows, err := ReadAllWorkCalendarBlock(qb)
+func (r *Repository) blocks(conds ...storage.Condition) ([]WorkCalendarBlock, error) {
+	var out []WorkCalendarBlock
+	err := r.tx.ReadAll(func() model.Model { return &WorkCalendarBlock{} }, crud.Query{Conditions: conds}, func(row model.Model) {
+		out = append(out, *row.(*WorkCalendarBlock))
+	})
+	return out, err
+}
+
+// ListBlocks devuelve todos los bloques de un staff — semanales y datados mezclados; ListAvailability los separa
+// por fecha o día de la semana.
+func (r *Repository) ListBlocks(staffId string) ([]WorkCalendarBlock, error) {
+	return r.blocks(storage.Eq(WorkCalendarBlock_.StaffId, staffId))
+}
+
+func (r *Repository) deleteBlocks(conds ...storage.Condition) error {
+	rows, err := r.blocks(conds...)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	out := make([]WorkCalendarBlock, len(rows))
-	for i, row := range rows {
-		out[i] = *row
-	}
-	return out, nil
-}
-
-// ReplaceWeekdayBlocks pisa todos los bloques semanales del weekday dado — un
-// replace de día completo, no un upsert por fila: los edits parciales son lo
-// que desincroniza el conjunto guardado de lo que muestra el editor (§7).
-func (r *Repository) ReplaceWeekdayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error {
-	return r.db.Tx(func(tx *orm.DB) error {
-		if err := tx.Delete(&WorkCalendarBlock{},
-			orm.Eq(WorkCalendarBlock_.TenantId, tenantId),
-			orm.Eq(WorkCalendarBlock_.StaffId, staffId),
-			orm.Eq(WorkCalendarBlock_.DayOfWeek, int64(dayOfWeek)),
-			orm.Eq(WorkCalendarBlock_.SpecificDate, int64(0)),
-		); err != nil {
+	for i := range rows {
+		if err := r.tx.Delete(&WorkCalendarBlock{}, rows[i].Id); err != nil {
 			return err
 		}
-		for i := range blocks {
-			blocks[i].Id = r.ids.NewID()
-			if err := tx.Create(&blocks[i]); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
-// ReplaceDateBlocks pisa los bloques DATADOS de una fecha (CU-11: un día
-// marcado puede divergir de la ventana común con la que se creó).
-func (r *Repository) ReplaceDateBlocks(tenantId, staffId string, date int64, blocks []WorkCalendarBlock) error {
-	return r.db.Tx(func(tx *orm.DB) error {
-		if err := tx.Delete(&WorkCalendarBlock{},
-			orm.Eq(WorkCalendarBlock_.TenantId, tenantId),
-			orm.Eq(WorkCalendarBlock_.StaffId, staffId),
-			orm.Eq(WorkCalendarBlock_.SpecificDate, date),
-		); err != nil {
+func (r *Repository) insertBlocks(blocks []WorkCalendarBlock) error {
+	for i := range blocks {
+		blocks[i].Id = r.ids.NewID()
+		if err := r.tx.Create(&blocks[i]); err != nil {
 			return err
 		}
-		for i := range blocks {
-			blocks[i].Id = r.ids.NewID()
-			if err := tx.Create(&blocks[i]); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
-// DeleteDateBlocks borra todos los bloques datados de esas fechas (CU-15:
-// devuelve el día a lo que diga el template semanal, o a des-trabajado).
-func (r *Repository) DeleteDateBlocks(tenantId, staffId string, date int64) error {
-	return r.db.Delete(&WorkCalendarBlock{},
-		orm.Eq(WorkCalendarBlock_.TenantId, tenantId),
-		orm.Eq(WorkCalendarBlock_.StaffId, staffId),
-		orm.Eq(WorkCalendarBlock_.SpecificDate, date),
-	)
+// ReplaceWeekdayBlocks pisa todos los bloques semanales del weekday dado — un replace de día completo, no un
+// upsert por fila: los edits parciales son lo que desincroniza lo guardado de lo que muestra el editor (§7).
+func (r *Repository) ReplaceWeekdayBlocks(staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error {
+	if err := r.deleteBlocks(
+		storage.Eq(WorkCalendarBlock_.StaffId, staffId),
+		storage.Eq(WorkCalendarBlock_.DayOfWeek, int64(dayOfWeek)),
+		storage.Eq(WorkCalendarBlock_.SpecificDate, int64(0))); err != nil {
+		return err
+	}
+	return r.insertBlocks(blocks)
+}
+
+// ReplaceDateBlocks pisa los bloques DATADOS de una fecha (CU-11: un día marcado puede divergir de la ventana
+// común con la que se creó).
+func (r *Repository) ReplaceDateBlocks(staffId string, date int64, blocks []WorkCalendarBlock) error {
+	if err := r.DeleteDateBlocks(staffId, date); err != nil {
+		return err
+	}
+	return r.insertBlocks(blocks)
+}
+
+// DeleteDateBlocks borra todos los bloques datados de esa fecha (CU-15: devuelve el día a lo que diga el
+// template semanal, o a des-trabajado).
+func (r *Repository) DeleteDateBlocks(staffId string, date int64) error {
+	return r.deleteBlocks(
+		storage.Eq(WorkCalendarBlock_.StaffId, staffId),
+		storage.Eq(WorkCalendarBlock_.SpecificDate, date))
 }

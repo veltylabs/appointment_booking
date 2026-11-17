@@ -26,19 +26,18 @@ func (s *ServiceConfigView) WidgetName() widget.Name { return NameServiceConfigV
 func (s *ServiceConfigView) WidgetKind() widget.Kind { return widget.Region }
 
 // NewServiceConfigView construye la pestaña "Servicios" de la pantalla Personal.
-func NewServiceConfigView(caller router.Caller, tenantID string) Component {
-	v := &ServiceConfigView{caller: caller, tenantID: tenantID}
+func NewServiceConfigView(caller router.Caller) Component {
+	v := &ServiceConfigView{caller: caller}
 	v.panel = NewNodes()
-	v.picker = newStaffPicker(caller, tenantID, func(string) { v.rebuildPanel() })
+	v.picker = newStaffPicker(caller, func(string) { v.rebuildPanel() })
 	return v
 }
 
 type ServiceConfigView struct {
 	Element
-	caller   router.Caller
-	tenantID string
-	picker   *staffPicker
-	panel    *SignalNodes
+	caller router.Caller
+	picker *staffPicker
+	panel  *SignalNodes
 }
 
 func (s *ServiceConfigView) Init(_ Ctx) {
@@ -63,7 +62,7 @@ func (s *ServiceConfigView) rebuildPanel() {
 
 	cv, err := crudview.New(crudview.Config{
 		ParentID:  ID + ".services." + staffID,
-		Presenter: ab.NewEmployeeServiceConfigView(s.caller, s.tenantID, staffID),
+		Presenter: ab.NewEmployeeServiceConfigView(s.caller, staffID),
 		IDs:       ids,
 		Scope:     Div().Set(clsServiceHeader.AsAttr()).Child(s.picker.render("service-config-staff")),
 	})

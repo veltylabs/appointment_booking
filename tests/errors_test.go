@@ -12,7 +12,7 @@ func TestErrorStrings(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"ErrCalendarConfigNotFound", ab.ErrCalendarConfigNotFound, "calendar config not found"},
+		{"ErrCalendarConfigNotFound", ab.ErrCalendarConfigNotFound, "no calendar config for this professional"},
 		{"ErrSlotTaken", ab.ErrSlotTaken, "slot taken"},
 		{"ErrMissingArgs", ab.ErrMissingArgs, "missing args"},
 		{"ErrInvalidBlock", ab.ErrInvalidBlock, "appointment_booking: start_min must be < end_min and both within 0..1439"},

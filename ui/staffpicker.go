@@ -13,7 +13,6 @@ import (
 // Hora utilizan para cargar la lista de personal y mantener sus opciones.
 type staffPicker struct {
 	caller   router.Caller
-	tenantID string
 	sel      *SignalString
 	opts     *SignalNodes
 	staff    []ab.StaffOption
@@ -23,15 +22,15 @@ type staffPicker struct {
 
 // newStaffPicker construye el picker. onChange, si no es nil, se ejecuta
 // después de que el usuario elige otra opción.
-func newStaffPicker(caller router.Caller, tenantID string, onChange func(id string)) *staffPicker {
-	return &staffPicker{caller: caller, tenantID: tenantID, sel: NewString(""), opts: NewNodes(), onChange: onChange}
+func newStaffPicker(caller router.Caller, onChange func(id string)) *staffPicker {
+	return &staffPicker{caller: caller, sel: NewString(""), opts: NewNodes(), onChange: onChange}
 }
 
 // load trae la lista completa de opciones de profesionales, construye las opciones y
 // selecciona la primera disponible si no había ninguna seleccionada.
 func (p *staffPicker) load(then func()) {
 	out := &ab.StaffOptionList{}
-	p.caller.Call(ab.ModelName+"."+ab.OpListStaffOptions, &ab.ListStaffOptionsArgs{TenantId: p.tenantID}, out,
+	readFiltered(p.caller, &ab.StaffOption{}, &ab.StaffOption{}, out,
 		func(err error) {
 			if err != nil {
 				return

@@ -2,9 +2,11 @@ package ui
 
 import (
 	"webtyp.com/fmt"
+	"webtyp.com/model"
 	"webtyp.com/time"
 
 	"webtyp.com/components/scheduleeditor"
+	"webtyp.com/crud"
 	"webtyp.com/layout/rightpanel"
 	"webtyp.com/router"
 	"webtyp.com/widget"
@@ -27,14 +29,14 @@ func (s *ScheduleView) WidgetName() widget.Name { return NameScheduleView }
 func (s *ScheduleView) WidgetKind() widget.Kind { return widget.Region }
 
 // NewScheduleView construye la pestaña "Horario" de la pantalla Personal.
-func NewScheduleView(caller router.Caller, zone time.Zone, tenantID string) Component {
+func NewScheduleView(caller router.Caller, zone time.Zone, ids model.IDGenerator) Component {
 	v := &ScheduleView{
 		caller:      caller,
 		zone:        zone,
-		tenantID:    tenantID,
+		ids:         ids,
 		overbookVal: NewString("0"),
 	}
-	v.picker = newStaffPicker(caller, tenantID, func(string) { v.reload() })
+	v.picker = newStaffPicker(caller, func(string) { v.reload() })
 	return v
 }
 
@@ -42,7 +44,9 @@ type ScheduleView struct {
 	Element
 	caller      router.Caller
 	zone        time.Zone
-	tenantID    string
+	ids         model.IDGenerator
+	calendar    ab.WorkCalendarConfig
+	blocks      ab.WorkCalendarBlockList
 	picker      *staffPicker
 	editor      *SignalNodes
 	overbookVal *SignalString
@@ -62,52 +66,40 @@ func (s *ScheduleView) reload() {
 		return
 	}
 
-	var calCfg ab.WorkCalendarConfig
-	s.caller.Call(ab.ModelName+"."+ab.OpGetCalendarConfig,
-		&ab.GetCalendarConfigArgs{TenantId: s.tenantID, StaffId: staffID},
-		&calCfg,
-		func(err error) {
-			if err != nil {
-				s.overbookVal.Set("0")
-				s.caller.Call(ab.ModelName+"."+ab.OpUpsertCalendarConfig,
-					&ab.UpsertCalendarConfigArgs{
-						TenantId:          s.tenantID,
-						StaffId:           staffID,
-						IsActive:          true,
-						MaxOverbookPerDay: 0,
-					},
-					nil, func(error) {
-						s.fetchAndBuild(staffID)
-					})
-				return
-			}
-			s.overbookVal.Set(fmt.Sprint(calCfg.MaxOverbookPerDay))
+	var configs ab.WorkCalendarConfigList
+	readFiltered(s.caller, &ab.WorkCalendarConfig{}, &ab.WorkCalendarConfig{StaffId: staffID}, &configs, func(err error) {
+		if err == nil && len(configs) > 0 {
+			s.calendar = *configs[0]
+			s.overbookVal.Set(fmt.Sprint(s.calendar.MaxOverbookPerDay))
 			s.fetchAndBuild(staffID)
-		})
+			return
+		}
+		// Un profesional sin calendario recibe el suyo, abierto y sin sobrecupos.
+		s.overbookVal.Set("0")
+		s.calendar = ab.WorkCalendarConfig{Id: s.ids.NewID(), StaffId: staffID, IsActive: true}
+		createOne(s.caller, &s.calendar, nil, func(error) { s.fetchAndBuild(staffID) })
+	})
 }
 
 func (s *ScheduleView) fetchAndBuild(staffID string) {
 	var blocks ab.WorkCalendarBlockList
 	var exceptions ab.WorkCalendarExceptionList
-	var closures ab.CalendarClosureList
+	var closures ab.ClosureOptionList
 	pending := 3
 
 	done := func() {
 		pending--
 		if pending == 0 {
+			s.blocks = blocks
 			holidays, closed := splitClosures(closures)
 			s.editor.Set([]*Element{s.buildEditor(staffID, blocks, exceptions, holidays, closed)})
 		}
 	}
 
-	s.caller.Call(ab.ModelName+"."+ab.OpListBlocks, &ab.ListBlocksArgs{TenantId: s.tenantID, StaffId: staffID}, &blocks,
-		func(error) { done() })
-	s.caller.Call(ab.ModelName+"."+ab.OpListExceptions,
-		&ab.ListExceptionsArgs{TenantId: s.tenantID, StaffId: staffID, From: 0, To: 0}, &exceptions,
-		func(error) { done() })
-	s.caller.Call(ab.ModelName+"."+ab.OpListCalendarClosures,
-		&ab.ListCalendarClosuresArgs{TenantId: s.tenantID, From: 0, To: 0}, &closures,
-		func(error) { done() })
+	filter := &ab.WorkCalendarBlock{StaffId: staffID}
+	readFiltered(s.caller, &ab.WorkCalendarBlock{}, filter, &blocks, func(error) { done() })
+	readFiltered(s.caller, &ab.WorkCalendarException{}, &ab.WorkCalendarException{StaffId: staffID}, &exceptions, func(error) { done() })
+	readFiltered(s.caller, &ab.ClosureOption{}, &ab.ClosureOption{}, &closures, func(error) { done() })
 }
 
 func (s *ScheduleView) buildEditor(
@@ -151,15 +143,14 @@ func (s *ScheduleView) buildEditor(
 			s.saveDateBlock(staffID, day)
 		},
 		OnExceptionAdd: func(x scheduleeditor.Exception) {
-			s.caller.Call(ab.ModelName+"."+ab.OpAddCalendarException, &ab.AddCalendarExceptionArgs{
-				TenantId: s.tenantID, StaffId: staffID, SpecificDate: int64(s.dayToUnix(x.Date)),
+			rec := &ab.WorkCalendarException{
+				Id: s.ids.NewID(), StaffId: staffID, SpecificDate: s.dayToUnix(x.Date),
 				ExceptionType: x.Type, StartTime: int64(x.StartMin), EndTime: int64(x.EndMin), Notes: x.Notes,
-			}, nil, func(error) { s.reload() })
+			}
+			createOne(s.caller, rec, nil, func(error) { s.reload() })
 		},
 		OnExceptionRemove: func(id string) {
-			s.caller.Call(ab.ModelName+"."+ab.OpRemoveCalendarException,
-				&ab.RemoveCalendarExceptionArgs{TenantId: s.tenantID, ExceptionId: id}, nil,
-				func(error) { s.reload() })
+			deleteOne(s.caller, &ab.WorkCalendarException{}, id, func(error) { s.reload() })
 		},
 	}
 
@@ -180,14 +171,10 @@ func (s *ScheduleView) Render() *Element {
 				val = 0
 			}
 			staffID := s.picker.sel.Get()
-			if staffID != "" {
-				s.caller.Call(ab.ModelName+"."+ab.OpUpsertCalendarConfig,
-					&ab.UpsertCalendarConfigArgs{
-						TenantId:          s.tenantID,
-						StaffId:           staffID,
-						IsActive:          true,
-						MaxOverbookPerDay: val,
-					},
+			if staffID != "" && s.calendar.Id != "" {
+				s.calendar.MaxOverbookPerDay = val
+				s.caller.Call(operation(&s.calendar, model.Update),
+					&crud.UpdateArgs{IDs: []string{s.calendar.Id}, Fields: []string{ab.WorkCalendarConfig_.MaxOverbookPerDay}, Record: &s.calendar},
 					nil, func(error) {})
 			}
 		})
@@ -203,60 +190,68 @@ func (s *ScheduleView) Render() *Element {
 	return Div().Set(clsRoot.AsAttr()).Child(panel.Render())
 }
 
-func (s *ScheduleView) saveDayBlocks(staffID string, rows []scheduleeditor.PatternRow) {
-	pending := 7
-	for dow := 0; dow <= 6; dow++ {
-		var dayBlocks []ab.WorkCalendarBlock
-		for _, r := range rows {
-			for _, d := range r.Days {
-				if d == dow {
-					dayBlocks = append(dayBlocks, ab.WorkCalendarBlock{
-						TenantId: s.tenantID, StaffId: staffID, DayOfWeek: int64(dow),
-						StartMin: int64(r.StartMin), EndMin: int64(r.EndMin), IsActive: true,
-					})
-				}
-			}
+// blockStep crea un bloque; dropBlock borra el que ya existe.
+func (s *ScheduleView) blockStep(b ab.WorkCalendarBlock) step {
+	b.Id = s.ids.NewID()
+	return func(done func(error)) { createOne(s.caller, &b, nil, done) }
+}
+
+func (s *ScheduleView) dropBlock(id string) step {
+	return func(done func(error)) { deleteOne(s.caller, &ab.WorkCalendarBlock{}, id, done) }
+}
+
+// dropWhere borra los bloques guardados que cumplen pick.
+func (s *ScheduleView) dropWhere(pick func(ab.WorkCalendarBlock) bool) []step {
+	var out []step
+	for _, b := range s.blocks {
+		if pick(*b) {
+			out = append(out, s.dropBlock(b.Id))
 		}
-		s.caller.Call(ab.ModelName+"."+ab.OpSaveDayBlocks,
-			&ab.SaveDayBlocksArgs{TenantId: s.tenantID, StaffId: staffID, DayOfWeek: int64(dow), Blocks: dayBlocks},
-			nil, func(error) {
-				pending--
-				if pending == 0 {
-					s.reload()
-				}
-			})
 	}
+	return out
+}
+
+// apply corre los pasos y vuelve a leer lo guardado, haya salido bien o no: la pantalla muestra lo que quedó.
+func (s *ScheduleView) apply(steps []step) {
+	runSteps(steps, func(error) { s.reload() })
+}
+
+// saveDayBlocks reemplaza el patrón semanal: borra los bloques semanales y crea los de las filas del editor.
+func (s *ScheduleView) saveDayBlocks(staffID string, rows []scheduleeditor.PatternRow) {
+	steps := s.dropWhere(func(b ab.WorkCalendarBlock) bool { return b.SpecificDate == 0 })
+	for _, r := range rows {
+		for _, d := range r.Days {
+			steps = append(steps, s.blockStep(ab.WorkCalendarBlock{
+				StaffId: staffID, DayOfWeek: int64(d), StartMin: int64(r.StartMin), EndMin: int64(r.EndMin), IsActive: true,
+			}))
+		}
+	}
+	s.apply(steps)
 }
 
 func (s *ScheduleView) markDays(staffID string, dates []string, startMin, endMin int) {
-	unixDates := make([]int, 0, len(dates))
+	var steps []step
 	for _, d := range dates {
-		unixDates = append(unixDates, int(s.dayToUnix(d)))
+		day := s.dayToUnix(d)
+		steps = append(steps, s.dropWhere(func(b ab.WorkCalendarBlock) bool { return b.SpecificDate == day })...)
+		steps = append(steps, s.blockStep(ab.WorkCalendarBlock{
+			StaffId: staffID, SpecificDate: day, StartMin: int64(startMin), EndMin: int64(endMin), IsActive: true,
+		}))
 	}
-	s.caller.Call(ab.ModelName+"."+ab.OpMarkWorkingDays,
-		&ab.MarkWorkingDaysArgs{TenantId: s.tenantID, StaffId: staffID, Dates: unixDates, StartMin: int64(startMin), EndMin: int64(endMin)},
-		nil, func(error) { s.reload() })
+	s.apply(steps)
 }
 
-func (s *ScheduleView) unmarkDays(staffID string, dates []string) {
-	unixDates := make([]int, 0, len(dates))
+func (s *ScheduleView) unmarkDays(_ string, dates []string) {
+	var steps []step
 	for _, d := range dates {
-		unixDates = append(unixDates, int(s.dayToUnix(d)))
+		day := s.dayToUnix(d)
+		steps = append(steps, s.dropWhere(func(b ab.WorkCalendarBlock) bool { return b.SpecificDate == day })...)
 	}
-	s.caller.Call(ab.ModelName+"."+ab.OpUnmarkWorkingDays,
-		&ab.UnmarkWorkingDaysArgs{TenantId: s.tenantID, StaffId: staffID, Dates: unixDates},
-		nil, func(error) { s.reload() })
+	s.apply(steps)
 }
 
 func (s *ScheduleView) saveDateBlock(staffID string, day scheduleeditor.MarkedDay) {
-	specificDate := s.dayToUnix(day.Date)
-	s.caller.Call(ab.ModelName+"."+ab.OpSaveDateBlocks, &ab.SaveDateBlocksArgs{
-		TenantId: s.tenantID, StaffId: staffID, SpecificDate: int64(specificDate),
-		Blocks: []ab.WorkCalendarBlock{{
-			TenantId: s.tenantID, StaffId: staffID, SpecificDate: specificDate,
-			StartMin: int64(day.StartMin), EndMin: int64(day.EndMin), IsActive: true,
-		}},
-	}, nil, func(error) { s.reload() })
+	s.markDays(staffID, []string{day.Date}, day.StartMin, day.EndMin)
 }
 
 func blocksToPattern(blocks ab.WorkCalendarBlockList) []scheduleeditor.PatternRow {
@@ -331,7 +326,7 @@ func (s *ScheduleView) blocksToMarked(blocks ab.WorkCalendarBlockList) []schedul
 	return out
 }
 
-func splitClosures(closures ab.CalendarClosureList) (holidays, closed []string) {
+func splitClosures(closures ab.ClosureOptionList) (holidays, closed []string) {
 	for _, c := range closures {
 		if c.IsHoliday {
 			holidays = append(holidays, c.Date)

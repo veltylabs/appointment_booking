@@ -4,78 +4,42 @@ import (
 	"testing"
 
 	"webtyp.com/ddl"
-	"webtyp.com/model"
-	"webtyp.com/storage"
 
 	appointmentbooking "github.com/veltylabs/appointment_booking"
 	"github.com/veltylabs/appointment_booking/migrate"
 )
 
-type dummyExecer struct{ calls []string }
-
-func (d *dummyExecer) Exec(query string, args ...any) (storage.Result, error) {
-	d.calls = append(d.calls, query)
-	return nil, nil
-}
-
-type dummyCompiler struct{}
-
-func (d *dummyCompiler) CompileDDL(stmt ddl.Stmt, m model.Model) (string, []any, error) {
-	return stmt.Table, nil, nil
-}
-
-func TestMigrate_CreatesFiveTables(t *testing.T) {
-	execer := &dummyExecer{}
-	compiler := &dummyCompiler{}
-
-	err := migrate.Migrate(execer, compiler)
+// Migrate crea todas las tablas del módulo, en el orden en que unas dependen de otras (una que falte aparece
+// recién en producción: «relation … does not exist»).
+func TestMigrate_CreatesEveryTableInOrder(t *testing.T) {
+	tables, err := ddl.Capture([]ddl.Step{{Name: appointmentbooking.ModelName, Run: migrate.Migrate}})
 	if err != nil {
 		t.Fatalf("Migrate failed: %v", err)
 	}
-
-	var seen []string
-	for _, call := range execer.calls {
-		if len(seen) == 0 || seen[len(seen)-1] != call {
-			seen = append(seen, call)
-		}
-	}
-
-	if len(seen) != 5 {
-		t.Fatalf("expected 5 table migrations, got %d (%v)", len(seen), seen)
-	}
-}
-
-func TestMigrate_TableOrder(t *testing.T) {
-	execer := &dummyExecer{}
-	compiler := &dummyCompiler{}
-
-	err := migrate.Migrate(execer, compiler)
-	if err != nil {
-		t.Fatalf("Migrate failed: %v", err)
-	}
-
-	expected := []string{
+	want := []string{
 		appointmentbooking.EmployeeServiceConfigModel.Name,
 		appointmentbooking.WorkCalendarConfigModel.Name,
 		appointmentbooking.WorkCalendarBlockModel.Name,
 		appointmentbooking.WorkCalendarExceptionModel.Name,
 		appointmentbooking.ReservationModel.Name,
+		appointmentbooking.ReservationOverbookingModel.Name,
+		appointmentbooking.OnlineReservationModel.Name,
+		appointmentbooking.ReservationExpiryModel.Name,
+		appointmentbooking.ConflictRecomputeModel.Name,
 	}
-
-	var seen []string
-	for _, call := range execer.calls {
-		if len(seen) == 0 || seen[len(seen)-1] != call {
-			seen = append(seen, call)
+	if len(tables) != len(want) {
+		t.Fatalf("tables = %d, want %d", len(tables), len(want))
+	}
+	for i, tb := range tables {
+		if got := tb.Model.ModelName(); got != want[i] {
+			t.Errorf("table %d = %q, want %q", i, got, want[i])
 		}
 	}
+}
 
-	if len(seen) != len(expected) {
-		t.Fatalf("expected %d table migrations, got %d", len(expected), len(seen))
-	}
-
-	for i, want := range expected {
-		if seen[i] != want {
-			t.Errorf("table at index %d: expected %q, got %q", i, want, seen[i])
-		}
+// Sin compilador de SQL no hay cómo crear las tablas: Migrate lo dice, no termina en silencio.
+func TestMigrate_NoCompilerIsAnError(t *testing.T) {
+	if err := migrate.Migrate(nil, nil); err == nil {
+		t.Fatal("Migrate with no compiler must return an error")
 	}
 }

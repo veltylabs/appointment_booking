@@ -58,34 +58,34 @@ const (
 
 // Textos de la pantalla (claves en inglés; su español en lang.json).
 const (
-	textSpecialtyAndService lang.Text = "Specialty and service"
-	textProfessional        lang.Text = "Professional"
-	textDateAndTime         lang.Text = "Date and time"
-	textSummary             lang.Text = "Summary"
-	textPatient             lang.Text = "Patient"
-	textPaymentConfirmation lang.Text = "Payment and confirmation"
-	textAnyProfessional     lang.Text = "Any available professional"
-	textNoServicesToBook    lang.Text = "No services to book"
-	textNoTimesAvailable    lang.Text = "No times available"
-	textOverbooking         lang.Text = "Overbooking"
-	textNotes               lang.Text = "Notes"
-	textSearch              lang.Text = "Search"
-	textRegisterPatient     lang.Text = "Register patient"
-	textContinue            lang.Text = "Continue"
-	textConfirmBooking      lang.Text = "Confirm booking"
-	textBookingConfirmed    lang.Text = "Booking confirmed"
-	textNewBooking          lang.Text = "New booking"
-	textRetry               lang.Text = "Retry"
-	textTimeJustTaken       lang.Text = "That time was just taken"
-	textPendingPaymentHolds lang.Text = "You already have bookings awaiting payment"
-	textPaymentRegistered   lang.Text = "Payment registered; confirming…"
-	textPaymentIncomplete   lang.Text = "The payment was not completed; the time will be released"
-	textConfirmPaymentFail  lang.Text = "We could not confirm the payment; please call the clinic"
-	textStartAgain          lang.Text = "Start again"
-	textFullName            lang.Text = "Full name"
-	textEmail               lang.Text = "Email"
-	textPhone               lang.Text = "Phone number"
-	textRut                 lang.Text = "RUT"
+	textSpecialtyAndService     lang.Text = "Specialty and service"
+	textProfessional            lang.Text = "Professional"
+	textDateAndTime             lang.Text = "Date and time"
+	textSummary                 lang.Text = "Summary"
+	textPatient                 lang.Text = "Patient"
+	textPaymentConfirmation     lang.Text = "Payment and confirmation"
+	textAnyProfessional         lang.Text = "Any available professional"
+	textNoServicesToBook        lang.Text = "No services to book"
+	textNoTimesAvailable        lang.Text = "No times available"
+	textOverbooking             lang.Text = "Overbooking"
+	textNotes                   lang.Text = "Notes"
+	textPayOnline               lang.Text = "Pay online"
+	textDocumentAndNameRequired lang.Text = "Document and name are required"
+	textContinue                lang.Text = "Continue"
+	textConfirmBooking          lang.Text = "Confirm booking"
+	textBookingConfirmed        lang.Text = "Booking confirmed"
+	textNewBooking              lang.Text = "New booking"
+	textRetry                   lang.Text = "Retry"
+	textTimeJustTaken           lang.Text = "That time was just taken"
+	textPendingPaymentHolds     lang.Text = "You have too many bookings pending payment"
+	textPaymentRegistered       lang.Text = "Payment registered; confirming…"
+	textPaymentIncomplete       lang.Text = "The payment was not completed; the time will be released"
+	textConfirmPaymentFail      lang.Text = "We could not confirm the payment; please call the clinic"
+	textStartAgain              lang.Text = "Start again"
+	textFullName                lang.Text = "Full name"
+	textEmail                   lang.Text = "Email"
+	textPhone                   lang.Text = "Phone number"
+	textRut                     lang.Text = "RUT"
 )
 
 // calendarMonths es cuántos meses ofrece el calendario del paso 3.
@@ -100,11 +100,11 @@ const secondsPerDay = 86400
 type BookingFlow struct {
 	Element // value embed — NEVER pointer
 
-	caller   router.Caller
-	zone     time.Zone
-	ids      model.IDGenerator
-	tenantID string
-	online   bool
+	caller router.Caller
+	zone   time.Zone
+	ids    model.IDGenerator
+	steps  Steps // los pasos de otros módulos (mesón); online no los usa
+	online bool
 
 	content *SignalNodes // el acordeón o el panel final
 	acc     *stepaccordion.StepAccordion
@@ -133,6 +133,8 @@ type booking struct {
 	notes       string
 	patientID   string
 	patientName string
+	guest       guest                // online: lo que escribió quien reserva
+	online      ab.OnlineReservation // online: la reserva retenida y su cobro
 	reservation ab.Reservation
 	paymentID   string
 }
@@ -140,8 +142,8 @@ type booking struct {
 func (f *BookingFlow) WidgetName() widget.Name { return NameBookingFlow }
 func (f *BookingFlow) WidgetKind() widget.Kind { return widget.Form }
 
-func newBookingFlow(caller router.Caller, zone time.Zone, ids model.IDGenerator, tenantID string, online bool) *BookingFlow {
-	return &BookingFlow{caller: caller, zone: zone, ids: ids, tenantID: tenantID, online: online}
+func newBookingFlow(caller router.Caller, zone time.Zone, ids model.IDGenerator, steps Steps, online bool) *BookingFlow {
+	return &BookingFlow{caller: caller, zone: zone, ids: ids, steps: steps, online: online}
 }
 
 // Init arma el acordeón y carga el paso 1. En la pantalla online, si la página
@@ -245,10 +247,10 @@ func (f *BookingFlow) clearAfter(key string) {
 		c.slot, c.overbook = ab.BookableSlot{}, false
 		fallthrough
 	case stepPatient:
-		c.patientID, c.patientName = "", ""
+		c.patientID, c.patientName, c.guest = "", "", guest{}
 		fallthrough
 	case stepSummary:
-		c.notes, c.reservation = "", ab.Reservation{}
+		c.notes, c.reservation, c.online = "", ab.Reservation{}, ab.OnlineReservation{}
 		fallthrough
 	case stepPayment:
 		c.paymentID = ""

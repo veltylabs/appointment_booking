@@ -1,327 +1,143 @@
 # appointment-booking
 <img src="docs/img/badges.svg">
 
-Gestiona la configuración de servicios agendables, calendarios de trabajo del personal (bloques) y reservas de clientes.
+Agenda y reservas de un establecimiento: qué horas existen y quién las ocupa.
 
-## Entidades principales
+## ¿Por qué existe?
 
-- `employee_service_config`: configuración de qué servicios maneja cada profesional (duración, anulación de precio).
-- `reservation`: la cita programada (fecha/hora, cliente, profesional, servicio) con un estado (`status`) controlado por máquina de estados finitos (FSM).
-- `workcalendar_block`: una fila por bloque de tiempo de trabajo — SEMANAL (`specific_date == 0`, aplica a `day_of_week`) o DATADO (`specific_date > 0`, aplica solo a esa fecha y la abre). Varios bloques por día = el descanso para almorzar es el espacio entre ellos.
-- `workcalendar_exception`: excepciones puntuales (feriados personales, horarios especiales, intervalos bloqueados).
-- `workcalendar_config`: la zona horaria IANA del calendario de un miembro del personal (heredada por bloques y excepciones).
+Cuando un establecimiento atiende por hora (una clínica, una peluquería), alguien tiene que responder tres preguntas
+sin equivocarse: ¿qué horas tiene libres cada profesional?, ¿esta hora ya está tomada? y ¿qué pasa con las reservas
+cuando la agenda cambia? Este módulo es el dueño de esas respuestas: los
+[calendarios de trabajo](docs/ARCHITECTURE.md#2-entidades), las [reservas y su máquina de estados](docs/diagrams/fsm.md),
+los sobrecupos y la reserva online con retención.
 
-## Documentación
+| Sin este módulo | Con este módulo |
+|---|---|
+| Cada app calcula la disponibilidad a su manera y dos personas reservan la misma hora. | La regla «una hora, una reserva» corre dentro de la transacción: la segunda se rechaza. |
+| Quitar un bloque de trabajo deja reservas que ya no caben, sin aviso. | Crear o borrar un bloque o una excepción recalcula en la misma transacción qué reservas pasan a `CONFLICTED`. |
+| 38 operaciones escritas a mano, cada una con su permiso, su evento y su transacción. | Una [declaración](definition.go) (`Allow` + `Rules`): el framework `crud` hace el resto y el módulo escribe solo reglas de dominio. |
 
-- [Arquitectura](docs/ARCHITECTURE.md)
-- Plan local ejecutado más recientemente: [docs/LAST_PLAN_EXECUTED.md](docs/LAST_PLAN_EXECUTED.md)
-- [Diagrama de Base de Datos](docs/diagrams/database.md)
-- [Diagrama FSM](docs/diagrams/fsm.md)
-- [Diagramas de Secuencia](docs/diagrams/sequence.md)
+El módulo **no sabe** de pacientes ni de cobros: pregunta por ellos a través de [interfaces mínimas](interfaces.go)
+que la app le entrega. La [pantalla de reservar](docs/diagrams/booking_flow.md) tampoco los importa: la app le pasa los
+pasos «paciente» y «cobro» ([`ui.Steps`](ui/steps.go)).
 
-## Notas de diseño / desacoplamiento
+## Antes de comenzar
 
-Sin claves foráneas (FK) físicas hacia otros módulos:
-- `reservation.client_id` referencia a un cliente (Directorio/Clínica) por ID.
-- `reservation.creator_user_id` referencia a un usuario de IAM.
-- `employee_service_config.service_id` referencia a un ítem del módulo de Catálogo.
-- Los campos `staff_id` referencian al módulo de Personal (Staff).
+- **Para usarlo en una app:** una base de datos (`orm.New(...)`) con las tablas creadas por [`migrate.Migrate`](migrate/migrate.go) (paso de despliegue, no del constructor), y un `model.IDGenerator`.
+- **Lo que la app debe entregar** en [`Deps`](module.go): `TenantID`, `Zone` (zona horaria IANA del establecimiento), `Staff`, `Catalog`, `Patients`; opcionales `Hours` (horario del establecimiento; nil = sin límite), `Payments` (nil = sin cobro) y `Publisher`.
+- **Para desarrollar:** `gotest` y `definitionc` en el `PATH` (`export PATH="$PATH:$(go env GOPATH)/bin"`). `definition_gen.go` lo escribe `definitionc`; nunca se edita.
+- **Para ver la demo:** `seed.Demo()` (compila a wasm; la corre el MCP `webtyp`).
 
-Las reglas de disponibilidad (bloques + excepciones + la ventana diaria del establecimiento, cruzadas como `DayLimits` de `webtyp.com/time`) se aplican en la capa de servicio, no a través de FKs entre módulos.
-`appointment_booking/go.mod` mantiene **cero dependencias de veltylabs** — los contratos con otros módulos se declaran exclusivamente en `interfaces.go` (`StaffReader`, `CatalogReader`, `PatientDirectory`, `OpeningHours`, `PaymentGateway`).
-El estado de la reserva se controla mediante una FSM en código — sin tabla `reservation_status`.
+## Guía paso a paso
 
-## Reglas de desarrollo (SKILL)
+### Paso 1: crear el módulo
 
-### Restricciones y reglas principales
-
-- **Cambios de estado solo vía FSM:** `Reservation.Status` DEBE cambiar únicamente mediante `FSM.Transition(current, event)` — excepto al entrar o salir de `CONFLICTED`, que un recomputo escribe directamente y restaura a través de `StatusBeforeConflict`. Eventos válidos: `CONFIRM`, `CANCEL`, `COMPLETE`, `NO_SHOW_EVENT`, `EXPIRE`, `RESCHEDULE`, `CONFLICT`, `RESOLVE`.
-- **RESCHEDULED ≠ CANCELLED:** Cuando una reserva es reemplazada por una nueva, la original se marca como `RESCHEDULED` (no `CANCELLED`) para preservar la integridad de la traza de auditoría. Estos son estados terminales distintos. `CONFLICTED` **no** es terminal.
-- **La zona horaria es inyectada explícitamente:** Se recibe en `Deps.Zone` (`time.Zone`). Las horas de los bloques son minutos locales desde la medianoche (p. ej., `540 = 09:00`), convertidos al instante UTC mediante `m.zone.At(date, minutes)`.
-- **Instantáneas (Snapshotting):** Al crear una reserva, el precio, la moneda, la duración, el staffID y el serviceID se guardan en instantáneas. Nunca mutes los campos de instantánea después de la creación. `StaffIdsnapshot`/`ServiceIdsnapshot` usan los nombres de columna históricos `staff_idsnapshot`/`service_idsnapshot` — nunca renombrar.
-- **Un cambio de agenda reporta sus conflictos:** Cada edición profesional (`save_day_blocks`, `save_date_blocks`, `mark_working_days`, `unmark_working_days`, excepciones) recomputa las reservas futuras en el rango afectado y marca/limpia `CONFLICTED`. Los cambios a nivel de establecimiento van a través de `RecomputeConflicts`. Cuando nadie resulta afectado, **no se publica nada** (CU-19).
-- **Sin RBAC aquí:** Este módulo confía en `actorID` como una cadena ya autorizada. La autorización es aplicada por el gateway antes del servicio. Este módulo solo almacena `actorID` como campo de auditoría.
-- **La publicación de eventos es de tipo "dispara y olvida" (fire-and-forget)** a través del `events.Publisher` inyectado (`Deps.Publisher`). Un publisher `nil` es seguro.
-- **Sin importaciones entre módulos.** Las dependencias externas se acceden únicamente mediante interfaces inyectadas en `interfaces.go`: `StaffReader`, `CatalogReader`, `PatientDirectory`, `OpeningHours`, `PaymentGateway`.
-
-### Origen de una reserva (`Origin`)
-
-El campo `reservation.origin` indica la vía de creación/confirmación de la reserva:
-- `OriginCounter` (`"COUNTER"`): creada y confirmada por el personal en el mostrador.
-- `OriginOnline` (`"ONLINE"`): creada por el paciente para confirmación por su propia vía.
-
-Al presentar el estado de la reserva en UI (`Item().Description`), se traduce mediante `lang.Translate` según la siguiente matriz:
-
-| Status | Origin | Clave (EN) |
-|---|---|---|
-| `PENDING` | `COUNTER` | `Pending confirmation` |
-| `PENDING` | `ONLINE` | `Awaiting patient` |
-| cualquier otro | — | la clave del propio estado (`Confirmed`, `Cancelled`, …) |
-
-### Interfaces inyectadas (parámetros del constructor)
-
-El servicio mantiene `*orm.DB` directamente — sin interfaces de almacenamiento intermedias. Solo se inyectan dependencias entre módulos:
+**Meta:** tener un módulo que responde sus operaciones sobre una base en memoria.
 
 ```go
-type Deps struct {
-    Staff     StaffReader      // provisto por staff_manager
-    Catalog   CatalogReader    // provisto por service_catalog
-    Patients  PatientDirectory // provisto por patient_directory
-    Hours     OpeningHours     // opcional: nil = time.Unlimited()
-    Payments  PaymentGateway   // provisto por payment_manager
-    IDs       model.IDGenerator // requerido — nunca se construye dentro del módulo
-    Publisher events.Publisher  // nil = eventos deshabilitados
-    Zone      time.Zone        // obligatoria (ej: America/Santiago)
-    TenantID  string
+package main
+
+import (
+	appointmentbooking "github.com/veltylabs/appointment_booking"
+	"webtyp.com/fmt"
+	"webtyp.com/orm"
+	"webtyp.com/storage/mem"
+	"webtyp.com/time"
+	"webtyp.com/unixid"
+)
+
+// ports contesta lo mínimo a lo que el módulo pregunta de otros módulos; en una app real son sus módulos.
+type ports struct{}
+
+func (ports) StaffExists(string, string) (bool, error)                { return true, nil }
+func (ports) StaffCard(string, string) (string, string, bool, error)  { return "Dra. Soto", "Pediatría", true, nil }
+func (ports) OccupantOptions(string) ([]fmt.KeyValue, error)          { return nil, nil }
+func (ports) ServiceExists(string, string) (bool, error)              { return true, nil }
+func (ports) ServiceCard(string, string) (string, float64, string, bool, error) {
+	return "Consulta", 35000, "CLP", true, nil
 }
+func (ports) GetPatient(string, string) (string, string, string, string, bool, error) {
+	return "Juan", "1-9", "", "", true, nil
+}
+func (ports) FindPatient(string, string) (string, string, string, string, bool, error) {
+	return "", "", "", "", false, nil
+}
+func (ports) CreatePatient(_, id, _, _, _, _ string) (string, error) { return id, nil }
 
-func New(db *orm.DB, deps Deps) (*Module, error)
-```
-
-### Eventos de dominio publicados
-
-| Constante de evento | Cuándo |
-|---|---|
-| `appointment.reservation.created` | Después de que `CreateReservation` hace commit |
-| `appointment.reservation.rescheduled` | Para la reserva original durante la reprogramación |
-| `appointment.reservation.confirmed` | Después de la transición CONFIRM |
-| `appointment.reservation.cancelled` | Después de la transición CANCEL |
-| `appointment.reservation.completed` | Después de la transición COMPLETE |
-| `appointment.reservation.no_show` | Después de la transición NO_SHOW |
-| `appointment.reservation.expired` | Después de la transición EXPIRE |
-| `appointment.schedule.changed` | Una vez por profesional cuyo cambio de agenda puso ≥1 reserva en conflicto (payload `ScheduleChangedPayload{TenantId, StaffId, FromDate, ToDate, ConflictCount}`) |
-| `appointment.reservation.conflicted` | Por reserva en conflicto, solo cuando el cambio provino de la edición del propio profesional |
-
-### Errores centinela clave
-
-| Error | Cuándo |
-|---|---|
-| `ErrSlotTaken` | Horario no disponible o carrera de reserva concurrente |
-| `ErrConflict` | Mismatched de concurrencia optimista en actualizaciones de reservas |
-| `ErrCalendarConfigNotFound` | Guardar bloques antes de `upsert_calendar_config` |
-| `ErrInvalidBlock` | `start_min` no es `< end_min`, o fuera de 0..1439 |
-| `ErrBlocksOverlap` | Dos bloques del mismo día se solapan |
-| `ErrBlockOutsideBusinessHours` | Un bloque cae fuera de la ventana de apertura del establecimiento |
-| `ErrBlockOnClosedDay` | El establecimiento está cerrado en esa fecha |
-| `ErrInvalidTransition` | La FSM rechaza el evento para el estado actual |
-| `ErrIdTaken` | Id de reserva ya usado por otro cliente o tenant |
-| `ErrOverbookNotAllowed` | Sobrecupo deshabilitado o cupo máximo diario excedido para el profesional |
-| `ErrSlotNotInSchedule` | El slot solicitado no cae dentro de los bloques de trabajo del profesional |
-
-### Raíz de composición (cómo conectar este módulo)
-
-```go
-// La creación del esquema es un paso en tiempo de despliegue (ver subpaquete migrate):
-// err := migrate.Migrate(conn, ddlCompiler)
-
-// New / NewRepository asume que el esquema de la base de datos ya existe.
-scheduling, _ := appointmentbooking.New(db, appointmentbooking.Deps{
-    Staff:     staffmodule.New(db),        // implementa StaffReader
-    Catalog:   catalogmodule.New(db),      // implementa CatalogReader
-    Directory: directorymodule.New(db),    // implementa DirectoryReader
-    IDs:       idGen,                      // model.IDGenerator
-    Publisher: eventBus,                   // nil = eventos deshabilitados
-    Bounds:    businesscalendarModule,     // implementa BoundsReader; nil = sin límites
-})
-scheduling.MountOps(opRegistry)            // el transporte recolecta las ops
-reservationsView := scheduling.NewView(caller, tenantId, staffId)
-```
-
-La recomputación a nivel de establecimiento es conectada por la aplicación (conoce ambos módulos):
-
-```go
-broker.Subscribe(businesscalendar.EventCalendarChanged, func(ev events.Event) {
-    var p businesscalendar.CalendarChangedPayload
-    // decodificar; abrir más temprano nunca puede invalidar una reserva
-    if !p.Closed {
-        return
-    }
-    _, _ = book.RecomputeConflicts(config.TenantID, p.FromDate, p.ToDate)
-})
-```
-
-### Operaciones
-
-| Op | Permiso (`Resource`) | Acción | Resultado (`Payload`) | Descripción |
-|---|---|---|---|---|
-| `list_bookable_services` | `booking_catalog` | Leer | `[]BookableService` | Lista servicios reservables. |
-| `list_service_availability` | `booking_catalog` | Leer | `[]BookableSlot` | Lista horarios disponibles. |
-| `create_online_reservation` | `reservation_online` | Crear | `Reservation` | Crea una reserva online con retención. |
- disponibles (25 en total)
-
-`create_reservation`, `create_overbooking`, `get_reservation`, `list_reservations_by_staff`, `list_reservations_by_client`,
-`change_reservation_status`, `expire_pending_reservations`, `list_conflicting_reservations`,
-`recompute_conflicts`, `get_calendar_config`, `upsert_calendar_config`, `save_day_blocks`, `save_date_blocks`,
-`mark_working_days`, `unmark_working_days`, `list_blocks`, `add_exception`,
-`remove_exception`, `list_exceptions`, `get_day_bounds`, `list_availability`,
-`create_employee_service_config`, `get_employee_service_config`, `list_employee_service_config_by_staff`,
-`update_employee_service_config`.
-
-### Idempotencia e IDs generados por el cliente
-
-`create_reservation` y `create_overbooking` requieren un `id` provisto por el llamador (generado en el cliente antes de enviar la solicitud en red). Esto garantiza idempotencia:
-- Si una solicitud se reintenta con el mismo `id` y mismo payload (`tenant_id`, `client_id`), el servicio retorna la reserva existente sin crear duplicados en la base de datos ni emitir nuevos eventos.
-- Si se intenta reutilizar el mismo `id` con datos incompatibles, retorna `ErrIdTaken` (HTTP 409).
-
-### Gestión de sobrecupos (Overbooking)
-
-- Cada profesional puede tener configurado un límite de sobrecupos diarios (`workcalendar_config.max_overbook_per_day`).
-- Si `max_overbook_per_day == 0` (por defecto), los sobrecupos están deshabilitados (`ErrOverbookNotAllowed`).
-- Las reservas sobrecupadas se crean mediante `create_overbooking`, requieren permiso RBAC sobre `"overbooking"`, y marcan `overbooked: true`.
-- Los sobrecupos cancelados o reprogramados liberan el cupo del día.
-- El slot del sobrecupo debe pertenecer al horario regular de atención del profesional (`ErrSlotNotInSchedule` si está fuera).
-
-> `expire_pending_reservations` es el **único disparador para el evento FSM EXPIRE**; debe ser llamado por un
-> programador externo — el módulo no tiene procesos en segundo plano internos.
->
-> `list_blocks` y `list_exceptions` son las lecturas directas que necesita un editor de horarios; la vista orientada al llamador
-> es `NewScheduleClient` (ver abajo).
-
-## Reserva en 6 pasos — las pantallas
-
-| Pantalla | Constructor | Quién la usa |
-|---|---|---|
-| Reserva Hora | `ui.Browser` / `ui.NewBookingView(caller, ids, tenantID)` | recepción (mesón): sobrecupo, cobro en mesón con `payment_manager` |
-| Reserva online | `ui.OnlineBrowser` | paciente invitado: retiene la hora y paga en la pasarela |
-
-Pasos: especialidad y servicio → profesional ("cualquiera" si hay varios) → fecha y hora →
-paciente → resumen (aquí se crea la reserva) → pago y confirmación. Flujo y ramas:
-[`docs/diagrams/booking_flow.md`](docs/diagrams/booking_flow.md); servidor:
-[`docs/diagrams/booking_backend.md`](docs/diagrams/booking_backend.md).
-
-La raíz de composición cruza los dos módulos (`web/browser.go` es el ejemplo):
-`payment_manager` pregunta el monto con `Charge`, y al recibir `payment.paid` llama
-`ConfirmPaidReservation`; si devuelve `ErrReservationNotPayable` (la retención venció),
-devuelve el pago.
-
-## ScheduleClient — la cara para el editor de horarios
-
-`NewScheduleClient(caller router.Caller, tenantId, staffId string) *ScheduleClient` es un cliente tipado
-del lado del llamador sobre las operaciones de calendario, destinado a ser adaptado por una aplicación a un
-componente de interfaz `scheduleeditor`. Importando únicamente `router` + los tipos de este módulo, se mantiene agnóstico del renderizador:
-
-```go
-cl := appointmentbooking.NewScheduleClient(caller, "t1", "s1")
-cl.Blocks(func(rows []appointmentbooking.WorkCalendarBlock, err error) { /* … */ })
-cl.SaveDayBlocks(dayOfWeek, blocks, func(err error) { /* … */ })
-cl.Exceptions(from, to, func(rows []appointmentbooking.WorkCalendarException, err error) { /* … */ })
-cl.AddException(exc, func(err error) { /* … */ })
-cl.RemoveException(exceptionID, func(err error) { /* … */ })
-```
-
-Una mutación de agenda publica `appointment.schedule.changed` (con el rango afectado y recuento de conflictos)
-únicamente cuando realmente puso reservas en conflicto.
-
-## NewEmployeeServiceConfigView — la cara para gestionar servicios por profesional
-
-`NewEmployeeServiceConfigView(caller router.Caller, tenantId, staffId string) view.Presenter` construye un presenter
-acotado a un profesional para listar y guardar la configuración de sus servicios (`employee_service_config`).
-
-```go
-configView := appointmentbooking.NewEmployeeServiceConfigView(caller, tenantId, staffId)
-```
-
-## NewFormView — la cara para pantallas de reserva
-
-`NewFormView(caller router.Caller, cfg FormConfig) view.Presenter` construye un presenter que tanto
-lista las reservas de un profesional como crea nuevas. `NewView` se mantiene como la superficie de solo lista para
-consumidores de solo lectura.
-
-```go
-formView := appointmentbooking.NewFormView(caller, appointmentbooking.FormConfig{
-    TenantId:        tenantId,
-    StaffId:         staffId,
-    ServiceConfigId: serviceConfigId,
-    Timezone:        "America/Santiago",
-    From:            fromUnixSec,
-    To:              toUnixSec,
-    ActorId:         actorId,
-    LabelFor: func(clientId string) string {
-        // Punto de extensión opcional: traducir clientId a un nombre visible en la lista
-        return directoryClientName(clientId)
-    },
-})
-```
-
-`FreeSlots(caller, cfg, day, done)` devuelve los horarios reservables para una fecha (p. ej. `"2026-09-08"`) como
-cadenas `"HH:MM"` en la zona horaria configurada invocando el callback `done(slots, err)`.
-
-## Interfaz de Servicio (SchedulingService)
-
-```go
-type SchedulingService interface {
-    // Gestión de calendario
-    UpsertCalendarConfig(cfg WorkCalendarConfig) error
-    SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error
-    SaveDateBlocks(tenantId, staffId string, date time.Unix, blocks []WorkCalendarBlock) error
-    MarkWorkingDays(tenantId, staffId string, dates []int64, startMin, endMin int) error
-    UnmarkWorkingDays(tenantId, staffId string, dates []int64) error
-    ListBlocks(tenantId, staffId string) ([]WorkCalendarBlock, error)
-    AddException(exc WorkCalendarException) error
-    RemoveException(tenantId, exceptionId string) error
-    ListExceptions(tenantId, staffId string, from, to time.Unix) ([]WorkCalendarException, error)
-    GetDayLimits(date time.Unix) (time.DayLimits, error)
-
-    // Disponibilidad
-    ListAvailability(tenantId, staffId, configId string, from, to time.Unix) ([]TimeSlot, error)
-
-    // Reservas
-    CreateReservation(cmd CreateReservationCmd) (Reservation, error)
-    GetReservation(tenantId, id string) (Reservation, error)
-    ListReservationsByStaff(tenantId, staffId string, from, to time.Unix) ([]Reservation, error)
-    ListReservationsByClient(tenantId, clientId string) ([]Reservation, error)
-    ChangeReservationStatus(cmd ChangeStatusCmd) error
-    ExpirePendingReservations(tenantId string, before time.Unix) (int, error)
-
-    // Conflictos
-    ListConflictingReservations(tenantId, staffId string, from time.Unix) ([]ConflictingReservation, error)
-    RecomputeConflicts(tenantId string, from, to time.Unix) (int, error)
+func main() {
+	ids, err := unixid.NewUnixID()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	zone, err := time.LoadZone("America/Santiago")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	mod, err := appointmentbooking.New(orm.New(mem.New()), appointmentbooking.Deps{
+		IDs: ids, TenantID: "clinica-1", Zone: zone,
+		Staff: ports{}, Catalog: ports{}, Patients: ports{},
+	})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(appointmentbooking.Definition.Name, mod != nil)
 }
 ```
 
-Esta interfaz depende de los lectores inyectados en `interfaces.go`:
-- `PatientDirectory{GetPatient, FindPatient, CreatePatient}` — busca y registra pacientes
-- `StaffReader` — valida la existencia y ficha del personal
-- `CatalogReader` — valida la existencia y tarifas del servicio
-- `OpeningHours` — responde las ventanas horarias del establecimiento (opcional: `nil = time.Unlimited()`)
-- `PaymentGateway` — verifica y cobra reservas (opcional)
+**Resultado:** imprime `appointment_booking true`. `New` falla con un error claro si falta un `Dep` obligatorio.
 
-## View and demo
+### Paso 2: montarlo en la app
 
-This module ships its own user interface (`ui/`), demo data (`seed/`), and runnable client demo (`web/browser/main.go`).
+**Meta:** que el servidor atienda sus operaciones. La app (nunca el módulo) escribe el `appkit.Module` y busca los
+módulos que ya construyó con `appkit.FindBuiltModule`. Las [operaciones](#operaciones) salen de `Definition`.
 
-### `ui` package
+**Resultado:** `crud.Mount(nil, nil, nil, mod)` devuelve `nil`: lo declarado coincide con lo implementado
+([prueba](tests/reservation_test.go)).
 
-- Identifiers: `ID` ("appointment_booking"), `NavLabel` ("Reserva Hora"), `PersonalID` ("personal"), `PersonalLabel` ("Personal").
-- Module browsers:
-  - `Browser(caller, ids, tenantID)`: builds the "Reserva Hora" booking UI module.
-  - `PersonalBrowser(caller, ids, tenantID)`: builds the "Personal" UI module (staff data, work schedule, service configurations).
-- Component builders: `NewBookingView`, `NewScheduleView`, `NewServiceConfigView`.
+### Paso 3: dar las pantallas
 
-### `seed` package
+**Meta:** mostrar agenda, servicios y la reserva en 6 pasos. La app arma los pasos de otros módulos:
 
-`seed.Load(m, tenantID, upstream)` populates validated demo data into `appointment_booking`:
-- Work calendar configurations (Chile timezone).
-- Work calendar blocks (Monday to Friday, 09:00-13:00 and 15:00-18:00).
-- Employee service configurations mapped from upstream staff specialties and catalog items.
-- Two confirmed reservations for the next business day.
-
-### Runnable demo
-
-Run `webtyp` at the repository root to open the demo — in-browser, in-memory, no login.
-
-## Actualizaciones de Arquitectura
-
-- **Errores por rpc.WriteError**: Todo el módulo gestiona y devuelve errores mediante `rpc.WriteError`, utilizando códigos de tipo HTTP (`model.NotFound`, `model.Conflict`, etc.).
-- **Permisos por tabla (model.ResourceOf)**: Las operaciones declaran sus permisos mapeando directamente sobre los modelos ORM (`model.ResourceOf`) o vía recursos declarados explícitamente (`model.FeatureResource`).
-- **Claves foráneas declaradas**: Los esquemas ORM declaran ahora referencias directas a otras tablas con `Ref: &Model, DB: &model.FieldDB{RefColumn: "id"}`.
-
-## Importar historia
-
-`ImportReservation` almacena una reserva de un sistema anterior con su propio id, fecha y estado. Comprueba lo que comprueba `CreateReservation` sobre los datos: el id, el inquilino, un estado y origen conocidos, que el cliente, el profesional y el servicio existen, y que existe la configuración (activa o no: un historial puede ser inactivo). Sin embargo, omite deliberadamente todas las reglas en vivo: no requiere un espacio libre, no obliga a un inicio `PENDING`, no tiene reserva, no emite eventos, y no abre su propia transacción (el importador ya ejecuta dentro de una).
-
-Ejemplo:
 ```go
-r, err := booking.ImportReservation(Reservation{Id: "1650000000000000000", TenantId: t, ClientId: p,
-	EmployeeServiceConfigId: cfg, ReservationTime: int64(start), Status: StatusCompleted, Origin: OriginCounter})
+screens := ui.Screens(deps, ui.Steps{Patient: patientStep, Payment: paymentStep}) // los dos son obligatorios
 ```
+
+**Resultado:** `Screens` devuelve «Reserva Hora», el grupo «Personal» (Horario, Servicios) y la reserva online. Sin
+`Steps` entrega `panic` con el mensaje de qué falta. La demo usa dobles ([seed/demo.go](seed/demo.go)).
+
+## Operaciones
+
+Cada fila es una entidad de [`Definition`](definition.go). `Allow` dice qué verbos existen; la columna «Regla» dice qué
+decide el módulo (el resto lo hace `crud`). Las operaciones son `router.Operation{Module, Entity, Action}`.
+
+| Entidad | Allow | Regla de dominio |
+|---|---|---|
+| `employee_service_config` | C R U | duración ≥ 1 min; lectura por `staff_id` |
+| `work_calendar_config` | C R U | un calendario por profesional; lectura por `staff_id` |
+| `work_calendar_block` | C R U D | sin solapes ni salirse del horario; recalcula conflictos |
+| `work_calendar_exception` | C R D | recalcula conflictos al crear y al borrar |
+| `reservation` | C R U | hora libre, creador = quien llama, solo cambia el `status` por la [FSM](docs/diagrams/fsm.md) |
+| `reservation_overbooking` | C R | sobrecupo con su propio permiso, tope `max_overbook_per_day` |
+| `online_reservation` | C R | retiene la hora y llama a `Process` (paciente y pago) en la misma petición |
+| `reservation_expiry` | C R | vence las `PENDING` pasadas; guarda cuántas |
+| `conflict_recompute` | C R | recalcula conflictos de un rango; guarda cuántas cambiaron |
+| `time_slot`, `day_limits`, `bookable_service`, `bookable_slot`, `conflicting_reservation`, `staff_option`, `closure_option` | R | modelos de lectura sin tabla |
+
+Los eventos de dominio (`appointment.reservation.*`, `appointment.schedule.changed`) están en [module.go](module.go).
+La API en Go que usan otros módulos (`ConfirmedByStaff`, `Charge`, `ConfirmPaidReservation`, `ImportReservation`…) está en
+[booking.go](booking.go), [import.go](import.go) y [service.go](service.go).
+
+## Mapa de documentación
+
+| Orden | Documento | Qué pregunta responde |
+|---|---|---|
+| 1 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | ¿Qué decide el módulo y qué decide el framework? |
+| 2 | [docs/diagrams/fsm.md](docs/diagrams/fsm.md) | ¿Qué estados tiene una reserva y cómo pasa de uno a otro? |
+| 3 | [docs/diagrams/booking_flow.md](docs/diagrams/booking_flow.md) | ¿Cómo es la reserva en 6 pasos? |
+| 4 | [docs/diagrams/booking_backend.md](docs/diagrams/booking_backend.md) | ¿Qué hace el servidor en cada paso? |
+| 5 | [docs/diagrams/database.md](docs/diagrams/database.md) | ¿Qué tablas hay? |
+| 6 | [docs/diagrams/sequence.md](docs/diagrams/sequence.md) | ¿Quién llama a quién? |
+| 7 | [docs/TESTS.md](docs/TESTS.md) | ¿Qué prueba cada test y cómo se corre? |

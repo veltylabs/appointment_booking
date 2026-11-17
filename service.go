@@ -1,226 +1,33 @@
 package appointmentbooking
 
 import (
+	"webtyp.com/crud"
 	"webtyp.com/events"
-	"webtyp.com/fmt"
 	"webtyp.com/model"
-	"webtyp.com/orm"
-	"webtyp.com/svg"
 	"webtyp.com/time"
 )
 
-// domainError is the concrete type of this package's sentinel errors. Code
-// compares them by asserting this type and comparing the value: == between two
-// error values compiles, under TinyGo, to runtime.interfaceEqual, which pulls
-// internal/reflectlite into the wasm binary.
-const (
-	ErrCalendarConfigNotFound    model.NotFound = "calendar config not found"
-	ErrSlotTaken                 model.Conflict = "slot taken"
-	ErrMissingArgs               model.Invalid  = "missing args"
-	ErrInvalidBlock              model.Invalid  = "appointment_booking: start_min must be < end_min and both within 0..1439"
-	ErrBlocksOverlap             model.Invalid  = "appointment_booking: two blocks of the same day overlap"
-	ErrBlockOutsideBusinessHours model.Invalid  = "appointment_booking: block falls outside the establishment's opening hours"
-	ErrBlockOnClosedDay          model.Invalid  = "appointment_booking: the establishment is closed on that date"
-	ErrNoServiceConfig           model.Invalid  = "appointment_booking: FormConfig.ServiceConfigId is required to book — the professional has no service configured"
-	ErrIncompleteSlot            model.Invalid  = "appointment_booking: a booking needs both a day and an hour"
-	ErrIdTaken                   model.Invalid  = "reservation id already used"
-	ErrImportStatus              model.Invalid  = "an imported reservation must be confirmed, cancelled, completed or no-show"
-	ErrOverbookNotAllowed        model.Invalid  = "overbooking not allowed for this professional and day"
-	ErrSlotNotInSchedule         model.Invalid  = "appointment_booking: slot is not within professional's scheduled blocks"
-	ErrClientNotFound            model.NotFound = "client not found"
-	ErrStaffNotFound             model.NotFound = "staff not found"
-	ErrServiceNotFound           model.NotFound = "service not found"
-)
-
-// Tipos de excepción de calendario (valor de WorkCalendarException.ExceptionType).
-const (
-	ExcHoliday      = "HOLIDAY"
-	ExcSpecialHours = "SPECIAL_HOURS"
-	ExcBlocked      = "BLOCKED"
-)
-
-// iconAppointmentBooking es la referencia al ícono de marca del módulo — solo el nombre llega al
-// binario wasm; la geometría se declara en svg.go (registrado por IconSvg en svg.go).
-const iconAppointmentBooking = svg.Icon("appointment-booking-module")
-
-// Eventos de dominio emitidos por este módulo.
-const (
-	EventReservationCreated     = "appointment.reservation.created"
-	EventReservationConfirmed   = "appointment.reservation.confirmed"
-	EventReservationCancelled   = "appointment.reservation.cancelled"
-	EventReservationCompleted   = "appointment.reservation.completed"
-	EventReservationNoShow      = "appointment.reservation.no_show"
-	EventReservationExpired     = "appointment.reservation.expired"
-	EventReservationRescheduled = "appointment.reservation.rescheduled"
-	// EventReservationConflicted se emite UNA VEZ POR reserva cuando un cambio
-	// vino de la edición del propio profesional (§8.2) — el notificador llega al
-	// paciente sin sondeo. El caso establishment-wide (feriado/cierre que golpea
-	// a decenas de profesionales) publica SOLO el summary por staff y el
-	// consumidor lee ListConflictingReservations (§8.6).
-	EventReservationConflicted = "appointment.reservation.conflicted"
-	// EventScheduleChanged se emite al mutar la agenda de un profesional o
-	// recomputar conflictos tras un cambio del establecimiento. Un consumidor lo
-	// usa para recalcular disponibilidad / notificar (p. ej. reservation recarga
-	// sus huecos libres). Solo se emite cuando el cambio PUSO reservas en
-	// conflicto (CU-19: sin afectados ⇒ silencio).
-	EventScheduleChanged = "appointment.schedule.changed"
-)
-
-// ScheduleChangedPayload es el payload tipado del evento EventScheduleChanged.
-// Implementa model.Encodable (lo que events.Event.Payload exige) y también
-// model.Decodable, para que un broker que cruza un cable real (webtyp/sse en
-// mjosefa-cms) pueda serializarlo; el broker in-proc de la demo entrega el
-// puntero concreto sin codificar.
-type ScheduleChangedPayload struct {
-	TenantId string
-	StaffId  string
-	// FromDate/ToDate bound what changed, so a consumer recomputes a range
-	// instead of everything. 0/0 means "unknown, recompute all".
-	FromDate int64
-	ToDate   int64
-	// ConflictCount is how many reservations the change put in conflict.
-	// Zero means nobody needs to be told (CU-19).
-	ConflictCount int
-}
-
-func (p *ScheduleChangedPayload) IsNil() bool { return p == nil }
-
-func (p *ScheduleChangedPayload) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", p.TenantId)
-	w.String("staff_id", p.StaffId)
-	w.Int("from_date", p.FromDate)
-	w.Int("to_date", p.ToDate)
-	w.Int("conflict_count", int64(p.ConflictCount))
-}
-
-func (p *ScheduleChangedPayload) DecodeFields(r model.FieldReader) {
-	p.TenantId, _ = r.String("tenant_id")
-	p.StaffId, _ = r.String("staff_id")
-	p.FromDate, _ = r.Int("from_date")
-	p.ToDate, _ = r.Int("to_date")
-	if v, ok := r.Int("conflict_count"); ok {
-		p.ConflictCount = int(v)
-	}
-}
-
-type CreateReservationCmd struct {
-	Id                      string
-	TenantId                string
-	ClientId                string
-	CreatorUserId           string
-	EmployeeServiceConfigId string
-	SlotStartUtc            time.Unix
-	Notes                   string
-	RescheduledFromId       string
-	Origin                  string
-	HoldUntil               time.Unix
-}
-
-type CreateOverbookingCmd = CreateReservationCmd
-
-type ChangeStatusCmd struct {
-	TenantId  string
-	Id        string
-	Event     string
-	ActorId   string
-	PaymentId string
-	Revision  int
-}
-
-type Module struct {
-	db       *orm.DB
-	repo     *Repository
-	ids      model.IDGenerator
-	staff    StaffReader
-	catalog  CatalogReader
-	patients PatientDirectory
-	pub      events.Publisher
-	hours    OpeningHours
-	payments PaymentGateway
-	zone     time.Zone
-	tenantID string
-}
-
-type Deps struct {
-	Staff     StaffReader
-	Catalog   CatalogReader
-	Patients  PatientDirectory
-	Hours     OpeningHours // opcional: nil = time.Unlimited()
-	Payments  PaymentGateway
-	IDs       model.IDGenerator // requerido
-	Publisher events.Publisher  // opcional — nil desactiva
-	Zone      time.Zone         // obligatoria
-	TenantID  string
-}
-
-func New(db *orm.DB, deps Deps) (*Module, error) {
-	if deps.IDs == nil {
-		return nil, fmt.Err("appointment_booking: Deps.IDs is required")
-	}
-	if deps.Staff == nil {
-		return nil, fmt.Err("appointment_booking: Deps.Staff is required")
-	}
-	if deps.Catalog == nil {
-		return nil, fmt.Err("appointment_booking: Deps.Catalog is required")
-	}
-	if deps.Patients == nil {
-		return nil, fmt.Err("appointment_booking: Deps.Patients is required")
-	}
-	if deps.Zone.Name() == "" {
-		return nil, fmt.Err("appointment_booking: Deps.Zone is required")
-	}
-	repo, err := NewRepository(db, deps.IDs)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Module{
-		db:       db,
-		repo:     repo,
-		ids:      deps.IDs,
-		staff:    deps.Staff,
-		catalog:  deps.Catalog,
-		patients: deps.Patients,
-		pub:      deps.Publisher,
-		hours:    deps.Hours,
-		payments: deps.Payments,
-		zone:     deps.Zone,
-		tenantID: deps.TenantID,
-	}, nil
-}
-
-func (m *Module) Zone() time.Zone { return m.zone }
-
-func (m *Module) dayKey(u time.Unix) time.Unix {
-	d, _ := time.ParseDateUTC(m.zone.Date(u))
-	return d
-}
-
-func dateOf(dayKey time.Unix) string {
-	y, mo, d, _, _, _ := time.CivilUTC(dayKey)
-	return fmt.Sprintf("%04d-%02d-%02d", y, mo, d)
-}
-
-func (m *Module) at(dayKey time.Unix, minutes int) time.Unix {
-	if minutes >= 1440 {
-		extraDays := minutes / 1440
-		remMin := minutes % 1440
-		u, _ := m.zone.At(dateOf(dayKey+time.Unix(extraDays*86400)), remMin)
-		return u
-	}
-	u, _ := m.zone.At(dateOf(dayKey), minutes)
-	return u
-}
-
 var _ SchedulingService = (*Module)(nil)
 
-// CreateEmployeeServiceConfig registers that a professional performs a
-// service, with its own duration/price override.
+// ///////////////////////////////////////////////////////////////////////////
+// Configuración de servicio y de calendario
+// ///////////////////////////////////////////////////////////////////////////
+
+// CreateEmployeeServiceConfig registers that a professional performs a service, with its own duration/price override.
 func (m *Module) CreateEmployeeServiceConfig(cfg EmployeeServiceConfig) (EmployeeServiceConfig, error) {
+	if cfg.TenantId == "" {
+		cfg.TenantId = m.tenantID
+	}
+	if err := m.own(cfg.TenantId); err != nil {
+		return EmployeeServiceConfig{}, err
+	}
 	if cfg.Id == "" {
 		cfg.Id = m.ids.NewID()
 	}
-	if err := m.repo.InsertEmployeeServiceConfig(cfg); err != nil {
+	if err := checkDuration(cfg.DurationMin); err != nil {
+		return EmployeeServiceConfig{}, err
+	}
+	if err := m.store.Create(&cfg); err != nil {
 		return EmployeeServiceConfig{}, err
 	}
 	return cfg, nil
@@ -228,36 +35,72 @@ func (m *Module) CreateEmployeeServiceConfig(cfg EmployeeServiceConfig) (Employe
 
 // GetEmployeeServiceConfig reads one by id.
 func (m *Module) GetEmployeeServiceConfig(id string) (EmployeeServiceConfig, error) {
-	return m.repo.GetEmployeeServiceConfig(id)
+	return m.repoOn(m.store).GetEmployeeServiceConfig(id)
 }
 
-// ListEmployeeServiceConfigByStaff lists every service a professional
-// performs, active or not — the editing screen needs to show and reactivate
-// a disabled one, not just the active set.
+// ListEmployeeServiceConfigByStaff lists every service a professional performs, active or not — the editing screen
+// needs to show and reactivate a disabled one, not just the active set.
 func (m *Module) ListEmployeeServiceConfigByStaff(tenantId, staffId string) ([]EmployeeServiceConfig, error) {
-	return m.repo.ListEmployeeServiceConfigByStaff(tenantId, staffId)
+	if err := m.own(tenantId); err != nil {
+		return nil, nil
+	}
+	return m.repoOn(m.store).ListEmployeeServiceConfigByStaff(staffId)
 }
 
 // UpdateEmployeeServiceConfig writes the full record.
 func (m *Module) UpdateEmployeeServiceConfig(cfg EmployeeServiceConfig) error {
-	return m.repo.UpdateEmployeeServiceConfig(cfg)
+	if err := m.own(cfg.TenantId); err != nil {
+		return err
+	}
+	if err := checkDuration(cfg.DurationMin); err != nil {
+		return err
+	}
+	return m.store.UpdateFields(&cfg, cfg.Id, []string{
+		EmployeeServiceConfig_.StaffId, EmployeeServiceConfig_.ServiceId, EmployeeServiceConfig_.DurationMin, EmployeeServiceConfig_.BufferMin,
+		EmployeeServiceConfig_.PriceOverride, EmployeeServiceConfig_.PaymentRequired, EmployeeServiceConfig_.IsActive})
+}
+
+// checkDuration rechaza una duración vacía: con 0 minutos el generador de horas no avanzaría nunca.
+func checkDuration(minutes int64) error {
+	if minutes < 1 {
+		return &model.FieldError{Field: EmployeeServiceConfig_.DurationMin, Err: ErrInvalidDuration}
+	}
+	return nil
 }
 
 func (m *Module) GetCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error) {
-	return m.requireCalendarConfig(tenantId, staffId)
+	if err := m.own(tenantId); err != nil {
+		return WorkCalendarConfig{}, ErrCalendarConfigNotFound
+	}
+	return m.requireCalendarConfig(m.repoOn(m.store), staffId)
 }
 
+// UpsertCalendarConfig crea el calendario del profesional o actualiza el que ya tiene (uno por profesional).
 func (m *Module) UpsertCalendarConfig(cfg WorkCalendarConfig) error {
+	if err := m.own(cfg.TenantId); err != nil {
+		return err
+	}
 	if cfg.MaxOverbookPerDay < 0 {
 		return ErrMissingArgs
 	}
-	return m.repo.UpsertCalendarConfig(cfg)
+	return m.store.Atomic(func(tx crud.Tx) error {
+		existing, err := m.repoOn(tx).GetCalendarConfig(cfg.StaffId)
+		if isNotFound(err) {
+			cfg.Id = m.ids.NewID()
+			return tx.Create(&cfg)
+		}
+		if err != nil {
+			return err
+		}
+		cfg.Id = existing.Id
+		return tx.UpdateFields(&cfg, cfg.Id, []string{WorkCalendarConfig_.IsActive, WorkCalendarConfig_.MaxOverbookPerDay})
+	})
 }
 
-func (m *Module) requireCalendarConfig(tenantId, staffId string) (WorkCalendarConfig, error) {
-	cfg, err := m.repo.GetCalendarConfig(tenantId, staffId)
+func (m *Module) requireCalendarConfig(r *Repository, staffId string) (WorkCalendarConfig, error) {
+	cfg, err := r.GetCalendarConfig(staffId)
 	if err != nil {
-		if model.KindOf(err) == model.ErrorNotFound {
+		if isNotFound(err) {
 			return WorkCalendarConfig{}, ErrCalendarConfigNotFound
 		}
 		return WorkCalendarConfig{}, err
@@ -265,84 +108,24 @@ func (m *Module) requireCalendarConfig(tenantId, staffId string) (WorkCalendarCo
 	return cfg, nil
 }
 
-// limitsForDay es el ÚNICO punto del módulo que consulta OpeningHours para una
-// fecha concreta. Un solo nil-check de m.hours en todo el módulo (regla §6.1):
-// nil = Unlimited, y casi todo el código que viene después ya siempre tiene limits.
-func (m *Module) limitsForDay(d time.Unix) (time.DayLimits, error) {
-	if m.hours == nil {
-		return time.Unlimited(), nil
-	}
-	return m.hours.DayLimits(d)
-}
-
-// limitsForWeekday es similar a limitsForDay pero consulta OpeningHours
-// por el horario regular de un día de la semana (0 = Sunday … 6 = Saturday),
-// ignorando excepciones por fecha.
-func (m *Module) limitsForWeekday(dow int) (time.DayLimits, error) {
-	if m.hours == nil {
-		return time.Unlimited(), nil
-	}
-	return m.hours.WeekdayLimits(dow)
-}
-
-// GetDayLimits proxies Deps.Hours para que el editor acote sus propios controles
-// llamando a este módulo, no al calendario institucional directamente (§6.2).
+// GetDayLimits proxies Deps.Hours para que el editor acote sus propios controles llamando a este módulo, no al
+// calendario institucional directamente (§6.2).
 func (m *Module) GetDayLimits(date time.Unix) (time.DayLimits, error) {
 	return m.limitsForDay(date)
 }
 
-// validateBlocks aplica las constraints de rango y solapamiento a un conjunto de
-// bloques de UN día. Las escribiré todas con start < end y dentro de 0..1439.
-func validateBlocks(blocks []WorkCalendarBlock) error {
-	for i := range blocks {
-		b := &blocks[i]
-		if b.StartMin < 0 || b.StartMin >= 1440 || b.EndMin <= 0 || b.EndMin > 1440 || b.StartMin >= b.EndMin {
-			return ErrInvalidBlock
-		}
-	}
-	for i := 0; i < len(blocks); i++ {
-		for j := i + 1; j < len(blocks); j++ {
-			a, c := &blocks[i], &blocks[j]
-			if a.StartMin < c.EndMin && c.StartMin < a.EndMin {
-				return ErrBlocksOverlap
-			}
-		}
-	}
-	return nil
-}
+// ///////////////////////////////////////////////////////////////////////////
+// Bloques y excepciones de la agenda
+// ///////////////////////////////////////////////////////////////////////////
 
-// checkBlockAgainstBounds rechaza un bloque que el establecimiento no cubre:
-// día cerrado (ErrBlockOnClosedDay) o ventana fuera de las horas de apertura
-// (ErrBlockOutsideBusinessHours). La UI ya solo ofrece horas legales (CU-02),
-// pero las ops pasan por router y la UI no puede ser la única defensa (CU-07).
-func checkBlockAgainstBounds(bounds time.DayLimits, b WorkCalendarBlock) error {
-	if !bounds.Open {
-		return ErrBlockOnClosedDay
-	}
-	if _, _, ok := bounds.Clamp(int(b.StartMin), int(b.EndMin)); !ok {
-		return ErrBlockOutsideBusinessHours
-	}
-	return nil
-}
-
-func validateBlockSet(bounds time.DayLimits, blocks []WorkCalendarBlock) error {
-	for i := range blocks {
-		if err := checkBlockAgainstBounds(bounds, blocks[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// SaveDayBlocks replaces EVERY weekly block of that weekday with the ones
-// given. A whole-day replace, not a per-row upsert: partial edits are what let
-// the stored set drift out of step with what the editor is showing.
+// SaveDayBlocks replaces EVERY weekly block of that weekday with the ones given. A whole-day replace, not a
+// per-row upsert: partial edits are what let the stored set drift out of step with what the editor is showing.
 func (m *Module) SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks []WorkCalendarBlock) error {
+	if err := m.own(tenantId); err != nil {
+		return err
+	}
 	if dayOfWeek < 0 || dayOfWeek > 6 {
 		return ErrInvalidBlock
-	}
-	if _, err := m.requireCalendarConfig(tenantId, staffId); err != nil {
-		return err
 	}
 	if err := validateBlocks(blocks); err != nil {
 		return err
@@ -361,17 +144,19 @@ func (m *Module) SaveDayBlocks(tenantId, staffId string, dayOfWeek int, blocks [
 	if err := validateBlockSet(limits, blocks); err != nil {
 		return err
 	}
-	if err := m.repo.ReplaceWeekdayBlocks(tenantId, staffId, dayOfWeek, blocks); err != nil {
-		return err
-	}
 	from := time.MidnightUTC(time.NowUnix())
-	return m.recomputeAndPublish(tenantId, staffId, from, forwardHorizon(from))
+	return m.editSchedule(staffId, from, forwardHorizon(from), func(r *Repository) error {
+		if _, err := m.requireCalendarConfig(r, staffId); err != nil {
+			return err
+		}
+		return r.ReplaceWeekdayBlocks(staffId, dayOfWeek, blocks)
+	})
 }
 
-// SaveDateBlocks replaces the dated blocks of ONE date, so a single marked day
-// can diverge from the common window it was created with (CU-11).
+// SaveDateBlocks replaces the dated blocks of ONE date, so a single marked day can diverge from the common window
+// it was created with (CU-11).
 func (m *Module) SaveDateBlocks(tenantId, staffId string, date int64, blocks []WorkCalendarBlock) error {
-	if _, err := m.requireCalendarConfig(tenantId, staffId); err != nil {
+	if err := m.own(tenantId); err != nil {
 		return err
 	}
 	if err := validateBlocks(blocks); err != nil {
@@ -392,34 +177,27 @@ func (m *Module) SaveDateBlocks(tenantId, staffId string, date int64, blocks []W
 	if err := validateBlockSet(limits, blocks); err != nil {
 		return err
 	}
-	if err := m.repo.ReplaceDateBlocks(tenantId, staffId, date, blocks); err != nil {
-		return err
-	}
-	return m.recomputeAndPublish(tenantId, staffId, dUnix, dUnix)
+	return m.editSchedule(staffId, dUnix, dUnix, func(r *Repository) error {
+		if _, err := m.requireCalendarConfig(r, staffId); err != nil {
+			return err
+		}
+		return r.ReplaceDateBlocks(staffId, date, blocks)
+	})
 }
 
-// MarkWorkingDays writes ONE dated block per date, all with the same window —
-// the bulk gesture behind "mark the days I work over the next 6 months"
-// (CU-10/CU-11). Re-marking a date replaces its blocks.
+// MarkWorkingDays writes ONE dated block per date, all with the same window — the bulk gesture behind "mark the
+// days I work over the next 6 months" (CU-10/CU-11). Re-marking a date replaces its blocks.
 func (m *Module) MarkWorkingDays(tenantId, staffId string, dates []int64, startMin, endMin int) error {
+	if err := m.own(tenantId); err != nil {
+		return err
+	}
 	if startMin < 0 || startMin >= endMin || endMin > 1440 {
 		return ErrInvalidBlock
 	}
 	if len(dates) == 0 {
 		return nil
 	}
-	from, to := dates[0], dates[0]
-	for _, d := range dates {
-		if d < from {
-			from = d
-		}
-		if d > to {
-			to = d
-		}
-	}
-	if _, err := m.requireCalendarConfig(tenantId, staffId); err != nil {
-		return err
-	}
+	from, to := dateRange(dates)
 	for _, d := range dates {
 		limits, err := m.limitsForDay(time.Unix(d))
 		if err != nil {
@@ -429,25 +207,48 @@ func (m *Module) MarkWorkingDays(tenantId, staffId string, dates []int64, startM
 			return err
 		}
 	}
-	for _, d := range dates {
-		dUnix := time.Unix(d)
-		if err := m.repo.ReplaceDateBlocks(tenantId, staffId, d, []WorkCalendarBlock{{
-			TenantId: tenantId, StaffId: staffId, DayOfWeek: int64(time.WeekdayUTC(dUnix)),
-			SpecificDate: dUnix, StartMin: int64(startMin), EndMin: int64(endMin), IsActive: true,
-		}}); err != nil {
+	return m.editSchedule(staffId, time.Unix(from), time.Unix(to), func(r *Repository) error {
+		if _, err := m.requireCalendarConfig(r, staffId); err != nil {
 			return err
 		}
-	}
-	return m.recomputeAndPublish(tenantId, staffId, time.Unix(from), time.Unix(to))
+		for _, d := range dates {
+			dUnix := time.Unix(d)
+			if err := r.ReplaceDateBlocks(staffId, d, []WorkCalendarBlock{{
+				TenantId: tenantId, StaffId: staffId, DayOfWeek: int64(time.WeekdayUTC(dUnix)),
+				SpecificDate: dUnix, StartMin: int64(startMin), EndMin: int64(endMin), IsActive: true,
+			}}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
-// UnmarkWorkingDays deletes every dated block on those dates, returning the
-// days to whatever the weekly template says — or to unworked (CU-15).
+// UnmarkWorkingDays deletes every dated block on those dates, returning the days to whatever the weekly template
+// says — or to unworked (CU-15).
 func (m *Module) UnmarkWorkingDays(tenantId, staffId string, dates []int64) error {
+	if err := m.own(tenantId); err != nil {
+		return err
+	}
 	if len(dates) == 0 {
 		return nil
 	}
-	from, to := dates[0], dates[0]
+	from, to := dateRange(dates)
+	return m.editSchedule(staffId, time.Unix(from), time.Unix(to), func(r *Repository) error {
+		if _, err := m.requireCalendarConfig(r, staffId); err != nil {
+			return err
+		}
+		for _, d := range dates {
+			if err := r.DeleteDateBlocks(staffId, d); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func dateRange(dates []int64) (from, to int64) {
+	from, to = dates[0], dates[0]
 	for _, d := range dates {
 		if d < from {
 			from = d
@@ -456,868 +257,561 @@ func (m *Module) UnmarkWorkingDays(tenantId, staffId string, dates []int64) erro
 			to = d
 		}
 	}
-	if _, err := m.requireCalendarConfig(tenantId, staffId); err != nil {
-		return err
-	}
-	for _, d := range dates {
-		if err := m.repo.DeleteDateBlocks(tenantId, staffId, d); err != nil {
-			return err
-		}
-	}
-	return m.recomputeAndPublish(tenantId, staffId, time.Unix(from), time.Unix(to))
+	return from, to
 }
 
 func (m *Module) ListBlocks(tenantId, staffId string) ([]WorkCalendarBlock, error) {
-	return m.repo.ListBlocks(tenantId, staffId)
+	if err := m.own(tenantId); err != nil {
+		return nil, nil
+	}
+	return m.repoOn(m.store).ListBlocks(staffId)
 }
 
 func (m *Module) ListExceptions(tenantId, staffId string, from, to time.Unix) ([]WorkCalendarException, error) {
-	return m.repo.ListExceptions(tenantId, staffId, from, to)
+	if err := m.own(tenantId); err != nil {
+		return nil, nil
+	}
+	return m.repoOn(m.store).ListExceptions(staffId, from, to)
 }
 
 func (m *Module) AddException(exc WorkCalendarException) error {
-	if err := m.repo.InsertException(exc); err != nil {
+	if err := m.own(exc.TenantId); err != nil {
 		return err
 	}
+	if exc.Id == "" {
+		exc.Id = m.ids.NewID()
+	}
 	from := time.MidnightUTC(exc.SpecificDate)
-	return m.recomputeAndPublish(exc.TenantId, exc.StaffId, from, from)
+	return m.editSchedule(exc.StaffId, from, from, func(r *Repository) error { return r.tx.Create(&exc) })
 }
 
 func (m *Module) RemoveException(tenantId, exceptionId string) error {
-	exc, err := m.repo.GetException(tenantId, exceptionId)
+	if err := m.own(tenantId); err != nil {
+		return err
+	}
+	exc, err := m.repoOn(m.store).GetException(exceptionId)
 	if err != nil {
 		return err
 	}
-	if err := m.repo.DeleteException(tenantId, exceptionId); err != nil {
+	from := time.MidnightUTC(exc.SpecificDate)
+	return m.editSchedule(exc.StaffId, from, from, func(r *Repository) error {
+		return r.tx.Delete(&WorkCalendarException{}, exceptionId)
+	})
+}
+
+// editSchedule es el camino de las EDICIONES DEL PROFESIONAL (§8.2): escribe el cambio y recalcula los conflictos
+// del rango afectado de UN profesional en la misma transacción, y después avisa (CU-19: sin afectados, silencio).
+func (m *Module) editSchedule(staffId string, from, to time.Unix, write func(r *Repository) error) error {
+	var result recomputeResult
+	err := m.store.Atomic(func(tx crud.Tx) error {
+		r := m.repoOn(tx)
+		if err := write(r); err != nil {
+			return err
+		}
+		var err error
+		result, err = m.recomputeConflictsFor(r, from, to, staffId, scheduleChange{})
+		return err
+	})
+	if err != nil {
 		return err
 	}
-	from := time.MidnightUTC(exc.SpecificDate)
-	return m.recomputeAndPublish(tenantId, exc.StaffId, from, from)
+	m.announceEdit(result, from, to)
+	return nil
 }
 
-// dayWindow es una ventana UTC reservable de un día.
-type dayWindow struct {
-	StartUtc time.Unix
-	EndUtc   time.Unix
-}
-
-// blocksForDate — los bloques DATADOS de la fecha exacta. Un bloque datado ABRE
-// su día aunque el template semanal no lo cubra — es la inversión de la vieja
-// compuerta de días de ListAvailability (CU-10).
-func blocksForDate(blocks []WorkCalendarBlock, date time.Unix) []WorkCalendarBlock {
-	var out []WorkCalendarBlock
-	for _, b := range blocks {
-		if b.SpecificDate == date {
-			out = append(out, b)
-		}
-	}
-	return out
-}
-
-// blocksForWeekday — los bloques WEEKLY del día de la semana. Sin map: scan
-// lineal sobre un conjunto pequeño (regla "cero map" de AGENTS.md).
-func blocksForWeekday(blocks []WorkCalendarBlock, dow int) []WorkCalendarBlock {
-	var out []WorkCalendarBlock
-	for _, b := range blocks {
-		if b.SpecificDate == 0 && int(b.DayOfWeek) == dow {
-			out = append(out, b)
-		}
-	}
-	return out
-}
-
-func dayExceptionsFor(exceptions []WorkCalendarException, d time.Unix) []WorkCalendarException {
-	var out []WorkCalendarException
-	for _, e := range exceptions {
-		if e.SpecificDate == d {
-			out = append(out, e)
-		}
-	}
-	return out
-}
-
-// subtractWindow recorta [s, e) de las ventanas — la operación con la que una
-// excepción BLOCKED deja agujeros en el día. Divide en dos la ventana solapada.
-func subtractWindow(windows []dayWindow, s, e time.Unix) []dayWindow {
-	var out []dayWindow
-	for _, w := range windows {
-		if e <= w.StartUtc || s >= w.EndUtc {
-			out = append(out, w)
-			continue
-		}
-		if s > w.StartUtc {
-			out = append(out, dayWindow{StartUtc: w.StartUtc, EndUtc: s})
-		}
-		if e < w.EndUtc {
-			out = append(out, dayWindow{StartUtc: e, EndUtc: w.EndUtc})
-		}
-	}
-	return out
-}
-
-// availableRanges devuelve las ventanas UTC utilizables de un día: bloques
-// (datados primero, luego semanales) recortadas a bounds, tras aplicar
-// HOLIDAY / SPECIAL_HOURS / BLOCKED. Es la ÚNICA regla "qué rango de minutos de
-// este día es reservable" — ListAvailability y la detección de conflictos la
-// comparten (anti-drifting, §8.1). bounds debe venir resuelta (nunca el zero
-// value): el caller usa limitsForDay.
-func (m *Module) availableRanges(d time.Unix, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, bounds time.DayLimits) []dayWindow {
-	if !bounds.Open {
-		return nil
-	}
-	dayExcs := dayExceptionsFor(exceptions, d)
-	var specialHours *WorkCalendarException
-	blockedExcs := []WorkCalendarException{}
-	for i := range dayExcs {
-		e := &dayExcs[i]
-		switch e.ExceptionType {
-		case ExcHoliday:
-			return nil
-		case ExcSpecialHours:
-			if specialHours == nil {
-				specialHours = e
-			}
-		case ExcBlocked:
-			blockedExcs = append(blockedExcs, *e)
-		}
-	}
-
-	// SPECIAL_HOURS acota el día a una única ventana (comportamiento
-	// preexistente preservado): sigue útil para NARROW un día que un bloque
-	// semanal/datado cubre. Abrir un día ya no necesita esta excepción.
-	if specialHours != nil {
-		start, end, ok := bounds.Clamp(int(specialHours.StartTime), int(specialHours.EndTime))
-		if !ok {
-			return nil
-		}
-		return []dayWindow{{
-			StartUtc: m.at(d, start),
-			EndUtc:   m.at(d, end),
-		}}
-	}
-
-	dayBlocks := blocksForDate(blocks, d)
-	if len(dayBlocks) == 0 {
-		dayBlocks = blocksForWeekday(blocks, time.WeekdayUTC(d))
-	}
-	if len(dayBlocks) == 0 {
-		return nil
-	}
-
-	var out []dayWindow
-	for _, b := range dayBlocks {
-		if !b.IsActive {
-			continue
-		}
-		start, end, ok := bounds.Clamp(int(b.StartMin), int(b.EndMin))
-		if !ok {
-			continue
-		}
-		out = append(out, dayWindow{
-			StartUtc: m.at(d, start),
-			EndUtc:   m.at(d, end),
-		})
-	}
-
-	// Restar excepciones BLOCKED del día.
-	for _, be := range blockedExcs {
-		out = subtractWindow(out,
-			m.at(d, int(be.StartTime)),
-			m.at(d, int(be.EndTime)),
-		)
-	}
-	return out
-}
-
-// fitsWindow reporta si un slot [startUtc, startUtc+span) cabe dentro de alguna
-// de las ventanas (half-open: end == window end cuenta como dentro).
-func fitsWindow(windows []dayWindow, startUtc, span int64) bool {
-	st := time.Unix(startUtc)
-	end := time.Unix(startUtc + span)
-	for _, w := range windows {
-		if w.StartUtc <= st && end <= w.EndUtc {
-			return true
-		}
-	}
-	return false
-}
-
-func (m *Module) scheduleSlots(from, to time.Unix, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, empSvcCfg EmployeeServiceConfig, activeReservations []Reservation) ([]TimeSlot, error) {
-	durationMin := int(empSvcCfg.DurationMin)
-	bufferMin := int(empSvcCfg.BufferMin)
-
-	slots := []TimeSlot{}
-
-	// Para cada día D en [from, to] (timestamps de medianoche UTC): bloques
-	// datados PRIMERO (abren su día aunque el template semanal no lo cubra),
-	// luego semanales; recortados a bounds; y generar slots dentro de cada
-	// ventana, saltando los huecos entre bloques.
-	for d := from; d <= to; d += time.Day {
-		bounds, err := m.limitsForDay(d)
-		if err != nil {
-			return nil, err
-		}
-		if !bounds.Open {
-			continue
-		}
-		ranges := m.availableRanges(d, blocks, exceptions, cfg, bounds)
-		for _, win := range ranges {
-			curr := win.StartUtc
-			for {
-				end := curr + time.Unix(durationMin*60)
-				endWithBuffer := end + time.Unix(bufferMin*60)
-				if endWithBuffer > win.EndUtc {
-					break
-				}
-
-				// Verificar reservas existentes
-				hasOverlap := false
-				var resEnd time.Unix
-				for _, res := range activeReservations {
-					rStart := time.Unix(res.ReservationTime)
-					rEnd := rStart + time.Unix(res.DurationMinSnapshot*60)
-					if curr < rEnd && endWithBuffer > rStart {
-						hasOverlap = true
-						resEnd = rEnd
-						break
-					}
-				}
-
-				if hasOverlap {
-					curr = resEnd
-				} else {
-					slots = append(slots, TimeSlot{StartUtc: curr, EndUtc: end})
-					curr += time.Unix(durationMin * 60)
-				}
-			}
-		}
-	}
-
-	return slots, nil
-}
+// ///////////////////////////////////////////////////////////////////////////
+// Disponibilidad
+// ///////////////////////////////////////////////////////////////////////////
 
 func (m *Module) ListAvailability(tenantId, staffId, configId string, from, to time.Unix) ([]TimeSlot, error) {
-	cfg, err := m.requireCalendarConfig(tenantId, staffId)
+	if err := m.own(tenantId); err != nil {
+		return nil, err
+	}
+	return m.availability(m.repoOn(m.store), staffId, configId, from, to)
+}
+
+func (m *Module) availability(r *Repository, staffId, configId string, from, to time.Unix) ([]TimeSlot, error) {
+	cfg, err := m.requireCalendarConfig(r, staffId)
 	if err != nil {
 		return nil, err
 	}
 	if !cfg.IsActive {
 		return []TimeSlot{}, nil
 	}
-
-	blocks, err := m.repo.ListBlocks(tenantId, staffId)
+	blocks, err := r.ListBlocks(staffId)
 	if err != nil {
 		return nil, err
 	}
-
-	exceptions, err := m.repo.ListExceptions(tenantId, staffId, from, to)
+	exceptions, err := r.ListExceptions(staffId, from, to)
 	if err != nil {
 		return nil, err
 	}
-
 	fromUtc := m.at(from, 0)
 	_, toUtc, _ := m.zone.Day(dateOf(to))
-	reservations, err := m.repo.ListReservationsByStaff(tenantId, staffId, fromUtc, toUtc)
+	reservations, err := r.ListReservationsByStaff(staffId, fromUtc, toUtc)
 	if err != nil {
 		return nil, err
 	}
 	activeReservations := []Reservation{}
-	for _, r := range reservations {
-		if r.Status != StatusCancelled && r.Status != StatusRescheduled && r.Status != StatusExpired {
-			activeReservations = append(activeReservations, r)
+	for _, res := range reservations {
+		if holdsSlot(res.Status) {
+			activeReservations = append(activeReservations, res)
 		}
 	}
-
-	empSvcCfg, err := m.repo.GetEmployeeServiceConfig(configId)
+	empSvcCfg, err := r.GetEmployeeServiceConfig(configId)
 	if err != nil {
 		return nil, err
 	}
-	if !empSvcCfg.IsActive || empSvcCfg.TenantId != tenantId {
+	if !empSvcCfg.IsActive {
 		return []TimeSlot{}, nil
 	}
-
 	return m.scheduleSlots(from, to, blocks, exceptions, cfg, empSvcCfg, activeReservations)
 }
 
-func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error) {
-	if cmd.Id == "" || cmd.ClientId == "" {
-		return Reservation{}, ErrMissingArgs
-	}
-	if cmd.Origin != OriginCounter && cmd.Origin != OriginOnline {
-		return Reservation{}, ErrMissingArgs
-	}
+// ///////////////////////////////////////////////////////////////////////////
+// Reservas
+// ///////////////////////////////////////////////////////////////////////////
 
-	existing, err := m.repo.GetReservation(cmd.Id)
-	if err == nil {
-		if existing.TenantId == cmd.TenantId && existing.ClientId == cmd.ClientId {
-			return existing, nil
-		}
-		return Reservation{}, ErrIdTaken
-	} else if model.KindOf(err) != model.ErrorNotFound {
-		return Reservation{}, err
-	}
+type CreateReservationCmd struct {
+	Id                      string
+	TenantId                string
+	ClientId                string
+	CreatorUserId           string
+	EmployeeServiceConfigId string
+	SlotTimeUtc            time.Unix
+	Notes                   string
+	RescheduledFromId       string
+	Origin                  string
+	HoldUntil               time.Unix
+}
 
-	// 1. Cargar EmployeeServiceConfig
-	empSvcCfg, err := m.repo.GetEmployeeServiceConfig(cmd.EmployeeServiceConfigId)
+type CreateOverbookingCmd = CreateReservationCmd
+
+type ChangeStatusCmd struct {
+	TenantId  string
+	Id        string
+	Event     string
+	ActorId   string
+	PaymentId string
+	Revision  int
+}
+
+// reservationOf arma la fila de una orden de reserva; prepareReservation la completa y la valida.
+func reservationOf(cmd CreateReservationCmd) Reservation {
+	return Reservation{
+		Id: cmd.Id, TenantId: cmd.TenantId, ClientId: cmd.ClientId, EmployeeServiceConfigId: cmd.EmployeeServiceConfigId,
+		ReservationTime: int64(cmd.SlotTimeUtc), HoldUntil: cmd.HoldUntil, Origin: cmd.Origin,
+		RescheduledFromId: cmd.RescheduledFromId, Notes: cmd.Notes, CreatorUserId: cmd.CreatorUserId,
+	}
+}
+
+// prepareReservation completa y valida una reserva nueva: la configuración activa, el cliente, el profesional y
+// el servicio existen, la hora es un inicio de horario habilitado (libre, o de sobrecupo dentro del tope del día) y
+// congela precio y duración. No escribe: la regla de crud o CreateReservation la guardan.
+// checkClient = false deja pasar un cliente aún sin resolver (la reserva online resuelve al paciente después).
+func (m *Module) prepareReservation(r *Repository, res *Reservation, overbook, checkClient bool) error {
+	if res.Id == "" || res.ClientId == "" {
+		return ErrMissingArgs
+	}
+	if res.Origin != OriginCounter && res.Origin != OriginOnline {
+		return ErrMissingArgs
+	}
+	empSvcCfg, err := r.GetEmployeeServiceConfig(res.EmployeeServiceConfigId)
 	if err != nil {
-		return Reservation{}, err
+		return err
 	}
-	if !empSvcCfg.IsActive || empSvcCfg.TenantId != cmd.TenantId {
-		return Reservation{}, ErrNotFound
+	if !empSvcCfg.IsActive {
+		return ErrNotFound
 	}
-
-	// 2. Validar cliente
-	_, _, _, _, patientExists, err := m.patients.GetPatient(cmd.TenantId, cmd.ClientId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !patientExists {
-		return Reservation{}, ErrClientNotFound
-	}
-
-	// 3. Validar staff
-	staffExists, err := m.staff.StaffExists(cmd.TenantId, empSvcCfg.StaffId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !staffExists {
-		return Reservation{}, fmt.Err("staff", "not", "found")
-	}
-
-	// 4. Validar servicio
-	serviceExists, err := m.catalog.ServiceExists(cmd.TenantId, empSvcCfg.ServiceId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !serviceExists {
-		return Reservation{}, fmt.Err("service", "not", "found")
-	}
-
-	// 4. Verificar disponibilidad
-	targetDay := m.dayKey(cmd.SlotStartUtc)
-	fromDay := targetDay - time.Day
-	toDay := targetDay + time.Day
-
-	slots, err := m.ListAvailability(cmd.TenantId, empSvcCfg.StaffId, empSvcCfg.Id, fromDay, toDay)
-	if err != nil {
-		return Reservation{}, err
-	}
-
-	isAvailable := false
-	for _, slot := range slots {
-		if slot.StartUtc == cmd.SlotStartUtc {
-			isAvailable = true
-			break
-		}
-	}
-	if !isAvailable {
-		return Reservation{}, ErrSlotTaken
-	}
-
-	price, currency, err := m.priceFor(cmd.TenantId, empSvcCfg)
-	if err != nil {
-		return Reservation{}, err
-	}
-	var newReservation Reservation
-	var originalReservation *Reservation
-
-	err = m.db.Tx(func(tx *orm.DB) error {
-		now := time.NowNano()
-
-		newReservation = Reservation{
-			Id:                      cmd.Id,
-			TenantId:                cmd.TenantId,
-			ClientId:                cmd.ClientId,
-			CreatorUserId:           cmd.CreatorUserId,
-			EmployeeServiceConfigId: cmd.EmployeeServiceConfigId,
-			StaffIdsnapshot:         empSvcCfg.StaffId,
-			ServiceIdsnapshot:       empSvcCfg.ServiceId,
-			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           price,
-			CurrencySnapshot:        currency, // default
-			ReservationTime:         int64(cmd.SlotStartUtc),
-			Status:                  StatusPending,
-			HoldUntil:               cmd.HoldUntil,
-			Origin:                  cmd.Origin,
-			RescheduledFromId:       cmd.RescheduledFromId,
-			Notes:                   cmd.Notes,
-			Overbooked:              false,
-			UpdatedAt:               now,
-			UpdatedBy:               cmd.CreatorUserId, // Usar CreatorUserId como ActorID al momento de la creación
-			Revision:                0,
-		}
-
-		if cmd.RescheduledFromId != "" {
-			orig, err := m.repo.GetReservationTx(tx, cmd.TenantId, cmd.RescheduledFromId)
-			if err != nil {
-				return err
-			}
-			originalReservation = &orig
-
-			_, err = Transition(orig.Status, EventReschedule)
-			if err != nil {
-				return err
-			}
-
-			err = m.repo.UpdateReservationStatusTx(tx, orig.Id, StatusRescheduled, cmd.CreatorUserId, now, orig.Revision)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Hacer un insert dentro de la tx en vez de repo.InsertReservation, que usa db.Create
-		err = tx.Create(&newReservation)
+	if checkClient {
+		_, _, _, _, patientExists, err := m.patients.GetPatient(m.tenantID, res.ClientId)
 		if err != nil {
 			return err
 		}
-
-		return nil
-	})
-
-	if err != nil {
-		return Reservation{}, err
-	}
-
-	if m.pub != nil {
-		m.pub.Publish(events.Event{Topic: EventReservationCreated, Payload: &newReservation})
-		if originalReservation != nil {
-			m.pub.Publish(events.Event{Topic: EventReservationRescheduled, Payload: originalReservation})
+		if !patientExists {
+			return ErrClientNotFound
 		}
 	}
+	staffExists, err := m.staff.StaffExists(m.tenantID, empSvcCfg.StaffId)
+	if err != nil {
+		return err
+	}
+	if !staffExists {
+		return ErrStaffNotFound
+	}
+	serviceExists, err := m.catalog.ServiceExists(m.tenantID, empSvcCfg.ServiceId)
+	if err != nil {
+		return err
+	}
+	if !serviceExists {
+		return ErrServiceNotFound
+	}
+	slot := time.Unix(res.ReservationTime)
+	if overbook {
+		err = m.checkOverbookSlot(r, empSvcCfg, slot)
+	} else {
+		err = m.checkFreeSlot(r, empSvcCfg, slot)
+	}
+	if err != nil {
+		return err
+	}
+	price, currency, err := m.priceFor(empSvcCfg)
+	if err != nil {
+		return err
+	}
+	res.StaffIdsnapshot = empSvcCfg.StaffId
+	res.ServiceIdsnapshot = empSvcCfg.ServiceId
+	res.DurationMinSnapshot = empSvcCfg.DurationMin
+	res.PriceSnapshot = price
+	res.CurrencySnapshot = currency
+	res.Status = StatusPending
+	res.Overbooked = overbook
+	res.UpdatedAt = time.NowNano()
+	res.UpdatedBy = res.CreatorUserId
+	res.Revision = 1
+	return nil
+}
 
-	return newReservation, nil
+// checkFreeSlot exige que la hora sea el inicio de un horario libre (no choca con otra reserva de esta transacción).
+func (m *Module) checkFreeSlot(r *Repository, cfg EmployeeServiceConfig, slot time.Unix) error {
+	targetDay := m.dayKey(slot)
+	slots, err := m.availability(r, cfg.StaffId, cfg.Id, targetDay-time.Day, targetDay+time.Day)
+	if err != nil {
+		return err
+	}
+	for _, s := range slots {
+		if s.StartUtc == slot {
+			return nil
+		}
+	}
+	return ErrSlotTaken
+}
+
+// checkOverbookSlot exige que la hora sea el inicio de un horario habilitado de la agenda (esté libre u ocupado) y
+// que el día todavía tenga cupo de sobrecupo (cerrado si MaxOverbookPerDay == 0).
+func (m *Module) checkOverbookSlot(r *Repository, cfg EmployeeServiceConfig, slot time.Unix) error {
+	targetDay := m.dayKey(slot)
+	fromDay, toDay := targetDay-time.Day, targetDay+time.Day
+	calCfg, err := m.requireCalendarConfig(r, cfg.StaffId)
+	if err != nil {
+		return err
+	}
+	if !calCfg.IsActive {
+		return ErrSlotNotInSchedule
+	}
+	blocks, err := r.ListBlocks(cfg.StaffId)
+	if err != nil {
+		return err
+	}
+	exceptions, err := r.ListExceptions(cfg.StaffId, fromDay, toDay)
+	if err != nil {
+		return err
+	}
+	slots, err := m.scheduleSlots(fromDay, toDay, blocks, exceptions, calCfg, cfg, nil)
+	if err != nil {
+		return err
+	}
+	matches := false
+	for _, s := range slots {
+		if s.StartUtc == slot {
+			matches = true
+			break
+		}
+	}
+	if !matches {
+		return ErrSlotNotInSchedule
+	}
+	if calCfg.MaxOverbookPerDay == 0 {
+		return ErrOverbookNotAllowed
+	}
+	fromUtc := m.at(targetDay, 0)
+	_, toUtc, _ := m.zone.Day(dateOf(targetDay))
+	dayReservations, err := r.ListReservationsByStaff(cfg.StaffId, fromUtc, toUtc)
+	if err != nil {
+		return err
+	}
+	overbooked := int64(0)
+	for _, res := range dayReservations {
+		if res.Overbooked && holdsSlot(res.Status) {
+			overbooked++
+		}
+	}
+	if overbooked >= calCfg.MaxOverbookPerDay {
+		return ErrOverbookNotAllowed
+	}
+	return nil
+}
+
+// rescheduleOriginal marca como RESCHEDULED la reserva que la nueva reemplaza y la devuelve (para avisar).
+func (m *Module) rescheduleOriginal(r *Repository, res *Reservation) (*Reservation, error) {
+	if res.RescheduledFromId == "" {
+		return nil, nil
+	}
+	orig, err := r.GetReservation(res.RescheduledFromId)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := Transition(orig.Status, EventReschedule); err != nil {
+		return nil, err
+	}
+	if err := r.UpdateReservationStatus(orig.Id, StatusRescheduled, res.CreatorUserId, res.UpdatedAt, orig.Revision); err != nil {
+		return nil, err
+	}
+	orig.Status = StatusRescheduled
+	return &orig, nil
+}
+
+func (m *Module) CreateReservation(cmd CreateReservationCmd) (Reservation, error) {
+	return m.createReservation(cmd, false)
 }
 
 func (m *Module) CreateOverbooking(cmd CreateReservationCmd) (Reservation, error) {
+	return m.createReservation(cmd, true)
+}
+
+func (m *Module) createReservation(cmd CreateReservationCmd, overbook bool) (Reservation, error) {
+	if err := m.own(cmd.TenantId); err != nil {
+		return Reservation{}, err
+	}
 	if cmd.Id == "" || cmd.ClientId == "" {
 		return Reservation{}, ErrMissingArgs
 	}
-	if cmd.Origin != OriginCounter && cmd.Origin != OriginOnline {
-		return Reservation{}, ErrMissingArgs
-	}
-
-	existing, err := m.repo.GetReservation(cmd.Id)
-	if err == nil {
-		if existing.TenantId == cmd.TenantId && existing.ClientId == cmd.ClientId {
-			return existing, nil
-		}
-		return Reservation{}, ErrIdTaken
-	} else if model.KindOf(err) != model.ErrorNotFound {
-		return Reservation{}, err
-	}
-
-	// 1. Cargar EmployeeServiceConfig
-	empSvcCfg, err := m.repo.GetEmployeeServiceConfig(cmd.EmployeeServiceConfigId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !empSvcCfg.IsActive || empSvcCfg.TenantId != cmd.TenantId {
-		return Reservation{}, ErrNotFound
-	}
-
-	// 2. Validar cliente
-	_, _, _, _, patientExists, err := m.patients.GetPatient(cmd.TenantId, cmd.ClientId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !patientExists {
-		return Reservation{}, ErrClientNotFound
-	}
-
-	// 3. Validar staff
-	staffExists, err := m.staff.StaffExists(cmd.TenantId, empSvcCfg.StaffId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !staffExists {
-		return Reservation{}, fmt.Err("staff", "not", "found")
-	}
-
-	// 4. Validar servicio
-	serviceExists, err := m.catalog.ServiceExists(cmd.TenantId, empSvcCfg.ServiceId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !serviceExists {
-		return Reservation{}, fmt.Err("service", "not", "found")
-	}
-
-	// 4. Verificar que la hora pedida coincide con el inicio de un slot habilitado del horario del día
-	targetDay := m.dayKey(cmd.SlotStartUtc)
-	fromDay := targetDay - time.Day
-	toDay := targetDay + time.Day
-
-	calCfg, err := m.requireCalendarConfig(cmd.TenantId, empSvcCfg.StaffId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	if !calCfg.IsActive {
-		return Reservation{}, ErrSlotNotInSchedule
-	}
-
-	blocks, err := m.repo.ListBlocks(cmd.TenantId, empSvcCfg.StaffId)
-	if err != nil {
-		return Reservation{}, err
-	}
-
-	exceptions, err := m.repo.ListExceptions(cmd.TenantId, empSvcCfg.StaffId, fromDay, toDay)
-	if err != nil {
-		return Reservation{}, err
-	}
-
-	slots, err := m.scheduleSlots(fromDay, toDay, blocks, exceptions, calCfg, empSvcCfg, nil)
-	if err != nil {
-		return Reservation{}, err
-	}
-
-	matchesSchedule := false
-	for _, slot := range slots {
-		if slot.StartUtc == cmd.SlotStartUtc {
-			matchesSchedule = true
-			break
-		}
-	}
-	if !matchesSchedule {
-		return Reservation{}, ErrSlotNotInSchedule
-	}
-
-	// 5. Validar tope de sobrecupo (cerrado si MaxOverbookPerDay == 0)
-	if calCfg.MaxOverbookPerDay == 0 {
-		return Reservation{}, ErrOverbookNotAllowed
-	}
-
-	// Contar sobrecupos activos en ese día
-	fromUtc := m.at(targetDay, 0)
-	_, toUtc, _ := m.zone.Day(dateOf(targetDay))
-	dayReservations, err := m.repo.ListReservationsByStaff(cmd.TenantId, empSvcCfg.StaffId, fromUtc, toUtc)
-	if err != nil {
-		return Reservation{}, err
-	}
-	overbookCount := int64(0)
-	for _, r := range dayReservations {
-		if r.Overbooked && r.Status != StatusCancelled && r.Status != StatusRescheduled && r.Status != StatusExpired {
-			overbookCount++
-		}
-	}
-	if overbookCount >= calCfg.MaxOverbookPerDay {
-		return Reservation{}, ErrOverbookNotAllowed
-	}
-
-	price, currency, err := m.priceFor(cmd.TenantId, empSvcCfg)
-	if err != nil {
-		return Reservation{}, err
-	}
-	var newReservation Reservation
-	var originalReservation *Reservation
-
-	err = m.db.Tx(func(tx *orm.DB) error {
-		now := time.NowNano()
-
-		newReservation = Reservation{
-			Id:                      cmd.Id,
-			TenantId:                cmd.TenantId,
-			ClientId:                cmd.ClientId,
-			CreatorUserId:           cmd.CreatorUserId,
-			EmployeeServiceConfigId: cmd.EmployeeServiceConfigId,
-			StaffIdsnapshot:         empSvcCfg.StaffId,
-			ServiceIdsnapshot:       empSvcCfg.ServiceId,
-			DurationMinSnapshot:     empSvcCfg.DurationMin,
-			PriceSnapshot:           price,
-			CurrencySnapshot:        currency, // default
-			ReservationTime:         int64(cmd.SlotStartUtc),
-			Status:                  StatusPending,
-			HoldUntil:               cmd.HoldUntil,
-			Origin:                  cmd.Origin,
-			RescheduledFromId:       cmd.RescheduledFromId,
-			Notes:                   cmd.Notes,
-			Overbooked:              true,
-			UpdatedAt:               now,
-			UpdatedBy:               cmd.CreatorUserId,
-			Revision:                0,
-		}
-
-		if cmd.RescheduledFromId != "" {
-			orig, err := m.repo.GetReservationTx(tx, cmd.TenantId, cmd.RescheduledFromId)
-			if err != nil {
-				return err
+	var res Reservation
+	var original *Reservation
+	created := false
+	err := m.store.Atomic(func(tx crud.Tx) error {
+		r := m.repoOn(tx)
+		existing, err := r.GetReservation(cmd.Id)
+		if err == nil {
+			if existing.ClientId == cmd.ClientId {
+				res = existing // el mismo pedido otra vez: devuelve lo guardado, sin anunciarlo de nuevo
+				return nil
 			}
-			originalReservation = &orig
-
-			_, err = Transition(orig.Status, EventReschedule)
-			if err != nil {
-				return err
-			}
-
-			err = m.repo.UpdateReservationStatusTx(tx, orig.Id, StatusRescheduled, cmd.CreatorUserId, now, orig.Revision)
-			if err != nil {
-				return err
-			}
-		}
-
-		err = tx.Create(&newReservation)
-		if err != nil {
+			return ErrIdTaken
+		} else if !isNotFound(err) {
 			return err
 		}
-
-		return nil
-	})
-
-	if err != nil {
-		return Reservation{}, err
-	}
-
-	if m.pub != nil {
-		m.pub.Publish(events.Event{Topic: EventReservationCreated, Payload: &newReservation})
-		if originalReservation != nil {
-			m.pub.Publish(events.Event{Topic: EventReservationRescheduled, Payload: originalReservation})
+		res = reservationOf(cmd)
+		if err := m.prepareReservation(r, &res, overbook, true); err != nil {
+			return err
 		}
-	}
-
-	return newReservation, nil
-}
-
-func (m *Module) GetReservation(tenantId, id string) (Reservation, error) {
-	res, err := m.repo.GetReservation(id)
+		if original, err = m.rescheduleOriginal(r, &res); err != nil {
+			return err
+		}
+		created = true
+		return tx.Create(&res)
+	})
 	if err != nil {
 		return Reservation{}, err
 	}
-	if res.TenantId != tenantId {
-		return Reservation{}, ErrNotFound
+	if m.pub != nil && created {
+		m.pub.Publish(events.Event{Topic: EventReservationCreated, Payload: &res})
+		if original != nil {
+			m.pub.Publish(events.Event{Topic: EventReservationRescheduled, Payload: original})
+		}
 	}
 	return res, nil
 }
 
+func (m *Module) GetReservation(tenantId, id string) (Reservation, error) {
+	if err := m.own(tenantId); err != nil {
+		return Reservation{}, err
+	}
+	return m.repoOn(m.store).GetReservation(id)
+}
+
 func (m *Module) ListReservationsByStaff(tenantId, staffId string, from, to time.Unix) ([]Reservation, error) {
+	if err := m.own(tenantId); err != nil {
+		return nil, nil
+	}
 	fromUtc := m.at(from, 0)
 	_, toUtc, _ := m.zone.Day(dateOf(to))
-	return m.repo.ListReservationsByStaff(tenantId, staffId, fromUtc, toUtc)
+	return m.repoOn(m.store).ListReservationsByStaff(staffId, fromUtc, toUtc)
 }
 
 func (m *Module) ListReservationsByClient(tenantId, clientId string) ([]Reservation, error) {
-	return m.repo.ListReservationsByClient(tenantId, clientId)
+	if err := m.own(tenantId); err != nil {
+		return nil, nil
+	}
+	return m.repoOn(m.store).ListReservationsByClient(clientId)
 }
 
 func (m *Module) ChangeReservationStatus(cmd ChangeStatusCmd) error {
-	current, err := m.repo.GetReservation(cmd.Id)
-	if err != nil {
+	if err := m.own(cmd.TenantId); err != nil {
 		return err
 	}
-	if current.TenantId != cmd.TenantId {
-		return ErrNotFound
-	}
-
-	nextState, err := Transition(current.Status, cmd.Event)
-	if err != nil {
-		return err
-	}
-
-	err = m.db.Tx(func(tx *orm.DB) error {
-		now := time.NowNano()
-
+	var updated Reservation
+	err := m.store.Atomic(func(tx crud.Tx) error {
+		r := m.repoOn(tx)
+		current, err := r.GetReservation(cmd.Id)
+		if err != nil {
+			return err
+		}
+		nextState, err := Transition(current.Status, cmd.Event)
+		if err != nil {
+			return err
+		}
 		if cmd.Event == EventConfirm && cmd.PaymentId != "" {
-			got := &Reservation{}
-			qb := tx.Query(got).Where(Reservation_.Id).Eq(cmd.Id)
-			gotRes, err := ReadOneReservation(qb, got)
-			if err != nil {
-				return err
-			}
-			if gotRes.Revision != int64(cmd.Revision) {
+			if current.Revision != int64(cmd.Revision) {
 				return ErrConflict
 			}
-			gotRes.Status = nextState
-			gotRes.UpdatedBy = cmd.ActorId
-			gotRes.UpdatedAt = now
-			gotRes.PaymentId = cmd.PaymentId
-			gotRes.Revision++
-			return tx.Update(gotRes, orm.Eq(Reservation_.Id, gotRes.Id), orm.Eq(Reservation_.TenantId, gotRes.TenantId))
+			current.Status, current.UpdatedBy, current.UpdatedAt, current.PaymentId = nextState, cmd.ActorId, time.NowNano(), cmd.PaymentId
+			current.Revision++
+			updated = current
+			return tx.UpdateFields(&current, current.Id, []string{Reservation_.Status, Reservation_.UpdatedBy, Reservation_.UpdatedAt, Reservation_.PaymentId, Reservation_.Revision})
 		}
-
-		return m.repo.UpdateReservationStatusTx(tx, cmd.Id, nextState, cmd.ActorId, now, int64(cmd.Revision))
+		if err := r.UpdateReservationStatus(cmd.Id, nextState, cmd.ActorId, time.NowNano(), int64(cmd.Revision)); err != nil {
+			return err
+		}
+		updated, err = r.GetReservation(cmd.Id)
+		return err
 	})
-
 	if err != nil {
 		return err
 	}
-
-	var domainEvent string
-	switch cmd.Event {
-	case EventConfirm:
-		domainEvent = EventReservationConfirmed
-	case EventCancel:
-		domainEvent = EventReservationCancelled
-	case EventComplete:
-		domainEvent = EventReservationCompleted
-	case EventNoShow:
-		domainEvent = EventReservationNoShow
-	case EventExpire:
-		domainEvent = EventReservationExpired
-	}
-
-	if m.pub != nil && domainEvent != "" {
-		// obtener actualizado
-		updated, _ := m.repo.GetReservation(cmd.Id)
+	if domainEvent := domainEventOf(cmd.Event); m.pub != nil && domainEvent != "" {
 		m.pub.Publish(events.Event{Topic: domainEvent, Payload: &updated})
 	}
-
 	return nil
 }
 
+func domainEventOf(event string) string {
+	switch event {
+	case EventConfirm:
+		return EventReservationConfirmed
+	case EventCancel:
+		return EventReservationCancelled
+	case EventComplete:
+		return EventReservationCompleted
+	case EventNoShow:
+		return EventReservationNoShow
+	case EventExpire:
+		return EventReservationExpired
+	}
+	return ""
+}
+
+// userEventTo busca el evento de usuario que lleva una reserva de from a to (la regla de Update recibe el estado
+// nuevo, no el evento). CONFLICT y RESOLVE los pone solo la recomputación y RESCHEDULE nace al crear la nueva.
+func userEventTo(from, to string) (string, bool) {
+	for _, t := range transitions {
+		switch t.Event {
+		case EventConfirm, EventCancel, EventComplete, EventNoShow, EventExpire:
+			if t.From == from && t.To == to {
+				return t.Event, true
+			}
+		}
+	}
+	return "", false
+}
+
 // ///////////////////////////////////////////////////////////////////////////
-// Stage 5 — conflicts (§8)
+// Conflictos (§8)
 // ///////////////////////////////////////////////////////////////////////////
 
-// ConflictHorizonDays es el forward horizon del módulo: cuando no hay rango que
-// acote (un cambio semanal, o to == 0), los conflictos se evalúan hasta aquí.
-const ConflictHorizonDays = 370
-
-// forwardHorizon convierte un "from" (medianoche UTC) al borde superior del
-// horizonte del módulo.
-func forwardHorizon(from time.Unix) time.Unix {
-	return from + time.Unix(ConflictHorizonDays*time.Day)
+// scheduleChange es el cambio de agenda que una regla de crud todavía no escribió cuando pide el recálculo: crud
+// guarda la fila después de la regla, así que el recálculo la suma (o quita) a lo que ya está guardado.
+type scheduleChange struct {
+	staffId         string
+	addBlock        *WorkCalendarBlock
+	dropBlockId     string
+	addException    *WorkCalendarException
+	dropExceptionId string
 }
 
-// Motivos de ConflictingReservation.Reason — el vocabulario NEUTRO del módulo.
-// Concretamente NO arrastra la razón del establecimiento (por qué un día está
-// cerrado): time.DayLimits lo omite deliberadamente y este módulo lo respeta.
-const (
-	ConflictReasonOutsideBlocks        = "OUTSIDE_BLOCKS"
-	ConflictReasonDayClosed            = "DAY_CLOSED"
-	ConflictReasonOutsideBusinessHours = "OUTSIDE_BUSINESS_HOURS"
-)
-
-// conflictedCandidate — las reservas que un recompute evalúa. Las terminales
-// (CANCELLED/COMPLETED/NO_SHOW/EXPIRED/RESCHEDULED) no cambian de estado nunca.
-func conflictedCandidate(r Reservation) bool {
-	return r.Status == StatusPending || r.Status == StatusConfirmed || r.Status == StatusConflicted
-}
-
-// checkReservation aplica la ÚNICA regla "¿este instante aún se puede
-// reservar?" a una reserva existente, usando la misma availableRanges que
-// ListAvailability (anti-drifting, §8.1). Devuelve (fits, reason):
-//
-//   - !bounds.Open                                   → DAY_CLOSED
-//   - no cabe en los bloques del profesional (sin clamp) → OUTSIDE_BLOCKS
-//   - cabe en bloques pero no en las horas del establecimiento → OUTSIDE_BUSINESS_HOURS
-//   - cabe en todo                                            → (true, "")
-func (m *Module) checkReservation(r Reservation, blocks []WorkCalendarBlock, exceptions []WorkCalendarException, cfg WorkCalendarConfig, bounds time.DayLimits) (bool, string) {
-	d := m.dayKey(time.Unix(r.ReservationTime))
-	if !bounds.Open {
-		return false, ConflictReasonDayClosed
-	}
-	span := int64(r.DurationMinSnapshot * 60)
-	raw := m.availableRanges(d, blocks, exceptions, cfg, time.Unlimited())
-	if !fitsWindow(raw, r.ReservationTime, span) {
-		return false, ConflictReasonOutsideBlocks
-	}
-	clamped := m.availableRanges(d, blocks, exceptions, cfg, bounds)
-	if !fitsWindow(clamped, r.ReservationTime, span) {
-		return false, ConflictReasonOutsideBusinessHours
-	}
-	return true, ""
-}
-
-// conflictEntry es una reserva que ENTRÓ en conflicto en un recompute (para el
-// evento por-reserva de las ediciones del profesional).
-type conflictEntry struct {
-	reservation Reservation
-}
-
-// staffChangeCount agrega por staff los cambios de un recompute. Slice, no map.
-type staffChangeCount struct {
-	staffId string
-	entered int
-	cleared int
-}
-
-type recomputeResult struct {
-	changes      []conflictEntry
-	staffCounts  []staffChangeCount
-	totalChanged int
-}
-
-// staffSchedule es la foto de la agenda de UN staff que un recompute necesita.
-type staffSchedule struct {
-	staffId    string
-	cfg        WorkCalendarConfig
-	blocks     []WorkCalendarBlock
-	exceptions []WorkCalendarException
-}
-
-func (m *Module) loadSchedule(tenantId, staffId string, from, to time.Unix) (staffSchedule, error) {
-	cfg, err := m.repo.GetCalendarConfig(tenantId, staffId)
+func (m *Module) loadSchedule(r *Repository, staffId string, from, to time.Unix, ch scheduleChange) (staffSchedule, error) {
+	cfg, err := r.GetCalendarConfig(staffId)
 	if err != nil {
 		return staffSchedule{}, err
 	}
-	blocks, err := m.repo.ListBlocks(tenantId, staffId)
+	blocks, err := r.ListBlocks(staffId)
 	if err != nil {
 		return staffSchedule{}, err
 	}
-	exceptions, err := m.repo.ListExceptions(tenantId, staffId, from, to)
+	exceptions, err := r.ListExceptions(staffId, from, to)
 	if err != nil {
 		return staffSchedule{}, err
+	}
+	if ch.staffId == staffId {
+		kept := blocks[:0:0]
+		for _, b := range blocks {
+			if b.Id != ch.dropBlockId {
+				kept = append(kept, b)
+			}
+		}
+		blocks = kept
+		if ch.addBlock != nil {
+			blocks = append(blocks, *ch.addBlock)
+		}
+		keptExc := exceptions[:0:0]
+		for _, e := range exceptions {
+			if e.Id != ch.dropExceptionId {
+				keptExc = append(keptExc, e)
+			}
+		}
+		exceptions = keptExc
+		if ch.addException != nil && ch.addException.SpecificDate >= from && ch.addException.SpecificDate <= to {
+			exceptions = append(exceptions, *ch.addException)
+		}
 	}
 	return staffSchedule{staffId: staffId, cfg: cfg, blocks: blocks, exceptions: exceptions}, nil
 }
 
-// recomputeConflictsFor re-evalúa todas las reservas futuras de [from, to]
-// contra la agenda ACTUAL y los bounds, marcando o limpiando CONFLICTED según
-// la respuesta. onlyStaff != "" restringe a un profesional (el caso de las
-// ediciones de su propia agenda); "" evalúa a todo el tenant (el caso del
-// establecimiento). Idempotente: llamarlo dos veces sin cambios intermedios no
-// cambia nada y no produce eventos (CU-19/CU-29).
-func (m *Module) recomputeConflictsFor(tenantId string, from, to time.Unix, onlyStaff string) (recomputeResult, error) {
+// recomputeConflictsFor re-evalúa todas las reservas futuras de [from, to] contra la agenda ACTUAL y los bounds,
+// marcando o limpiando CONFLICTED según la respuesta. onlyStaff != "" restringe a un profesional (el caso de las
+// ediciones de su propia agenda); "" evalúa a todo el tenant (el caso del establecimiento). Idempotente: llamarlo
+// dos veces sin cambios intermedios no cambia nada y no produce eventos (CU-19/CU-29).
+func (m *Module) recomputeConflictsFor(r *Repository, from, to time.Unix, onlyStaff string, ch scheduleChange) (recomputeResult, error) {
 	if to == 0 {
 		to = forwardHorizon(from)
 	}
 	fromUtc := m.at(from, 0)
 	_, toUtc, _ := m.zone.Day(dateOf(to))
-	rows, err := m.repo.ListReservationsByTenantRange(tenantId, fromUtc, toUtc)
+	rows, err := r.ListReservationsByTenantRange(fromUtc, toUtc)
 	if err != nil {
 		return recomputeResult{}, err
 	}
-
 	type staffReservs struct {
 		staffId string
 		rsv     []Reservation
 	}
 	var groups []staffReservs
-	for _, r := range rows {
-		if !conflictedCandidate(r) {
+	for _, row := range rows {
+		if !conflictedCandidate(row) {
 			continue
 		}
-		if onlyStaff != "" && r.StaffIdsnapshot != onlyStaff {
+		if onlyStaff != "" && row.StaffIdsnapshot != onlyStaff {
 			continue
 		}
 		found := false
 		for i := range groups {
-			if groups[i].staffId == r.StaffIdsnapshot {
-				groups[i].rsv = append(groups[i].rsv, r)
+			if groups[i].staffId == row.StaffIdsnapshot {
+				groups[i].rsv = append(groups[i].rsv, row)
 				found = true
 				break
 			}
 		}
 		if !found {
-			groups = append(groups, staffReservs{staffId: r.StaffIdsnapshot, rsv: []Reservation{r}})
+			groups = append(groups, staffReservs{staffId: row.StaffIdsnapshot, rsv: []Reservation{row}})
 		}
 	}
 
 	var result recomputeResult
 	for _, g := range groups {
-		sched, err := m.loadSchedule(tenantId, g.staffId, from, to)
+		sched, err := m.loadSchedule(r, g.staffId, from, to, ch)
 		if err != nil {
 			return recomputeResult{}, err
 		}
-		var sc staffChangeCount
-		sc.staffId = g.staffId
-		for _, r := range g.rsv {
-			limits, err := m.limitsForDay(m.dayKey(time.Unix(r.ReservationTime)))
+		sc := staffChangeCount{staffId: g.staffId}
+		for _, res := range g.rsv {
+			limits, err := m.limitsForDay(m.dayKey(time.Unix(res.ReservationTime)))
 			if err != nil {
 				return recomputeResult{}, err
 			}
-			fits, _ := m.checkReservation(r, sched.blocks, sched.exceptions, sched.cfg, limits)
+			fits, _ := m.checkReservation(res, sched.blocks, sched.exceptions, sched.cfg, limits)
 			if fits {
-				if r.Status == StatusConflicted {
-					if err := m.clearConflict(tenantId, r); err != nil {
+				if res.Status == StatusConflicted {
+					if err := m.clearConflict(r, res); err != nil {
 						return recomputeResult{}, err
 					}
 					sc.cleared++
@@ -1325,13 +819,13 @@ func (m *Module) recomputeConflictsFor(tenantId string, from, to time.Unix, only
 				}
 				continue
 			}
-			if r.Status != StatusConflicted {
-				if err := m.markConflict(tenantId, r); err != nil {
+			if res.Status != StatusConflicted {
+				if err := m.markConflict(r, res); err != nil {
 					return recomputeResult{}, err
 				}
 				sc.entered++
 				result.totalChanged++
-				result.changes = append(result.changes, conflictEntry{reservation: r})
+				result.changes = append(result.changes, conflictEntry{reservation: res})
 			}
 		}
 		if sc.entered > 0 || sc.cleared > 0 {
@@ -1341,127 +835,202 @@ func (m *Module) recomputeConflictsFor(tenantId string, from, to time.Unix, only
 	return result, nil
 }
 
-func (m *Module) markConflict(tenantId string, r Reservation) error {
-	now := time.NowNano()
-	return m.db.Tx(func(tx *orm.DB) error {
-		// StatusBeforeConflict recuerda de dónde venía: sin él, "des-conflictear"
-		// tendría que adivinar entre PENDING y CONFIRMED (§8.5).
-		return m.repo.UpdateReservationConflictTx(tx, r.Id, tenantId, StatusConflicted, r.Status, "system", now, r.Revision)
-	})
+// markConflict recuerda de dónde venía la reserva en StatusBeforeConflict: sin él, "des-conflictear" tendría que
+// adivinar entre PENDING y CONFIRMED (§8.5).
+func (m *Module) markConflict(r *Repository, res Reservation) error {
+	return r.UpdateReservationConflict(res.Id, StatusConflicted, res.Status, ActorSystem, time.NowNano(), res.Revision)
 }
 
-func (m *Module) clearConflict(tenantId string, r Reservation) error {
-	prev := r.StatusBeforeConflict
+func (m *Module) clearConflict(r *Repository, res Reservation) error {
+	prev := res.StatusBeforeConflict
 	if prev == "" || prev == StatusConflicted {
 		prev = StatusPending
 	}
-	now := time.NowNano()
-	return m.db.Tx(func(tx *orm.DB) error {
-		return m.repo.UpdateReservationConflictTx(tx, r.Id, tenantId, prev, "", "system", now, r.Revision)
-	})
+	return r.UpdateReservationConflict(res.Id, prev, "", ActorSystem, time.NowNano(), res.Revision)
 }
 
-func (m *Module) publishScheduleChanged(tenantId, staffId string, from, to time.Unix, conflictCount int) {
+func (m *Module) publishScheduleChanged(staffId string, from, to time.Unix, conflictCount int) {
 	if m.pub == nil {
 		return
 	}
 	m.pub.Publish(events.Event{Topic: EventScheduleChanged, Payload: &ScheduleChangedPayload{
-		TenantId: tenantId, StaffId: staffId, FromDate: int64(from), ToDate: int64(to), ConflictCount: conflictCount,
+		TenantId: m.tenantID, StaffId: staffId, FromDate: int64(from), ToDate: int64(to), ConflictCount: conflictCount,
 	}})
 }
 
-// recomputeAndPublish es el camino de las EDICIONES DEL PROFESIONAL (§8.2):
-// recomputa el rango afectado de UN staff y publica.
-//
-//   - EventScheduleChanged una vez por staff, con el ConflictCount (solo si
-//     alguien entró en conflicto — CU-19).
-//   - EventReservationConflicted UNA vez por reserva que entró en conflicto
-//     (§8.6b): el count de una edición es pequeño y el notificador del paciente
-//     necesita el registro individual.
-func (m *Module) recomputeAndPublish(tenantId, staffId string, from, to time.Unix) error {
-	result, err := m.recomputeConflictsFor(tenantId, from, to, staffId)
-	if err != nil {
-		return err
-	}
+// announceEdit avisa de una edición del profesional (§8.2): EventScheduleChanged una vez por profesional, solo si
+// alguien entró en conflicto (CU-19), y EventReservationConflicted una vez por reserva (§8.6b): el número de una
+// edición es chico y el notificador del paciente necesita el registro individual.
+func (m *Module) announceEdit(result recomputeResult, from, to time.Unix) {
 	for _, sc := range result.staffCounts {
-		if sc.entered == 0 {
-			continue // CU-19: sin afectados ⇒ silencio
+		if sc.entered > 0 {
+			m.publishScheduleChanged(sc.staffId, from, to, sc.entered)
 		}
-		m.publishScheduleChanged(tenantId, sc.staffId, from, to, sc.entered)
 	}
 	if m.pub != nil {
-		for _, c := range result.changes {
-			m.pub.Publish(events.Event{Topic: EventReservationConflicted, Payload: &c.reservation})
+		for i := range result.changes {
+			m.pub.Publish(events.Event{Topic: EventReservationConflicted, Payload: &result.changes[i].reservation})
 		}
 	}
-	return nil
 }
 
-// ListConflictingReservations returns future reservations that the CURRENT
-// schedule no longer covers. from is normally "now". Son las que una edición de
-// agenda o del establecimiento dejó huérfanas — el worklist de CU-17.
-// Reported, never cancelled: cancelling on the patient's behalf is a decision
-// for a person.
+// ListConflictingReservations returns future reservations that the CURRENT schedule no longer covers. from is
+// normally "now". Son las que una edición de agenda o del establecimiento dejó huérfanas — el worklist de CU-17.
+// Reported, never cancelled: cancelling on the patient's behalf is a decision for a person.
 func (m *Module) ListConflictingReservations(tenantId, staffId string, from time.Unix) ([]ConflictingReservation, error) {
+	if err := m.own(tenantId); err != nil {
+		return nil, nil
+	}
+	r := m.repoOn(m.store)
 	to := forwardHorizon(from)
 	fromUtc := m.at(from, 0)
 	_, toUtc, _ := m.zone.Day(dateOf(to))
-	rows, err := m.repo.ListReservationsByStaff(tenantId, staffId, fromUtc, toUtc)
+	rows, err := r.ListReservationsByStaff(staffId, fromUtc, toUtc)
 	if err != nil {
 		return nil, err
 	}
-	sched, err := m.loadSchedule(tenantId, staffId, from, to)
+	sched, err := m.loadSchedule(r, staffId, from, to, scheduleChange{})
 	if err != nil {
 		return nil, err
 	}
 	var out []ConflictingReservation
-	for _, r := range rows {
-		if !conflictedCandidate(r) {
+	for _, res := range rows {
+		if !conflictedCandidate(res) {
 			continue
 		}
-		limits, err := m.limitsForDay(m.dayKey(time.Unix(r.ReservationTime)))
+		limits, err := m.limitsForDay(m.dayKey(time.Unix(res.ReservationTime)))
 		if err != nil {
 			return nil, err
 		}
-		fits, reason := m.checkReservation(r, sched.blocks, sched.exceptions, sched.cfg, limits)
+		fits, reason := m.checkReservation(res, sched.blocks, sched.exceptions, sched.cfg, limits)
 		if !fits {
 			out = append(out, ConflictingReservation{
-				ReservationId: r.Id,
-				StartsAt:      time.Unix(r.ReservationTime),
-				ClientId:      r.ClientId,
-				Reason:        reason,
+				ReservationId: res.Id, StartsAt: time.Unix(res.ReservationTime), ClientId: res.ClientId, Reason: reason,
 			})
 		}
 	}
 	return out, nil
 }
 
-// RecomputeConflicts re-evaluates every future reservation in [from, to]
-// against the CURRENT schedule and bounds, marking or clearing CONFLICTED as
-// the answer dictates. Returns how many reservations changed state.
+// RecomputeConflicts re-evaluates every future reservation in [from, to] against the CURRENT schedule and bounds,
+// marking or clearing CONFLICTED as the answer dictates. Returns how many reservations changed state.
 //
-// It is idempotent: calling it twice with no intervening change is a no-op and
-// publishes nothing (CU-19/CU-29 depend on that).
-//
-// tenantId scopes it; from/to are midnight UTC seconds. to == 0 means "the
-// module's full forward horizon", which is what a weekly-hours change needs
-// since it has no bounded date range.
-//
-// El disparador queda INVERTIDO (§8.4): no hay Subscriber aquí — la aplicación,
-// que legítimamente conoce ambos módulos, se suscribe al calendario del
-// establecimiento y llama a esto.
+// It is idempotent: calling it twice with no intervening change is a no-op and publishes nothing (CU-19/CU-29).
+// from/to are midnight UTC seconds; to == 0 means "the module's full forward horizon".
 func (m *Module) RecomputeConflicts(tenantId string, from, to time.Unix) (int, error) {
-	result, err := m.recomputeConflictsFor(tenantId, from, to, "")
+	if err := m.own(tenantId); err != nil {
+		return 0, err
+	}
+	var result recomputeResult
+	err := m.store.Atomic(func(tx crud.Tx) error {
+		var err error
+		result, err = m.recomputeConflictsFor(m.repoOn(tx), from, to, "", scheduleChange{})
+		return err
+	})
 	if err != nil {
 		return 0, err
 	}
-	for _, sc := range result.staffCounts {
-		if sc.entered == 0 {
-			continue // CU-19
-		}
-		// Un feriado puede conflictar cientos de reservas en decenas de
-		// profesionales: UN summary por staff, nunca un evento por reserva (§8.6).
-		m.publishScheduleChanged(tenantId, sc.staffId, from, to, sc.entered)
-	}
+	m.announceEstablishment(result, from, to)
 	return result.totalChanged, nil
 }
+
+// announceEstablishment avisa de un recálculo de todo el establecimiento: un feriado puede conflictar cientos de
+// reservas en decenas de profesionales, así que va UN resumen por profesional y nunca un evento por reserva (§8.6).
+func (m *Module) announceEstablishment(result recomputeResult, from, to time.Unix) {
+	for _, sc := range result.staffCounts {
+		if sc.entered > 0 {
+			m.publishScheduleChanged(sc.staffId, from, to, sc.entered)
+		}
+	}
+}
+
+// ///////////////////////////////////////////////////////////////////////////
+// Piezas compartidas por las reglas de bloques y excepciones
+// ///////////////////////////////////////////////////////////////////////////
+
+// ruleRange es el rango de fechas que un bloque cambia: un bloque semanal toca todo el horizonte desde hoy.
+func ruleRange(b WorkCalendarBlock) (from, to time.Unix) {
+	if b.SpecificDate > 0 {
+		return b.SpecificDate, b.SpecificDate
+	}
+	from = time.MidnightUTC(time.NowUnix())
+	return from, forwardHorizon(from)
+}
+
+// checkNewBlock valida un bloque que una regla va a guardar y lo normaliza: el rango, el calendario del
+// profesional, las horas del establecimiento y que no se solape con otro bloque del mismo día. skipId es el propio
+// bloque cuando se está modificando.
+func (m *Module) checkNewBlock(r *Repository, b *WorkCalendarBlock, skipId string) error {
+	if _, err := m.requireCalendarConfig(r, b.StaffId); err != nil {
+		return err
+	}
+	if err := validateBlocks([]WorkCalendarBlock{*b}); err != nil {
+		return err
+	}
+	var limits time.DayLimits
+	var err error
+	if b.SpecificDate > 0 {
+		b.DayOfWeek = int64(time.WeekdayUTC(b.SpecificDate))
+		limits, err = m.limitsForDay(b.SpecificDate)
+	} else {
+		if b.DayOfWeek < 0 || b.DayOfWeek > 6 {
+			return ErrInvalidBlock
+		}
+		limits, err = m.limitsForWeekday(int(b.DayOfWeek))
+	}
+	if err != nil {
+		return err
+	}
+	if err := checkBlockAgainstBounds(limits, *b); err != nil {
+		return err
+	}
+	same, err := r.ListBlocks(b.StaffId)
+	if err != nil {
+		return err
+	}
+	for _, other := range same {
+		if other.Id == skipId || other.SpecificDate != b.SpecificDate || (b.SpecificDate == 0 && other.DayOfWeek != b.DayOfWeek) {
+			continue
+		}
+		if b.StartMin < other.EndMin && other.StartMin < b.EndMin {
+			return ErrBlocksOverlap
+		}
+	}
+	return nil
+}
+
+// recomputeForRule recalcula los conflictos que un cambio de agenda provoca, dentro de la transacción de la regla
+// que lo pidió, y avisa. La regla de crud guarda su fila después: ch dice qué fila falta o sobra.
+func (m *Module) recomputeForRule(r *Repository, staffId string, from, to time.Unix, ch scheduleChange) error {
+	ch.staffId = staffId
+	result, err := m.recomputeConflictsFor(r, from, to, staffId, ch)
+	if err != nil {
+		return err
+	}
+	m.announceEdit(result, from, to)
+	return nil
+}
+
+// expireIn vence las reservas PENDING cuya hora ya pasó o cuya retención online venció (§7) dentro de r, y
+// devuelve cuántas venció.
+func (m *Module) expireIn(r *Repository, now time.Unix) ([]Reservation, error) {
+	pending, err := r.ListReservationsByStatus(StatusPending)
+	if err != nil {
+		return nil, err
+	}
+	var expired []Reservation
+	for _, res := range pending {
+		pastAppointment := time.Unix(res.ReservationTime) < now // X1
+		lapsedHold := res.HoldUntil > 0 && res.HoldUntil < now  // X2
+		if !pastAppointment && !lapsedHold {
+			continue
+		}
+		if err := r.UpdateReservationStatus(res.Id, StatusExpired, ActorSystem, time.NowNano(), res.Revision); err != nil {
+			return nil, err
+		}
+		res.Status = StatusExpired
+		expired = append(expired, res)
+	}
+	return expired, nil
+}
+

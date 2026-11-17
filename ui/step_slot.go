@@ -59,8 +59,7 @@ func (s *stepSlotPicker) load() {
 	s.hours.SetChips(nil)
 	s.extra.Set(nil)
 	from := time.MidnightUTC(time.NowUnix())
-	args := &ab.ListServiceAvailabilityArgs{
-		TenantId:     s.f.tenantID,
+	filter := &ab.BookableSlot{
 		ServiceId:    s.f.offer0().ServiceId,
 		StaffId:      s.f.choice.staffID,
 		From:         int64(from),
@@ -68,7 +67,7 @@ func (s *stepSlotPicker) load() {
 		IncludeTaken: s.f.choice.staffID != "",
 	}
 	list := ab.BookableSlotList{}
-	s.f.caller.Call(ab.ModelName+"."+ab.OpListServiceAvailability, args, &list, func(err error) {
+	readFiltered(s.f.caller, &ab.BookableSlot{}, filter, &list, func(err error) {
 		if err != nil { // U4-sí
 			s.errMsg.Set(err.Error())
 			return

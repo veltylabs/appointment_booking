@@ -1,8 +1,9 @@
 package appointmentbooking
 
 import (
+	"webtyp.com/crud"
 	"webtyp.com/events"
-	"webtyp.com/orm"
+	"webtyp.com/storage"
 	"webtyp.com/time"
 )
 
@@ -19,8 +20,8 @@ const CurrencyUSD = "USD"
 // priceFor congela el precio de una reserva (§1): la sobrescritura de la
 // configuración gana; si no, el precio de lista del catálogo; la moneda es la
 // del catálogo, o CLP si no la informa.
-func (m *Module) priceFor(tenantId string, cfg EmployeeServiceConfig) (float64, string, error) {
-	_, listPrice, currency, _, err := m.catalog.ServiceCard(tenantId, cfg.ServiceId)
+func (m *Module) priceFor(cfg EmployeeServiceConfig) (float64, string, error) {
+	_, listPrice, currency, _, err := m.catalog.ServiceCard(m.tenantID, cfg.ServiceId)
 	if err != nil { // P1
 		return 0, "", err
 	}
@@ -43,9 +44,10 @@ func effectivePrice(cfg EmployeeServiceConfig, listPrice float64, currency strin
 // de profesionales activos (de la especialidad pedida, o todas) con un servicio
 // activo del catálogo; ordenado por especialidad, servicio y profesional (§2).
 func (m *Module) ListBookableServices(tenantId, specialty string) ([]BookableService, error) {
-	cfgs, err := ReadAllEmployeeServiceConfig(m.db.Query(&EmployeeServiceConfig{}).
-		Where(EmployeeServiceConfig_.TenantId).Eq(tenantId).
-		Where(EmployeeServiceConfig_.IsActive).Eq(true))
+	if err := m.own(tenantId); err != nil {
+		return []BookableService{}, nil
+	}
+	cfgs, err := m.repoOn(m.store).ListEmployeeServiceConfigs(storage.Eq(EmployeeServiceConfig_.IsActive, true))
 	if err != nil { // B1
 		return nil, err
 	}
@@ -81,9 +83,9 @@ func (m *Module) ListBookableServices(tenantId, specialty string) ([]BookableSer
 		if !serviceActive { // B5
 			continue
 		}
-		price, currency := effectivePrice(*cfg, listPrice, currency)
+		price, currency := effectivePrice(cfg, listPrice, currency)
 		out = append(out, BookableService{
-			ConfigId: cfg.Id, StaffId: cfg.StaffId, StaffName: staffName, Specialty: staffSpecialty,
+			OfferId: cfg.Id, StaffId: cfg.StaffId, StaffName: staffName, Specialty: staffSpecialty,
 			ServiceId: cfg.ServiceId, ServiceName: serviceName, DurationMin: cfg.DurationMin,
 			Price: price, Currency: currency, PaymentRequired: cfg.PaymentRequired,
 		})
@@ -111,27 +113,27 @@ func bookableLess(a, b BookableService) bool {
 // profesional, o las de todos los que lo ofrecen ("cualquiera"); si dos tienen
 // la misma hora queda el primero en el orden de ListBookableServices. Con
 // IncludeTaken y un profesional fijo agrega sus horas ya reservadas (sobrecupo).
-func (m *Module) ListServiceAvailability(a ListServiceAvailabilityArgs) ([]BookableSlot, error) {
-	bookable, err := m.ListBookableServices(a.TenantId, "")
+func (m *Module) ListServiceAvailability(tenantId, serviceId, staffId string, from, to time.Unix, includeTaken bool) ([]BookableSlot, error) {
+	bookable, err := m.ListBookableServices(tenantId, "")
 	if err != nil {
 		return nil, err
 	}
 	out := []BookableSlot{}
 	for _, svc := range bookable {
-		if svc.ServiceId != a.ServiceId || (a.StaffId != "" && svc.StaffId != a.StaffId) { // V1, V2
+		if svc.ServiceId != serviceId || (staffId != "" && svc.StaffId != staffId) { // V1, V2
 			continue
 		}
-		free, err := m.ListAvailability(a.TenantId, svc.StaffId, svc.ConfigId, time.Unix(a.From), time.Unix(a.To))
+		free, err := m.ListAvailability(tenantId, svc.StaffId, svc.OfferId, from, to)
 		if err != nil { // V3
 			return nil, err
 		}
 		for _, s := range free {
-			out = addSlot(out, BookableSlot{StartUtc: s.StartUtc, EndUtc: s.EndUtc, StaffId: svc.StaffId, ConfigId: svc.ConfigId})
+			out = addSlot(out, BookableSlot{StartUtc: s.StartUtc, EndUtc: s.EndUtc, StaffId: svc.StaffId, OfferId: svc.OfferId})
 		}
-		if a.IncludeTaken && a.StaffId != "" { // V4
-			fromUtc := m.at(time.Unix(a.From), 0)
-			_, toUtc, _ := m.zone.Day(dateOf(time.Unix(a.To)))
-			reserved, err := m.repo.ListReservationsByStaff(a.TenantId, svc.StaffId, fromUtc, toUtc)
+		if includeTaken && staffId != "" { // V4
+			fromUtc := m.at(from, 0)
+			_, toUtc, _ := m.zone.Day(dateOf(to))
+			reserved, err := m.repoOn(m.store).ListReservationsByStaff(svc.StaffId, fromUtc, toUtc)
 			if err != nil {
 				return nil, err
 			}
@@ -140,7 +142,7 @@ func (m *Module) ListServiceAvailability(a ListServiceAvailabilityArgs) ([]Booka
 					continue
 				}
 				out = addSlot(out, BookableSlot{StartUtc: time.Unix(r.ReservationTime), EndUtc: time.Unix(r.ReservationTime + r.DurationMinSnapshot*60),
-					StaffId: svc.StaffId, ConfigId: svc.ConfigId, Taken: true})
+					StaffId: svc.StaffId, OfferId: svc.OfferId, Taken: true})
 			}
 		}
 	}
@@ -165,32 +167,6 @@ func addSlot(out []BookableSlot, s BookableSlot) []BookableSlot {
 // holdsSlot: una reserva en este estado ocupa su hora.
 func holdsSlot(status string) bool {
 	return status != StatusCancelled && status != StatusRescheduled && status != StatusExpired
-}
-
-// CreateOnlineReservation crea una reserva online retenida OnlineHoldSeconds
-// hasta que se pague (§4). Un paciente no puede tener más de MaxOnlineHolds
-// retenciones vigentes.
-func (m *Module) CreateOnlineReservation(cmd CreateReservationCmd) (Reservation, error) {
-	if m.payments == nil { // O1
-		return Reservation{}, ErrPaymentsUnavailable
-	}
-	now := time.NowUnix()
-	mine, err := m.repo.ListReservationsByClient(cmd.TenantId, cmd.ClientId)
-	if err != nil {
-		return Reservation{}, err
-	}
-	holds := 0
-	for _, r := range mine {
-		if r.Origin == OriginOnline && r.Status == StatusPending && r.HoldUntil > now {
-			holds++
-		}
-	}
-	if holds >= MaxOnlineHolds { // O2
-		return Reservation{}, ErrTooManyHolds
-	}
-	cmd.Origin = OriginOnline
-	cmd.HoldUntil = now + OnlineHoldSeconds
-	return m.CreateReservation(cmd) // O3
 }
 
 // Charge responde cuánto se cobra por una reserva (lo llama payment_manager vía
@@ -259,9 +235,8 @@ func (m *Module) ConfirmPaidReservation(tenantId, reservationId, paymentId strin
 	}
 
 	var updated Reservation
-	err = m.db.Tx(func(tx *orm.DB) error {
-		current := &Reservation{}
-		got, err := ReadOneReservation(tx.Query(current).Where(Reservation_.Id).Eq(reservationId).Where(Reservation_.TenantId).Eq(tenantId), current)
+	err = m.store.Atomic(func(tx crud.Tx) error {
+		got, err := m.repoOn(tx).GetReservation(reservationId)
 		if err != nil {
 			return err
 		}
@@ -276,8 +251,8 @@ func (m *Module) ConfirmPaidReservation(tenantId, reservationId, paymentId strin
 		got.UpdatedAt = time.NowNano()
 		got.UpdatedBy = ActorPayments
 		got.Revision++
-		updated = *got
-		return tx.Update(got, orm.Eq(Reservation_.Id, got.Id), orm.Eq(Reservation_.TenantId, tenantId))
+		updated = got
+		return tx.UpdateFields(&got, got.Id, []string{Reservation_.Status, Reservation_.PaymentId, Reservation_.HoldUntil, Reservation_.UpdatedAt, Reservation_.UpdatedBy, Reservation_.Revision})
 	})
 	if err != nil {
 		return err
@@ -297,32 +272,32 @@ const ActorSystem = "system"
 // ExpirePendingReservations vence las reservas PENDING cuya hora ya pasó o
 // cuya retención online venció (§7). Devuelve cuántas venció.
 func (m *Module) ExpirePendingReservations(tenantId string, now time.Unix) (int, error) {
-	pending, err := ReadAllReservation(m.db.Query(&Reservation{}).
-		Where(Reservation_.TenantId).Eq(tenantId).
-		Where(Reservation_.Status).Eq(StatusPending))
+	if err := m.own(tenantId); err != nil {
+		return 0, err
+	}
+	var expired []Reservation
+	err := m.store.Atomic(func(tx crud.Tx) error {
+		var err error
+		expired, err = m.expireIn(m.repoOn(tx), now)
+		return err
+	})
 	if err != nil {
 		return 0, err
 	}
-	expired := 0
-	for _, r := range pending {
-		pastAppointment := time.Unix(r.ReservationTime) < now // X1
-		lapsedHold := r.HoldUntil > 0 && r.HoldUntil < now    // X2
-		if !pastAppointment && !lapsedHold {
-			continue
+	if m.pub != nil {
+		for i := range expired {
+			m.pub.Publish(events.Event{Topic: EventReservationExpired, Payload: &expired[i]})
 		}
-		if err := m.ChangeReservationStatus(ChangeStatusCmd{
-			TenantId: tenantId, Id: r.Id, Event: EventExpire, ActorId: ActorSystem, Revision: int(r.Revision),
-		}); err != nil {
-			return expired, err
-		}
-		expired++
 	}
-	return expired, nil
+	return len(expired), nil
 }
 
 // ConfirmedByStaff implementa el contrato de consulta de agenda para módulos consumidores (ej. clinical_encounter).
 func (m *Module) ConfirmedByStaff(tenantID, staffID string, from, to time.Unix) (reservationIDs, patientIDs, serviceIDs []string, startTimes []time.Unix, err error) {
-	list, err := m.repo.ListReservationsByStaff(tenantID, staffID, from, to)
+	if err := m.own(tenantID); err != nil {
+		return nil, nil, nil, nil, nil
+	}
+	list, err := m.repoOn(m.store).ListReservationsByStaff(staffID, from, to)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}

@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"webtyp.com/events/mock"
+	"webtyp.com/events/inprocess"
 	"webtyp.com/orm"
 	"webtyp.com/storage/mem"
 	"webtyp.com/time"
@@ -15,7 +15,7 @@ import (
 func TestSeed_LoadPopulatesServicesAndReservations(t *testing.T) {
 	db := orm.New(mem.New())
 	ids := &fakeIDs{}
-	broker := &mock.Broker{}
+	broker := &inprocess.Broker{}
 	tenantID := "demo"
 	zone, _ := time.LoadZone("America/Santiago")
 

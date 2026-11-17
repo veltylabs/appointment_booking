@@ -1,8 +1,8 @@
 package appointmentbooking
 
 import (
+	"webtyp.com/crud"
 	"webtyp.com/model"
-	"webtyp.com/orm"
 	"webtyp.com/time"
 )
 
@@ -16,6 +16,9 @@ import (
 //
 //	EmployeeServiceConfigId: cfg, ReservationTime: int64(start), Status: StatusCompleted, Origin: OriginCounter})
 func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
+	if err := m.own(r.TenantId); err != nil {
+		return Reservation{}, err
+	}
 	if r.Id == "" || r.TenantId == "" || r.ClientId == "" || r.EmployeeServiceConfigId == "" || r.ReservationTime <= 0 {
 		return Reservation{}, ErrMissingArgs
 	}
@@ -30,12 +33,9 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 		return Reservation{}, ErrMissingArgs
 	}
 
-	cfg, err := m.repo.GetEmployeeServiceConfig(r.EmployeeServiceConfigId)
+	cfg, err := m.repoOn(m.store).GetEmployeeServiceConfig(r.EmployeeServiceConfigId)
 	if err != nil {
 		return Reservation{}, err
-	}
-	if cfg.TenantId != r.TenantId {
-		return Reservation{}, ErrNotFound
 	}
 
 	_, _, _, _, patientExists, err := m.patients.GetPatient(r.TenantId, r.ClientId)
@@ -73,24 +73,28 @@ func (m *Module) ImportReservation(r Reservation) (Reservation, error) {
 	r.UpdatedBy = r.CreatorUserId
 	r.Revision = 1
 
-	existing, err := m.repo.GetReservation(r.Id)
-	if err == nil {
-		if existing.TenantId != r.TenantId {
-			return Reservation{}, ErrIdTaken
+	err = m.store.Atomic(func(tx crud.Tx) error {
+		_, err := m.repoOn(tx).GetReservation(r.Id)
+		if err == nil {
+			return tx.UpdateFields(&r, r.Id, importedFields)
+		} else if !isNotFound(err) {
+			return err
 		}
-		if err := m.db.Update(&r, orm.Eq(Reservation_.Id, r.Id), orm.Eq(Reservation_.TenantId, r.TenantId)); err != nil {
-			return Reservation{}, err
-		}
-		return r, nil
-	} else if model.KindOf(err) != model.ErrorNotFound {
+		return tx.Create(&r)
+	})
+	if err != nil {
 		return Reservation{}, err
 	}
-
-	if err := m.db.Create(&r); err != nil {
-		return Reservation{}, err
-	}
-
 	return r, nil
+}
+
+// importedFields son las columnas que una importación vuelve a escribir cuando la reserva ya existía.
+var importedFields = []string{
+	Reservation_.ClientId, Reservation_.CreatorUserId, Reservation_.EmployeeServiceConfigId, Reservation_.StaffIdsnapshot,
+	Reservation_.ServiceIdsnapshot, Reservation_.DurationMinSnapshot, Reservation_.PriceSnapshot, Reservation_.CurrencySnapshot,
+	Reservation_.ReservationTime, Reservation_.Status, Reservation_.Origin, Reservation_.RescheduledFromId,
+	Reservation_.StatusBeforeConflict, Reservation_.PaymentId, Reservation_.HoldUntil, Reservation_.Notes, Reservation_.Overbooked,
+	Reservation_.UpdatedAt, Reservation_.UpdatedBy, Reservation_.Revision,
 }
 
 // ImportDayBlocks stores the weekly blocks of one weekday from a previous system as they were: it replaces that
@@ -104,7 +108,7 @@ func (m *Module) ImportDayBlocks(tenantId, staffId string, dayOfWeek int, blocks
 	if dayOfWeek < 0 || dayOfWeek > 6 {
 		return ErrInvalidBlock
 	}
-	if _, err := m.requireCalendarConfig(tenantId, staffId); err != nil {
+	if err := m.own(tenantId); err != nil {
 		return err
 	}
 	if err := validateBlocks(blocks); err != nil {
@@ -117,5 +121,11 @@ func (m *Module) ImportDayBlocks(tenantId, staffId string, dayOfWeek int, blocks
 		blocks[i].SpecificDate = 0
 		blocks[i].IsActive = true
 	}
-	return m.repo.ReplaceWeekdayBlocks(tenantId, staffId, dayOfWeek, blocks)
+	return m.store.Atomic(func(tx crud.Tx) error {
+		r := m.repoOn(tx)
+		if _, err := m.requireCalendarConfig(r, staffId); err != nil {
+			return err
+		}
+		return r.ReplaceWeekdayBlocks(staffId, dayOfWeek, blocks)
+	})
 }
