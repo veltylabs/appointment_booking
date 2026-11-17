@@ -7,7 +7,7 @@ require (
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.57
 	webtyp.com/dom v0.13.29
-	webtyp.com/events v0.1.8
+	webtyp.com/events v0.1.15
 	webtyp.com/fmt v1.0.3
 	webtyp.com/html v0.0.30
 	webtyp.com/input v0.2.5
@@ -20,7 +20,7 @@ require (
 	webtyp.com/svg v0.3.33
 	webtyp.com/time v0.6.5
 	webtyp.com/unixid v0.3.1
-	webtyp.com/view v0.6.86
+	webtyp.com/view v0.6.87
 	webtyp.com/widget v0.6.49
 )
 
@@ -41,7 +41,3 @@ require (
 	webtyp.com/json v0.5.40 // indirect
 	webtyp.com/msgtype v0.1.0 // indirect
 )
-
-replace webtyp.com/events => ../../../webtyp/events
-
-replace webtyp.com/view => ../../../webtyp/view
