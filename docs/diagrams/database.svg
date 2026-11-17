@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="erd" viewBox="0 0 815 1050" width="100%"><style>:root {
+  --color-primary: #654FF0;
+  --color-on-primary: #FFFFFF;
+  --color-success: #1e7a30;
+  --color-on-success: #FFFFFF;
+  --color-danger: #ba2c0d;
+  --color-on-danger: #FFFFFF;
+  --color-accent: #e8a33d;
+  --color-on-accent: #1C1C1E;
+  --color-primary-gradient: #00ADD8;
+  --color-primary-image: linear-gradient(135deg, var(--color-primary,#654FF0), var(--color-primary-gradient,#00ADD8));
+  --color-primary-image-stops: var(--color-primary,#654FF0), var(--color-primary-gradient,#00ADD8);
+}
+
+:root {
+  --color-background: #FFFFFF;
+  --color-on-background: #1C1C1E;
+  --color-surface: #F2F2F7;
+  --color-on-surface: #1C1C1E;
+  --color-outline: #D1D1D6;
+  --color-muted: #6E6E73;
+  --color-surface-sunken: #dfdfe3;
+  --color-selection: #654ff026;
+  --color-on-selection: #1C1C1E;
+  --color-accent-wash: #e8a33d26;
+  --color-accent-hover: #e8a33db3;
+  --color-danger-wash: #ba2c0d4d;
+  --color-background-light: #FFFFFF;
+  --color-background-dark: #0D1117;
+  --color-on-background-light: #1C1C1E;
+  --color-on-background-dark: #E6EDF3;
+  --color-surface-light: #F2F2F7;
+  --color-surface-dark: #161B22;
+  --color-on-surface-light: #1C1C1E;
+  --color-on-surface-dark: #E6EDF3;
+  --color-outline-light: #D1D1D6;
+  --color-outline-dark: #30363D;
+  --color-muted-light: #6E6E73;
+  --color-muted-dark: #8B949E;
+}
+
+@supports (color: light-dark(#000, #fff)) and (color: color-mix(in oklab, #000, #fff)) {
+:root {
+  --color-background: light-dark(#FFFFFF, #0D1117);
+  --color-on-background: light-dark(#1C1C1E, #E6EDF3);
+  --color-surface: light-dark(#F2F2F7, #161B22);
+  --color-on-surface: light-dark(#1C1C1E, #E6EDF3);
+  --color-outline: light-dark(#D1D1D6, #30363D);
+  --color-muted: light-dark(#6E6E73, #8B949E);
+  --color-surface-sunken: color-mix(in oklab, light-dark(#F2F2F7,#161B22), light-dark(#1C1C1E,#E6EDF3) 8%);
+  --color-selection: color-mix(in oklab, #654FF0, transparent 85%);
+  --color-on-selection: light-dark(#1C1C1E,#E6EDF3);
+  --color-accent-wash: color-mix(in oklab, #e8a33d, transparent 85%);
+  --color-accent-hover: color-mix(in oklab, #e8a33d, transparent 30%);
+  --color-danger-wash: color-mix(in oklab, #ba2c0d, transparent 70%);
+}
+
+}
+
+:root {
+  --mix-hover: 15%;
+  --mix-focus: 30%;
+  --mix-press: 45%;
+}
+
+:root {
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+}
+
+:root {
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+}
+
+:root {
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+}
+
+:root {
+  --font-sans: "Roboto", system-ui, -apple-system, sans-serif;
+  --leading-normal: 1.5;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+}
+
+:root {
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.10);
+}
+
+:root {
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+  --ease-in-out: cubic-bezier(0.4, 0,   0.2, 1);
+}
+
+:root {
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+  --z-tooltip: 500;
+}
+
+:root {
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+}
+
+:root {
+  --max-w-readable: 65ch;
+}
+
+:root {
+  --column-narrow: 12rem;
+  --column-medium: 20rem;
+  --column-wide: 30rem;
+  --rail-narrow: 3.5rem;
+  --rail-wide: 12rem;
+  --control-height: 3.5rem;
+  --control-height-compact: 2.75rem;
+  --control-width: 2.75rem;
+  --chip-width: 7rem;
+  --chip-height: 1.25rem;
+  --veil-blur: 4px;
+}
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --viewport-h: 100dvh;
+}
+
+:root:not([data-theme]) {
+  color-scheme: light;
+}
+
+@layer tokens, primitives, widgets, states;
+
+@layer widgets {
+.erd {
+  font-family: var(--font-sans,"Roboto", system-ui, -apple-system, sans-serif);
+  font-size: var(--text-xs,0.75rem);
+}
+.erd__band {
+  fill: #dfdfe3;
+  fill: var(--color-surface-sunken);
+  stroke: #D1D1D6;
+  stroke: var(--color-outline);
+}
+.erd__band-title {
+  font-size: var(--text-sm,0.875rem);
+  font-weight: var(--font-weight-bold,700);
+  color: #654FF0;
+  color: var(--color-primary);
+  fill: currentColor;
+}
+.erd__box {
+  fill: #F2F2F7;
+  fill: var(--color-surface);
+  stroke: #D1D1D6;
+  stroke: var(--color-outline);
+}
+.erd__box-error {
+  fill: #ba2c0d4d;
+  fill: var(--color-danger-wash);
+}
+.erd__box-external {
+  fill: #FFFFFF;
+  fill: var(--color-background);
+  stroke-dasharray: var(--space-1,0.25rem) var(--space-1,0.25rem);
+}
+.erd__column {
+  fill: #1C1C1E;
+  fill: var(--color-on-surface);
+  stroke: none;
+}
+.erd__column-error {
+  color: #ba2c0d;
+  color: var(--color-danger);
+  fill: currentColor;
+}
+.erd__column-key {
+  font-weight: var(--font-weight-bold,700);
+  color: #654FF0;
+  color: var(--color-primary);
+  fill: currentColor;
+}
+.erd__column-type {
+  fill: #6E6E73;
+  fill: var(--color-muted);
+  stroke: none;
+}
+.erd__edge {
+  fill: none;
+  stroke: #654FF0;
+  stroke: var(--color-primary);
+}
+.erd__edge-error {
+  fill: none;
+  stroke: #ba2c0d;
+  stroke: var(--color-danger);
+}
+.erd__edge-soft {
+  fill: none;
+  stroke: #654FF0;
+  stroke: var(--color-primary);
+  stroke-dasharray: var(--space-1,0.25rem) var(--space-1,0.25rem);
+}
+.erd__head {
+  fill: #654FF0;
+  fill: var(--color-primary);
+}
+.erd__name {
+  fill: #FFFFFF;
+  fill: var(--color-on-primary);
+  stroke: none;
+  font-weight: var(--font-weight-bold,700);
+}
+}
+
+
+
+</style><rect class="erd__band" x="0" y="0" width="815" height="1050" rx="6"/><text class="erd__band-title" x="16" y="20">Module appointment_booking</text><path class="erd__edge" d="M527 517 C487 517 237 208 197 208"/><path class="erd__edge" d="M527 935 C487 935 237 208 197 208"/><path class="erd__edge" d="M527 99 C487 99 237 208 197 208"/><g id="erd-table-employee_service_config"><title>employee_service_config</title><rect class="erd__box" x="16" y="196" width="181" height="186" rx="4"/><rect class="erd__head" x="17" y="197" width="179" height="23" rx="4"/><text class="erd__name" x="26" y="212">employee_service_config</text><text class="erd__column" x="26" y="233">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="26" y="251">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="269">staff_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="287">service_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="305">duration_min  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="26" y="323">buffer_min  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="26" y="341">price_override  <tspan class="erd__column-type">float</tspan></text><text class="erd__column" x="26" y="359">payment_required  <tspan class="erd__column-type">bool</tspan></text><text class="erd__column" x="26" y="377">is_active  <tspan class="erd__column-type">bool</tspan></text></g><g id="erd-table-work_calendar_config"><title>work_calendar_config</title><rect class="erd__box" x="16" y="896" width="195" height="114" rx="4"/><rect class="erd__head" x="17" y="897" width="193" height="23" rx="4"/><text class="erd__name" x="26" y="912">work_calendar_config</text><text class="erd__column" x="26" y="933">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="26" y="951">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="969">staff_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="987">is_active  <tspan class="erd__column-type">bool</tspan></text><text class="erd__column" x="26" y="1005">max_overbook_per_day  <tspan class="erd__column-type">int</tspan></text></g><g id="erd-table-work_calendar_block"><title>work_calendar_block</title><rect class="erd__box" x="16" y="712" width="188" height="168" rx="4"/><rect class="erd__head" x="17" y="713" width="186" height="23" rx="4"/><text class="erd__name" x="26" y="728">work_calendar_block</text><text class="erd__column" x="26" y="749">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="26" y="767">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="785">staff_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="803">day_of_week  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="26" y="821">specific_date  <tspan class="erd__column-type">unix_time</tspan></text><text class="erd__column" x="26" y="839">start_min  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="26" y="857">end_min  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="26" y="875">is_active  <tspan class="erd__column-type">bool</tspan></text></g><g id="erd-table-work_calendar_exception"><title>work_calendar_exception</title><rect class="erd__box" x="275" y="30" width="188" height="168" rx="4"/><rect class="erd__head" x="276" y="31" width="186" height="23" rx="4"/><text class="erd__name" x="285" y="46">work_calendar_exception</text><text class="erd__column" x="285" y="67">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="285" y="85">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="285" y="103">staff_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="285" y="121">specific_date  <tspan class="erd__column-type">unix_time</tspan></text><text class="erd__column" x="285" y="139">exception_type  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="285" y="157">start_time  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="285" y="175">end_time  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="285" y="193">notes  <tspan class="erd__column-type">text</tspan></text></g><g id="erd-table-reservation"><title>reservation</title><rect class="erd__box" x="527" y="412" width="272" height="420" rx="4"/><rect class="erd__head" x="528" y="413" width="270" height="23" rx="4"/><text class="erd__name" x="537" y="428">reservation</text><text class="erd__column" x="537" y="449">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="537" y="467">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="485">client_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="503">creator_user_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="521">employee_service_config_id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">FK</tspan></text><text class="erd__column" x="537" y="539">staff_idsnapshot  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="557">service_idsnapshot  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="575">duration_min_snapshot  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="537" y="593">price_snapshot  <tspan class="erd__column-type">float</tspan></text><text class="erd__column" x="537" y="611">currency_snapshot  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="629">reservation_time  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="537" y="647">status  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="665">origin  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="683">rescheduled_from_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="701">status_before_conflict  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="719">payment_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="737">hold_until  <tspan class="erd__column-type">unix_time</tspan></text><text class="erd__column" x="537" y="755">notes  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="773">overbooked  <tspan class="erd__column-type">bool</tspan></text><text class="erd__column" x="537" y="791">updated_at  <tspan class="erd__column-type">nano_time</tspan></text><text class="erd__column" x="537" y="809">updated_by  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="827">revision  <tspan class="erd__column-type">int</tspan></text></g><g id="erd-table-reservation_form"><title>reservation_form</title><rect class="erd__box" x="16" y="528" width="132" height="168" rx="4"/><rect class="erd__head" x="17" y="529" width="130" height="23" rx="4"/><text class="erd__name" x="26" y="544">reservation_form</text><text class="erd__column" x="26" y="565">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="26" y="583">client_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="601">day  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="619">hour  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="637">notes  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="655">status  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="673">origin  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="691">overbooked  <tspan class="erd__column-type">bool</tspan></text></g><g id="erd-table-reservation_overbooking"><title>reservation_overbooking</title><rect class="erd__box" x="527" y="848" width="272" height="186" rx="4"/><rect class="erd__head" x="528" y="849" width="270" height="23" rx="4"/><text class="erd__name" x="537" y="864">reservation_overbooking</text><text class="erd__column" x="537" y="885">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="537" y="903">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="921">client_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="939">employee_service_config_id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">FK</tspan></text><text class="erd__column" x="537" y="957">slot_time_utc  <tspan class="erd__column-type">unix_time</tspan></text><text class="erd__column" x="537" y="975">notes  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="993">reservation_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="1011">actor_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="1029">created_at  <tspan class="erd__column-type">nano_time</tspan></text></g><g id="erd-table-online_reservation"><title>online_reservation</title><rect class="erd__box" x="527" y="30" width="272" height="366" rx="4"/><rect class="erd__head" x="528" y="31" width="270" height="23" rx="4"/><text class="erd__name" x="537" y="46">online_reservation</text><text class="erd__column" x="537" y="67">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="537" y="85">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="103">employee_service_config_id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">FK</tspan></text><text class="erd__column" x="537" y="121">slot_time_utc  <tspan class="erd__column-type">unix_time</tspan></text><text class="erd__column" x="537" y="139">document_number  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="157">name  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="175">phone  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="193">email  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="211">notes  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="229">return_to  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="247">reservation_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="265">patient_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="283">payment_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="301">payment_url  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="319">pay_field  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="337">pay_token  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="355">status  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="373">failure  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="537" y="391">created_at  <tspan class="erd__column-type">nano_time</tspan></text></g><g id="erd-table-reservation_expiry"><title>reservation_expiry</title><rect class="erd__box" x="16" y="398" width="167" height="114" rx="4"/><rect class="erd__head" x="17" y="399" width="165" height="23" rx="4"/><text class="erd__name" x="26" y="414">reservation_expiry</text><text class="erd__column" x="26" y="435">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="26" y="453">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="471">expired  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="26" y="489">actor_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="507">created_at  <tspan class="erd__column-type">nano_time</tspan></text></g><g id="erd-table-conflict_recompute"><title>conflict_recompute</title><rect class="erd__box" x="16" y="30" width="167" height="150" rx="4"/><rect class="erd__head" x="17" y="31" width="165" height="23" rx="4"/><text class="erd__name" x="26" y="46">conflict_recompute</text><text class="erd__column" x="26" y="67">id  <tspan class="erd__column-type">text</tspan>  <tspan class="erd__column-key">PK</tspan></text><text class="erd__column" x="26" y="85">tenant_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="103">from  <tspan class="erd__column-type">unix_time</tspan></text><text class="erd__column" x="26" y="121">to  <tspan class="erd__column-type">unix_time</tspan></text><text class="erd__column" x="26" y="139">recomputed  <tspan class="erd__column-type">int</tspan></text><text class="erd__column" x="26" y="157">actor_id  <tspan class="erd__column-type">text</tspan></text><text class="erd__column" x="26" y="175">created_at  <tspan class="erd__column-type">nano_time</tspan></text></g></svg>
