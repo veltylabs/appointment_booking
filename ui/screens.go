@@ -23,10 +23,11 @@ const (
 
 // Screens declara las pantallas que este módulo ofrece al menú de la app. El tenant lo pone el servidor en cada
 // operación: las pantallas no lo envían. Los pasos «paciente» y «cobro» de la reserva de mesón son de otros módulos:
-// la app los arma y los pasa en steps (los dos son obligatorios).
+// la app los arma y los pasa en steps. El paciente es obligatorio; sin Payment (una app sin cobros), una reserva cuyo servicio
+// exige pago avisa que los pagos no están configurados.
 func Screens(d view.BrowserDeps, steps Steps) []view.Screen {
-	if steps.Patient == nil || steps.Payment == nil {
-		panic("appointment_booking/ui: Screens: Steps.Patient and Steps.Payment are required — the app builds them from patient_directory/ui and payment_manager/ui")
+	if steps.Patient == nil {
+		panic("appointment_booking/ui: Screens: Steps.Patient is required — the app builds it from patient_directory")
 	}
 	caller, zone, ids := d.Caller, d.Zone, d.IDs
 	scheduleScreen := view.Screen{

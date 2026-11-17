@@ -102,7 +102,7 @@ módulos que ya construyó con `appkit.FindBuiltModule`. Las [operaciones](#oper
 **Meta:** mostrar agenda, servicios y la reserva en 6 pasos. La app arma los pasos de otros módulos:
 
 ```go
-screens := ui.Screens(deps, ui.Steps{Patient: patientStep, Payment: paymentStep}) // los dos son obligatorios
+screens := ui.Screens(deps, ui.Steps{Patient: patientStep, Payment: paymentStep}) // Payment puede faltar en una app sin cobros
 ```
 
 **Resultado:** `Screens` devuelve «Reserva Hora», el grupo «Personal» (Horario, Servicios) y la reserva online. Sin

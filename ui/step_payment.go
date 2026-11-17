@@ -54,6 +54,8 @@ func (s *stepPaymentPanel) show() {
 		s.body.Set([]*Element{s.onlinePayButton()})
 	case !s.f.offer().PaymentRequired: // Y2-no
 		s.body.Set([]*Element{actionButton(textConfirmBooking, s.busy, s.confirm)})
+	case s.f.steps.Payment == nil: // Y2-sí, pero la app no cobra
+		s.errMsg.Set(ab.ErrPaymentsUnavailable.Error())
 	default: // Y2-sí: el cobro es el PaymentStep de la app
 		s.body.Set([]*Element{s.f.steps.Payment.Render(res.Id, s.paid)})
 	}

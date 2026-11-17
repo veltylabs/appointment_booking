@@ -19,7 +19,8 @@ type PaymentStep interface {
 	Render(reservationID string, paid func(paymentID string)) *Element
 }
 
-// Steps son los pasos de otros módulos que necesita la reserva de mesón. Los dos son obligatorios.
+// Steps son los pasos de otros módulos que necesita la reserva de mesón. Patient es obligatorio; Payment puede faltar en
+// una app sin cobros.
 type Steps struct {
 	Patient PatientStep
 	Payment PaymentStep
