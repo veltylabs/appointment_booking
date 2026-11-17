@@ -105,8 +105,7 @@ módulos que ya construyó con `appkit.FindBuiltModule`. Las [operaciones](#oper
 screens := ui.Screens(deps, ui.Steps{Patient: patientStep, Payment: paymentStep}) // Payment puede faltar en una app sin cobros
 ```
 
-**Resultado:** `Screens` devuelve «Reserva Hora», el grupo «Personal» (Horario, Servicios) y la reserva online. Sin
-`Steps` entrega `panic` con el mensaje de qué falta. La demo usa dobles ([seed/demo.go](seed/demo.go)).
+**Resultado:** `Screens` devuelve «Reserva Hora», el grupo «Personal» (Horario, Servicios) y la reserva online. Sin `Steps.Patient` entrega `panic` con el mensaje de qué falta. La demo usa dobles ([seed/demo.go](seed/demo.go)).
 
 ## Operaciones
 
