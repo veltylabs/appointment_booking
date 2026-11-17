@@ -2,6 +2,7 @@ package ui
 
 import (
 	"webtyp.com/lang"
+	"webtyp.com/view"
 
 	. "webtyp.com/dom"
 	. "webtyp.com/html"
@@ -39,12 +40,36 @@ func (s *stepPatientForm) Render() *Element {
 			Div().Set(clsFlowActions.AsAttr()).Child(actionButton(textContinue, nil, s.continueOnline)),
 		)
 	}
-	return stepBox().Child(s.f.steps.Patient.Render(s.choose))
+	if s.f.steps.Patient != nil {
+		box := stepBox().Child(s.f.steps.Patient.Render(s.choose))
+		if s.f.steps.OpenForm != nil {
+			formHost := Div()
+			box.Child(
+				Div().Set(clsFlowActions.AsAttr()).Child(
+					actionButton("+ Nuevo cliente", nil, func() {
+						comp := s.f.steps.OpenForm("client_directory", func(res view.RecordResult) {
+							s.choose(res.ID, res.Label)
+						}, func() {
+							formHost.Text("")
+						})
+						if comp != nil {
+							formHost.Child(comp)
+						}
+					}),
+				),
+				formHost,
+			)
+		}
+		return box
+	}
+	return stepBox().Child(s.f.steps.OpenForm("client_directory", func(res view.RecordResult) {
+		s.choose(res.ID, res.Label)
+	}, nil))
 }
 
 func (s *stepPatientForm) show() {
 	s.errMsg.Set("")
-	if !s.f.online {
+	if !s.f.online && s.f.steps.Patient != nil {
 		s.f.steps.Patient.Reset()
 	}
 }

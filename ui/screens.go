@@ -26,8 +26,11 @@ const (
 // la app los arma y los pasa en steps. El paciente es obligatorio; sin Payment (una app sin cobros), una reserva cuyo servicio
 // exige pago avisa que los pagos no están configurados.
 func Screens(d view.BrowserDeps, steps Steps) []view.Screen {
-	if steps.Patient == nil {
-		panic("appointment_booking/ui: Screens: Steps.Patient is required — the app builds it from patient_directory")
+	if steps.OpenForm == nil && d.OpenForm != nil {
+		steps.OpenForm = d.OpenForm
+	}
+	if steps.Patient == nil && steps.OpenForm == nil {
+		panic("appointment_booking/ui: Screens: Steps.Patient or view.BrowserDeps.OpenForm is required")
 	}
 	caller, zone, ids := d.Caller, d.Zone, d.IDs
 	scheduleScreen := view.Screen{

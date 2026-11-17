@@ -1,6 +1,9 @@
 package ui
 
-import . "webtyp.com/dom"
+import (
+	. "webtyp.com/dom"
+	"webtyp.com/view"
+)
 
 // PatientStep es el paso «paciente» de la reserva de mesón: buscar o registrar a quien se atiende. Este módulo no
 // conoce pacientes; la app lo implementa con la pantalla de patient_directory y lo pasa en Steps.
@@ -22,6 +25,7 @@ type PaymentStep interface {
 // Steps son los pasos de otros módulos que necesita la reserva de mesón. Patient es obligatorio; Payment puede faltar en
 // una app sin cobros.
 type Steps struct {
-	Patient PatientStep
-	Payment PaymentStep
+	Patient  PatientStep
+	Payment  PaymentStep
+	OpenForm func(module string, onSaved func(view.RecordResult), onCancel func()) Component
 }
