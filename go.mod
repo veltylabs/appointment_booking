@@ -11,7 +11,7 @@ require (
 	webtyp.com/fmt v1.0.3
 	webtyp.com/html v0.0.30
 	webtyp.com/input v0.2.5
-	webtyp.com/lang v0.1.16
+	webtyp.com/lang v0.1.22
 	webtyp.com/layout v0.3.127
 	webtyp.com/model v0.2.25
 	webtyp.com/orm v0.12.42
