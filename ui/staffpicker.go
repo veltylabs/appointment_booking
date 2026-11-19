@@ -85,39 +85,12 @@ func (p *staffPicker) rebuildOptions() {
 	p.opts.Set(opts)
 }
 
-func (p *staffPicker) refreshAfterFilterChange() {
-	stillVisible := false
-	for _, sm := range p.visible() {
-		if sm.Id == p.sel.Get() {
-			stillVisible = true
-			break
-		}
-	}
-	if !stillVisible {
-		if first, ok := p.firstVisible(); ok {
-			p.sel.Set(first.Id)
-		} else {
-			p.sel.Set("")
-		}
-	}
-	p.rebuildOptions()
-}
-
 func (p *staffPicker) onSelectChange(id string) {
 	p.sel.Set(id)
 	p.rebuildOptions()
 	if p.onChange != nil {
 		p.onChange(id)
 	}
-}
-
-func (p *staffPicker) nameOf(id string) string {
-	for _, sm := range p.staff {
-		if sm.Id == id {
-			return sm.Name
-		}
-	}
-	return ""
 }
 
 func (p *staffPicker) render(selectName string) *Element {

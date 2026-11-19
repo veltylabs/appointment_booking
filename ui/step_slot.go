@@ -46,10 +46,6 @@ func (s *stepSlotPicker) Render() *Element {
 	)
 }
 
-func (s *stepSlotPicker) show() {
-	s.load()
-}
-
 // load pide las horas del rango del calendario. Con un profesional fijo trae
 // también las tomadas: cuentan para la ocupación y para el sobrecupo.
 func (s *stepSlotPicker) load() {

@@ -142,7 +142,6 @@ func (f *fakeIDs) NewID() string {
 
 var _ model.IDGenerator = (*fakeIDs)(nil)
 
-var zoneSantiago, _ = time.LoadZone("America/Santiago")
 var zoneUTC, _ = time.LoadZone("UTC")
 
 func SetupDependencies() ab.Deps {
