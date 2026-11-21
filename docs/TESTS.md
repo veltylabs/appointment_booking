@@ -36,3 +36,5 @@ funciones internas. El doble de la cola de llamadas externas es [queue_double_te
 | [TestDemo_Valid](../tests/demo_test.go) | `seed.Demo()` es válida y muestra pantallas |
 | [TestMigrate_CreatesEveryTableInOrder](../migrate/migrate_test.go) | Las nueve tablas, en orden de dependencia |
 | [TestMigrate_NoCompilerIsAnError](../migrate/migrate_test.go) | Sin compilador de SQL, `Migrate` devuelve un error y no termina en silencio. |
+| [TestActiveByStaff_StatusesWithoutCancelled](../tests/agenda_watch_test.go) | La agenda activa por profesional excluye reservas canceladas. |
+| [TestWatchStaffAgenda_ReportsCreateAndStatusChange](../tests/agenda_watch_test.go) | El observador de agenda notifica creaciones y cambios de estado. |

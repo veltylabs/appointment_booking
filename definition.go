@@ -47,13 +47,13 @@ var EmployeeServiceConfigModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, OmitEmpty: true},
 		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
-		{Name: "staff_id", Type: input.Text(), NotNull: true, Item: model.ItemDescription},
-		{Name: "service_id", Type: input.Text(), NotNull: true, Item: model.ItemLabel},
-		{Name: "duration_min", Type: input.Number()},
-		{Name: "buffer_min", Type: input.Number()},
-		{Name: "price_override", Type: input.Decimal()},
-		{Name: "payment_required", Type: input.Checkbox()},
-		{Name: "is_active", Type: input.Checkbox()},
+		{Name: "staff_id", Type: model.Text(), Label: "Staff", NotNull: true},
+		{Name: "service_id", Type: input.Text(), Label: "Service", NotNull: true, Item: model.ItemLabel},
+		{Name: "duration_min", Type: input.Number(), Label: "Duration (minutes)"},
+		{Name: "buffer_min", Type: input.Number(), Label: "Buffer (minutes)"},
+		{Name: "price_override", Type: input.Decimal(), Label: "Price override"},
+		{Name: "payment_required", Type: input.Checkbox(), Label: "Payment required"},
+		{Name: "is_active", Type: input.Checkbox(), Label: "Active"},
 	},
 }
 

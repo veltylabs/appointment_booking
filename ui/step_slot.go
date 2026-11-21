@@ -71,7 +71,7 @@ func (s *stepSlotPicker) load() {
 		for _, it := range list {
 			s.slots = append(s.slots, *it)
 		}
-		cal := &calendarslider.CalendarSlider{NumMonths: calendarMonths, Occupation: s.dayOccupation(s.slots), OnSelect: s.pickDay}
+		cal := calendarslider.New(s.f.zone, calendarslider.Options{NumMonths: calendarMonths, Occupation: s.dayOccupation(s.slots), OnSelect: s.pickDay})
 		cal.Init(nil)
 		s.cal.Set([]*Element{cal.Render()})
 		if !s.f.online && s.f.choice.staffID != "" { // U7: sobrecupo solo en mesón y con profesional fijo

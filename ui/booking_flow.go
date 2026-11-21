@@ -184,7 +184,7 @@ func (f *BookingFlow) restart() {
 			{Key: stepSlot, Title: textDateAndTime, Body: f.slot},
 			{Key: stepPatient, Title: textPatient, Body: f.patient},
 			{Key: stepSummary, Title: textSummary, Body: f.summary},
-			{Key: stepPayment, Title: textPaymentConfirmation, Body: f.payment},
+			{Key: stepPayment, Title: func() lang.Text { if !f.online && f.steps.Payment == nil { return lang.Text("Confirmation") }; return textPaymentConfirmation }(), Body: f.payment},
 		},
 		OnReopen: func(key string) {
 			f.clearAfter(key)

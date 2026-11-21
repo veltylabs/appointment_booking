@@ -4,7 +4,7 @@ package appointmentbooking
 
 import "webtyp.com/svg/sprite"
 
-// IconSvg registra el ícono de marca del módulo. tinywasm/ssr lo extrae durante SSR y assetmin lo
+// IconSvg registra el ícono de marca del módulo. webtyp/ssr lo extrae durante SSR y assetmin lo
 // inyecta inline en <body> — nunca se llama a mano.
 func (m *Module) IconSvg() *sprite.Sprite {
 	return sprite.NewSprite(

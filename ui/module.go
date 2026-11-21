@@ -17,4 +17,4 @@ const NavLabel = "Reserva Hora"
 const PersonalID = "personal"
 
 // PersonalLabel es el texto visible de la pantalla Personal.
-const PersonalLabel = "Personal"
+const PersonalLabel = "Agenda del personal"

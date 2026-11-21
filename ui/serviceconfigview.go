@@ -70,8 +70,8 @@ func (s *ServiceConfigView) rebuildPanel() {
 		s.panel.Set([]*Element{Div().Text("Error interno: " + err.Error())})
 		return
 	}
+	s.panel.Set([]*Element{Div().Child(cv)})
 	cv.Activate()
-	s.panel.Set([]*Element{cv.Render()})
 }
 
 func (s *ServiceConfigView) Render() *Element {

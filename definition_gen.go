@@ -72,7 +72,7 @@ func (*EmployeeServiceConfig) Allow() model.Action     { return EmployeeServiceC
 func (*EmployeeServiceConfigList) Allow() model.Action { return EmployeeServiceConfigModel.Allow }
 
 func (m *EmployeeServiceConfig) Item() model.Item {
-	return model.Item{ID: m.Id, Label: m.ServiceId, Description: m.StaffId}
+	return model.Item{ID: m.Id, Label: m.ServiceId}
 }
 
 var EmployeeServiceConfig_ = struct {

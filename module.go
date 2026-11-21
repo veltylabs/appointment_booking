@@ -1,6 +1,8 @@
 package appointmentbooking
 
 import (
+	"sync"
+
 	"webtyp.com/events"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
@@ -119,6 +121,9 @@ type Module struct {
 	payments PaymentGateway
 	zone     time.Zone
 	tenantID string
+
+	watchMu  sync.Mutex
+	watchers []func(staffID string) // WatchStaffAgenda
 }
 
 type Deps struct {
@@ -129,6 +134,9 @@ type Deps struct {
 	Payments  PaymentGateway
 	IDs       model.IDGenerator // requerido
 	Publisher events.Publisher  // opcional — nil desactiva
+	// Subscriber escucha los avisos entre módulos (el mismo broker que Publisher): con él, WatchStaffAgenda avisa
+	// cada cambio de una reserva. Opcional — nil = WatchStaffAgenda nunca llama.
+	Subscriber events.Subscriber
 	Zone      time.Zone         // obligatoria
 	TenantID  string            // requerido: el módulo atiende a un solo tenant
 }
@@ -157,7 +165,7 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 	if deps.TenantID == "" {
 		return nil, depErr("TenantID")
 	}
-	return &Module{
+	m := &Module{
 		db:       db,
 		store:    orm.TenantStore(db, deps.TenantID, deps.IDs),
 		ids:      deps.IDs,
@@ -169,7 +177,11 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 		payments: deps.Payments,
 		zone:     deps.Zone,
 		tenantID: deps.TenantID,
-	}, nil
+	}
+	if deps.Subscriber != nil {
+		m.listenAgenda(deps.Subscriber)
+	}
+	return m, nil
 }
 
 // own responde ErrNotFound cuando tenantId no es el tenant de este módulo: un módulo atiende a un solo tenant.

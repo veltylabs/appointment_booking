@@ -292,22 +292,36 @@ func (m *Module) ExpirePendingReservations(tenantId string, now time.Unix) (int,
 	return len(expired), nil
 }
 
-// ConfirmedByStaff implementa el contrato de consulta de agenda para módulos consumidores (ej. clinical_encounter).
-func (m *Module) ConfirmedByStaff(tenantID, staffID string, from, to time.Unix) (reservationIDs, patientIDs, serviceIDs []string, startTimes []time.Unix, err error) {
+// ActiveByStaff implementa el contrato de agenda para módulos consumidores (ej. clinical_encounter): las reservas
+// activas de un profesional en [from, to) con su estado — PENDING, CONFIRMED, COMPLETED, NO_SHOW y CONFLICTED. Las
+// CANCELLED, EXPIRED y RESCHEDULED no forman parte de la agenda.
+// Ejemplo: resIDs, patIDs, svcIDs, starts, statuses, err := m.ActiveByStaff("t1", "doc1", from, to)
+func (m *Module) ActiveByStaff(tenantID, staffID string, from, to time.Unix) (reservationIDs, patientIDs, serviceIDs []string, startTimes []time.Unix, statuses []string, err error) {
 	if err := m.own(tenantID); err != nil {
-		return nil, nil, nil, nil, nil
+		return nil, nil, nil, nil, nil, nil
 	}
 	list, err := m.repoOn(m.store).ListReservationsByStaff(staffID, from, to)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	for _, r := range list {
-		if r.Status == StatusConfirmed {
-			reservationIDs = append(reservationIDs, r.Id)
-			patientIDs = append(patientIDs, r.ClientId)
-			serviceIDs = append(serviceIDs, r.ServiceIdsnapshot)
-			startTimes = append(startTimes, time.Unix(r.ReservationTime))
+		if !inAgenda(r.Status) {
+			continue
 		}
+		reservationIDs = append(reservationIDs, r.Id)
+		patientIDs = append(patientIDs, r.ClientId)
+		serviceIDs = append(serviceIDs, r.ServiceIdsnapshot)
+		startTimes = append(startTimes, time.Unix(r.ReservationTime))
+		statuses = append(statuses, r.Status)
 	}
-	return reservationIDs, patientIDs, serviceIDs, startTimes, nil
+	return reservationIDs, patientIDs, serviceIDs, startTimes, statuses, nil
+}
+
+// inAgenda dice si una reserva con ese estado ocupa la agenda del profesional.
+func inAgenda(status string) bool {
+	switch status {
+	case StatusPending, StatusConfirmed, StatusCompleted, StatusNoShow, StatusConflicted:
+		return true
+	}
+	return false
 }
